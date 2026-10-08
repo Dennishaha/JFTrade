@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK 审批并发与续跑租约
+## 当前批次：ADK shutdown 与租约释放
 
-内置 agent 配置批次之后，租约夹具已改为受控失效及 worker 同步信号，保留 takeover、UNKNOWN、禁止重复执行和旧 fencing token 拒绝断言。新机器定向 12 passed，quick 2353 passed，完整 Rust 3945 passed、0 failed、2 skipped；五条 Go 原测试复核中纠正一条证据不足的 exact，当前 1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+审批并发批次已完成，当前 1662 exact、2151 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 逐项复核 runner_approval_concurrency 的重复决议、sync/async sibling、local input lease 等待及预取消五条；直接验证生产 mutation、continuation supervisor、SQLite lease 和工具执行 owner。
-- [ ] 并发批准全部 sibling 后检查 COMPLETED 和每工具单次执行；重复批准不能阻塞在途工具；局部租约释放和取消须有真实 owner 证据，原 sync/private helper 差异保持显式。
+- [ ] 复核 runtime_execution_lease_boundaries 的176/234及runner_continuation_boundaries的314/347/406五条；使用生产shutdown、执行准入和SQLite租约释放owner，纠正generic supervisor推断。
+- [ ] 受控阻塞真实租约释放，验证先取消、释放前不返回、释放后owner清空；验证closing/closed准入拒绝和零租约写入，原nullable context等差异保留显式边界。
 - [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK 审批并发与续跑租约
+
+- [x] 五条冻结runner_approval_concurrency原测试与blob SHA复核。真实ProductionAdkPort、continuation supervisor与SQLite lease覆盖重复批准在工具阻塞时返回、并发sibling完成且每工具一次、local lease释放前零执行及预取消。
+- [x] async sibling和local lease等待升exact；同步duplicate/sibling的旧domain-only exact纠正为partial，保留原同步返回时机及私有map差异。预取消由真实lease等待owner证明，净数量不变：1662 exact、2151 partial、638 boundary。
+- [x] 错误取消分类与macOS accepted socket继承nonblocking的两份fixture失败receipt保留；后者包含SIGABRT/单个LEAK，修正后最终定向10 passed，无LEAK。未放宽原2秒完成或50ms禁止提前执行断言，50ms不驱动30秒租约过期。
+- [x] quick2369 Rust/98 Pine passed，现场完整Rust3961 passed、0 failed、2 skipped，static/七类replay通过且退出0；1015个Rust文件从最终定向到完整门禁指纹不变。ordinary/strict/anchor/context和diff复核后提交，继续shutdown批次。
 
 ## 已验证批次：ADK heartbeat 与 provider 取消
 

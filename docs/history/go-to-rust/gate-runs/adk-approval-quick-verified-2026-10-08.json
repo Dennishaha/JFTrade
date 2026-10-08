@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T11:53:23.412993+00:00",
+  "verifiedCommit": "3e7189e4337d369014b41bcf613cd0f0d90ea7c0",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-approval-quick-20261008.log",
+  "rawOutputSha256": "8fcfc00eed68b617b91a9d1a439701309c584706ba6cf1c9820bfc9cffca4325",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2369,
+    "passed": 2369,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 101.547
+  },
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs": "c724c8c23327aa36f9d1557be0276c8e219cfcffef4f3a47fb29fb1ac515f24d",
+    "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs": "cde1eb04447701affd32b63b824f13eb1d74c3afc62beda4891c715ae1952c5c"
+  },
+  "rustSourceFingerprintSha256": "f0945291dd95c305ebe782a37d80fc64244082792bf9db948672a02450b86098",
+  "frozenRustFiles": 1015,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Sync duplicate/sibling ResolveApproval return timing and private map semantics remain partial; whole parity goal active."
+}

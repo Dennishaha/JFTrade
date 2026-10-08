@@ -97823,11 +97823,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_approval_concurrency_test.go:12:TestConcurrentResolveApprovalExecutesApprovedToolOnce": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe",
-      "conclusion": "function_exact：Go 断言并发 ResolveApproval 只执行被批准工具一次（第二次决议冲突安全）。Rust 的 approval_resolution_is_idempotent_and_conflict_safe 断言审批决议幂等且冲突安全（唯一执行），逐条对应并发审批去重。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs::approval_resolution_is_idempotent_and_conflict_safe; crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_duplicate_approval_returns_while_the_single_tool_execution_is_blocked",
+      "conclusion": "partial：2026-10-08冻结Go原断言与生产owner复核。真实ProductionAdkPort批准与生产continuation owner：工具已开始并被信号阻塞时，重复批准2秒内成功返回且counter=1；放行后COMPLETED且counter仍1，supervisor barrier结束、无活动task。 剩余：原Go同步ResolveApproval的首个调用直到工具完成才返回，完成后approvalRuns条目移除；Rust mutation是异步续跑，不能由domain idempotency或本批async envelope证明该同步返回/私有map分支。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
         "line": 12,
@@ -97843,165 +97843,27 @@
             "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
             "goLine": 12,
             "rustFile": "crates/jftrade-assistant/tests/assistant_claims_runtime_contracts.rs",
-            "rustLine": 465
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言并发 ResolveApproval 只执行被批准工具一次（第二次决议冲突安全）。Rust 的 approval_resolution_is_idempotent_and_conflict_safe 断言审批决议幂等且冲突安全（唯一执行），逐条对应并发审批去重。"
-        ],
-        "uncovered": [],
-        "source": "reviewed"
-      },
-      "verification": {
-        "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
-        ],
-        "testFilter": [
-          "approval_resolution_is_idempotent_and_conflict_safe"
-        ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
-      },
-      "risk": "normal",
-      "owner": "assistant_workflow",
-      "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
-      "blockedBy": [],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言并发 ResolveApproval 只执行被批准工具一次（第二次决议冲突安全）。Rust 的 approval_resolution_is_idempotent_and_conflict_safe 断言审批决议幂等且冲突安全（唯一执行），逐条对应并发审批去重。"
-      ],
-      "uncoveredAssertions": [],
-      "boundaryReason": null
-    },
-    "internal/assistant/engine/runner_approval_concurrency_test.go:92:TestConcurrentSiblingApprovalsAreMergedBeforeContinuation": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-assistant/src/runtime.rs::sibling_approvals_resume_once_after_every_decision",
-      "conclusion": "function_exact：Go 断言并发结清同批兄弟审批后运行完成且每个工具各执行一次。Rust 的 sibling_approvals_resume_once_after_every_decision 断言兄弟审批在全部决议后只续跑一次，逐条对应“兄弟审批合并后继续”。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-assistant --all-targets --locked",
-      "evidence_type": "function_exact",
-      "source": {
-        "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
-        "line": 92,
-        "test": "TestConcurrentSiblingApprovalsAreMergedBeforeContinuation",
-        "blobSha": "98c1c023cc22db20b97029a39e17b45b3f985c60"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-assistant/src/runtime.rs",
-          "test": "sibling_approvals_resume_once_after_every_decision",
-          "crate": "jftrade-assistant",
-          "anchor": {
-            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
-            "goLine": 92,
-            "rustFile": "crates/jftrade-assistant/src/runtime.rs",
-            "rustLine": 728
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言并发结清同批兄弟审批后运行完成且每个工具各执行一次。Rust 的 sibling_approvals_resume_once_after_every_decision 断言兄弟审批在全部决议后只续跑一次，逐条对应“兄弟审批合并后继续”。"
-        ],
-        "uncovered": [],
-        "source": "reviewed"
-      },
-      "verification": {
-        "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
-        ],
-        "testFilter": [
-          "sibling_approvals_resume_once_after_every_decision"
-        ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
-      },
-      "risk": "normal",
-      "owner": "assistant_workflow",
-      "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
-      "blockedBy": [],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言并发结清同批兄弟审批后运行完成且每个工具各执行一次。Rust 的 sibling_approvals_resume_once_after_every_decision 断言兄弟审批在全部决议后只续跑一次，逐条对应“兄弟审批合并后继续”。"
-      ],
-      "uncoveredAssertions": [],
-      "boundaryReason": null
-    },
-    "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation；crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
-      "conclusion": "partial：2026-10-08 冻结 Go 原断言复核。Production approval mutation preserves APPROVED/RUNNING when the continuation is already claimed; deterministic SQLite takeover prevents duplicate side effects and stale commits. 剩余：Missing concurrent approval of every sibling through the production runtime, eventual COMPLETED and exactly one execution per approved sibling; the conflict stub plus unrelated lease takeover do not close these assertions.",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)'",
-      "evidence_type": "partial",
-      "source": {
-        "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
-        "line": 119,
-        "test": "TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation",
-        "blobSha": "98c1c023cc22db20b97029a39e17b45b3f985c60"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-          "test": "adk_approval_wakeup_accepts_an_already_claimed_continuation",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
-            "goLine": 119,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
-            "rustLine": 5761
+            "rustLine": 463
           }
         },
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-          "test": "fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+          "file": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+          "test": "production_duplicate_approval_returns_while_the_single_tool_execution_is_blocked",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
-            "goLine": 119,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 162
+            "goLine": 12,
+            "rustFile": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+            "rustLine": 224
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Production approval mutation preserves APPROVED/RUNNING when the continuation is already claimed; deterministic SQLite takeover prevents duplicate side effects and stale commits."
+          "真实ProductionAdkPort批准与生产continuation owner：工具已开始并被信号阻塞时，重复批准2秒内成功返回且counter=1；放行后COMPLETED且counter仍1，supervisor barrier结束、无活动task。"
         ],
         "uncovered": [
-          "Missing concurrent approval of every sibling through the production runtime, eventual COMPLETED and exactly one execution per approved sibling; the conflict stub plus unrelated lease takeover do not close these assertions."
+          "原Go同步ResolveApproval的首个调用直到工具完成才返回，完成后approvalRuns条目移除；Rust mutation是异步续跑，不能由domain idempotency或本批async envelope证明该同步返回/私有map分支。"
         ],
         "source": "reviewed"
       },
@@ -98010,7 +97872,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T10:13:53Z",
+        "verifiedAt": "2026-10-08T11:46:33Z",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -98028,14 +97890,14 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or binary(adk_lease_fencing_takeover_edge_conditions) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(run_lease_expiry_fencing_and_stale_release_are_rejected) or test(fail_closed_stale_claim_becomes_indeterminate)"
+          "test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)"
         ],
         "testFilter": [
-          "adk_approval_wakeup_accepts_an_already_claimed_continuation",
-          "fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit"
+          "approval_resolution_is_idempotent_and_conflict_safe",
+          "production_duplicate_approval_returns_while_the_single_tool_execution_is_blocked"
         ],
-        "verifiedCommit": "88d94643ecd49c8e26ddba4e36176acf0b82414f",
-        "receiptDigest": "sha256:2160fe5ae994ab2fe90082d1b1829f3135c0c9e223b0f69e583d590d80ad5dd6"
+        "verifiedCommit": "3e7189e4337d369014b41bcf613cd0f0d90ea7c0",
+        "receiptDigest": "sha256:165ff2b55576171a95566dc6a996f013e41e92abfccf7e9de6738202dcff972f"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -98046,19 +97908,211 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Production approval mutation preserves APPROVED/RUNNING when the continuation is already claimed; deterministic SQLite takeover prevents duplicate side effects and stale commits."
+        "真实ProductionAdkPort批准与生产continuation owner：工具已开始并被信号阻塞时，重复批准2秒内成功返回且counter=1；放行后COMPLETED且counter仍1，supervisor barrier结束、无活动task。"
       ],
       "uncoveredAssertions": [
-        "Missing concurrent approval of every sibling through the production runtime, eventual COMPLETED and exactly one execution per approved sibling; the conflict stub plus unrelated lease takeover do not close these assertions."
+        "原Go同步ResolveApproval的首个调用直到工具完成才返回，完成后approvalRuns条目移除；Rust mutation是异步续跑，不能由domain idempotency或本批async envelope证明该同步返回/私有map分支。"
       ],
       "boundaryReason": null
     },
-    "internal/assistant/engine/runner_approval_concurrency_test.go:154:TestAsyncApprovalWaitsForLocalInputContinuationLease": {
+    "internal/assistant/engine/runner_approval_concurrency_test.go:92:TestConcurrentSiblingApprovalsAreMergedBeforeContinuation": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_releases_claims_without_extra_initialization",
-      "conclusion": "partial：Go 断言异步审批续跑必须等待本地输入续跑租约释放（持有时不执行工具、释放后完成）。Rust 的 continuation claim 排他与释放由 challenge_continuation_supervisor_claims_are_exclusive_and_released（runner_continuation_boundaries_test.go:11 的等价证据）与 challenge_continuation_supervisor_releases_claims_without_extra_initialization 覆盖；Go 的“本地输入租约”专用闸门在 Rust 中并入同一 supervisor claim。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-assistant/src/runtime.rs::sibling_approvals_resume_once_after_every_decision; crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_concurrent_sibling_approvals_complete_with_one_execution_per_tool",
+      "conclusion": "partial：2026-10-08冻结Go原断言与生产owner复核。并发批准两条sibling均无error/APPROVED，生产worker最终COMPLETED、adk_confirmation_resolved，每个真实调用的fixture外部工具恰好一次；domain sibling决议证据也本机复跑。 剩余：原同步ResolveApproval全部调用返回后立即查询就必须COMPLETED；Rust mutation返回后后台完成，本批显式等待终态，不闭合原同步返回时机。纠正domain-only旧exact。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)'",
       "evidence_type": "partial",
+      "source": {
+        "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
+        "line": 92,
+        "test": "TestConcurrentSiblingApprovalsAreMergedBeforeContinuation",
+        "blobSha": "98c1c023cc22db20b97029a39e17b45b3f985c60"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-assistant/src/runtime.rs",
+          "test": "sibling_approvals_resume_once_after_every_decision",
+          "crate": "jftrade-assistant",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 92,
+            "rustFile": "crates/jftrade-assistant/src/runtime.rs",
+            "rustLine": 726
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+          "test": "production_concurrent_sibling_approvals_complete_with_one_execution_per_tool",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 92,
+            "rustFile": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+            "rustLine": 269
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "并发批准两条sibling均无error/APPROVED，生产worker最终COMPLETED、adk_confirmation_resolved，每个真实调用的fixture外部工具恰好一次；domain sibling决议证据也本机复跑。"
+        ],
+        "uncovered": [
+          "原同步ResolveApproval全部调用返回后立即查询就必须COMPLETED；Rust mutation返回后后台完成，本批显式等待终态，不闭合原同步返回时机。纠正domain-only旧exact。"
+        ],
+        "source": "reviewed"
+      },
+      "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T11:46:33Z",
+        "argv": [
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)"
+        ],
+        "testFilter": [
+          "sibling_approvals_resume_once_after_every_decision",
+          "production_concurrent_sibling_approvals_complete_with_one_execution_per_tool"
+        ],
+        "verifiedCommit": "3e7189e4337d369014b41bcf613cd0f0d90ea7c0",
+        "receiptDigest": "sha256:165ff2b55576171a95566dc6a996f013e41e92abfccf7e9de6738202dcff972f"
+      },
+      "risk": "normal",
+      "owner": "assistant_workflow",
+      "priority": "P2",
+      "nextAction": "close_production_owner_assertions",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
+        "并发批准两条sibling均无error/APPROVED，生产worker最终COMPLETED、adk_confirmation_resolved，每个真实调用的fixture外部工具恰好一次；domain sibling决议证据也本机复跑。"
+      ],
+      "uncoveredAssertions": [
+        "原同步ResolveApproval全部调用返回后立即查询就必须COMPLETED；Rust mutation返回后后台完成，本批显式等待终态，不闭合原同步返回时机。纠正domain-only旧exact。"
+      ],
+      "boundaryReason": null
+    },
+    "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation": {
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation; crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit; crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_concurrent_sibling_approvals_complete_with_one_execution_per_tool",
+      "conclusion": "function_exact：2026-10-08冻结Go原断言与生产owner复核。同时放行全部sibling批准，ProductionAdkPort与真实ProductionAdkChatRuntime接受全部决议无error，2秒内durable run为COMPLETED，每工具一次（合计等于pending数），同一continuation supervisor/barrier退出；原async全部断言闭合。既有claimed envelope/takeover只支持各自的子行为。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)'",
+      "evidence_type": "function_exact",
+      "source": {
+        "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
+        "line": 119,
+        "test": "TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation",
+        "blobSha": "98c1c023cc22db20b97029a39e17b45b3f985c60"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
+          "test": "adk_approval_wakeup_accepts_an_already_claimed_continuation",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 119,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs",
+            "rustLine": 5757
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
+          "test": "fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 119,
+            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
+            "rustLine": 162
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+          "test": "production_concurrent_sibling_approvals_complete_with_one_execution_per_tool",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 119,
+            "rustFile": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+            "rustLine": 270
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "同时放行全部sibling批准，ProductionAdkPort与真实ProductionAdkChatRuntime接受全部决议无error，2秒内durable run为COMPLETED，每工具一次（合计等于pending数），同一continuation supervisor/barrier退出；原async全部断言闭合。既有claimed envelope/takeover只支持各自的子行为。"
+        ],
+        "uncovered": [],
+        "source": "reviewed"
+      },
+      "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T11:46:33Z",
+        "argv": [
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)"
+        ],
+        "testFilter": [
+          "adk_approval_wakeup_accepts_an_already_claimed_continuation",
+          "fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+          "production_concurrent_sibling_approvals_complete_with_one_execution_per_tool"
+        ],
+        "verifiedCommit": "3e7189e4337d369014b41bcf613cd0f0d90ea7c0",
+        "receiptDigest": "sha256:165ff2b55576171a95566dc6a996f013e41e92abfccf7e9de6738202dcff972f"
+      },
+      "risk": "normal",
+      "owner": "assistant_workflow",
+      "priority": "P2",
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
+        "同时放行全部sibling批准，ProductionAdkPort与真实ProductionAdkChatRuntime接受全部决议无error，2秒内durable run为COMPLETED，每工具一次（合计等于pending数），同一continuation supervisor/barrier退出；原async全部断言闭合。既有claimed envelope/takeover只支持各自的子行为。"
+      ],
+      "uncoveredAssertions": [],
+      "boundaryReason": null
+    },
+    "internal/assistant/engine/runner_approval_concurrency_test.go:154:TestAsyncApprovalWaitsForLocalInputContinuationLease": {
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_releases_claims_without_extra_initialization; crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_approved_tool_waits_for_the_existing_local_run_lease_to_release",
+      "conclusion": "function_exact：2026-10-08冻结Go原断言与生产owner复核。真实进程owner RunLeaseGuard持有local lease；批准返回approval_resuming，实际continuation完成注册后原50ms观察窗口工具执行=0且完整lease未改。显式Drop释放后2秒内COMPLETED、adk_confirmation_resolved且工具一次；租约TTL仍30秒，50ms不驱动失效。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
         "line": 154,
@@ -98076,63 +98130,75 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
             "rustLine": 573
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+          "test": "production_approved_tool_waits_for_the_existing_local_run_lease_to_release",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 154,
+            "rustFile": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+            "rustLine": 311
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust continuation claim tests prove exclusive claims are released and do not require extra initialization."
+          "真实进程owner RunLeaseGuard持有local lease；批准返回approval_resuming，实际continuation完成注册后原50ms观察窗口工具执行=0且完整lease未改。显式Drop释放后2秒内COMPLETED、adk_confirmation_resolved且工具一次；租约TTL仍30秒，50ms不驱动失效。"
         ],
-        "uncovered": [
-          "The cited Rust evidence does not directly couple an asynchronous approval resume to a local input continuation lease or prove tools wait until that lease is released."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T11:46:33Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)"
         ],
         "testFilter": [
-          "challenge_continuation_supervisor_releases_claims_without_extra_initialization"
+          "challenge_continuation_supervisor_releases_claims_without_extra_initialization",
+          "production_approved_tool_waits_for_the_existing_local_run_lease_to_release"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "3e7189e4337d369014b41bcf613cd0f0d90ea7c0",
+        "receiptDigest": "sha256:165ff2b55576171a95566dc6a996f013e41e92abfccf7e9de6738202dcff972f"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust continuation claim tests prove exclusive claims are released and do not require extra initialization."
+        "真实进程owner RunLeaseGuard持有local lease；批准返回approval_resuming，实际continuation完成注册后原50ms观察窗口工具执行=0且完整lease未改。显式Drop释放后2秒内COMPLETED、adk_confirmation_resolved且工具一次；租约TTL仍30秒，50ms不驱动失效。"
       ],
-      "uncoveredAssertions": [
-        "The cited Rust evidence does not directly couple an asynchronous approval resume to a local input continuation lease or prove tools wait until that lease is released."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_approval_concurrency_test.go:191:TestApprovalLeaseWaitStopsWhenRuntimeContextIsCancelled": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates",
-      "conclusion": "function_exact：Go 断言等待续跑租约时上下文取消返回 context.Canceled。Rust 的 challenge_continuation_supervisor_cancellation_signal_propagates 断言取消信号传播到等待方，逐条对应。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json --no-fail-fast -E 'test(provider_payload_sorts_tools_by_name_independent_of_agent_input_order) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(provider_probe_timeout_caps_configured_request_timeout) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(chat_creates_the_session_once_and_reuses_its_stored_title) or test(a_cancelled_run_audits_run_cancelled_and_terminates_once) or test(session_context_window_follows_the_composer_provider_override) or test(each_context_compaction_creates_the_next_current_revision) or test(session_context_read_reports_pressure_without_compacting) or test(model_context_autocompacts_before_the_provider_payload) or test(protected_tail_starts_at_the_earliest_unresolved_approval) or test(protected_tail_ignores_an_approval_with_a_durable_tool_outcome) or test(protected_tail_keeps_only_the_approval_that_is_still_pending) or test(session_context_ignores_handoff_segments_without_a_revision) or test(session_context_tracks_events_appended_after_a_compaction) or test(compaction_preserves_the_call_of_a_pending_approval) or test(test_adk_cascade_cleanup_removes_all_entities_across_three_databases) or test(adk_session_page_filters_by_agent_and_title_and_paginates) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(adk_approval_page_orders_by_latest_update_and_counts_filtered_rows) or test(chat_rejects_a_session_owned_by_a_different_agent) or test(cancelling_a_run_denies_its_pending_approvals) or test(adk_cancel_run_missing_is_the_dedicated_cancel_failure) or test(adk_resolve_approval_missing_returns_the_idempotent_empty_envelope) or test(adk_run_listing_filters_and_sorts_newest_first) or test(saved_provider_normalizes_the_request_timeout_on_write) or test(run_start_freezes_the_configured_run_timeout_from_settings) or test(resume_goal_run_restarts_a_timed_out_goal_with_a_fresh_settings_window) or test(expired_running_run_is_reconciled_to_timed_out_with_failed_tool_calls) or test(expired_runs_use_each_runs_own_timeout_window)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates; crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_lease_wait_precancellation_preserves_the_existing_owner",
+      "conclusion": "function_exact：2026-10-08冻结Go原断言与生产owner复核。真实生产acquire_run_lease_with_retry在local owner持租约、waiter预取消时立即返回精确499/CLIENT_DISCONNECTED分类和消息，完整原lease不变、工具零执行；直接证明等待取消路径，generic supervisor只保留信号传播子证据。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runner_approval_concurrency_test.go",
@@ -98149,41 +98215,59 @@
             "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
             "goLine": 191,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 755
+            "rustLine": 785
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+          "test": "production_lease_wait_precancellation_preserves_the_existing_owner",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_approval_concurrency_test.go",
+            "goLine": 191,
+            "rustFile": "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs",
+            "rustLine": 364
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言等待续跑租约时上下文取消返回 context.Canceled。Rust 的 challenge_continuation_supervisor_cancellation_signal_propagates 断言取消信号传播到等待方，逐条对应。"
+          "真实生产acquire_run_lease_with_retry在local owner持租约、waiter预取消时立即返回精确499/CLIENT_DISCONNECTED分类和消息，完整原lease不变、工具零执行；直接证明等待取消路径，generic supervisor只保留信号传播子证据。"
         ],
         "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T11:46:33Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_duplicate_approval_returns) or test(production_concurrent_sibling_approvals) or test(production_approved_tool_waits) or test(production_lease_wait_precancellation) or test(adk_approval_wakeup_accepts_an_already_claimed_continuation) or test(fail_closed_lease_takeover) or test(approval_resolution_is_idempotent_and_conflict_safe) or test(sibling_approvals_resume_once_after_every_decision) or test(challenge_continuation_supervisor_releases_claims_without_extra_initialization) or test(challenge_continuation_supervisor_cancellation_signal_propagates)"
         ],
         "testFilter": [
-          "challenge_continuation_supervisor_cancellation_signal_propagates"
+          "challenge_continuation_supervisor_cancellation_signal_propagates",
+          "production_lease_wait_precancellation_preserves_the_existing_owner"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "3e7189e4337d369014b41bcf613cd0f0d90ea7c0",
+        "receiptDigest": "sha256:165ff2b55576171a95566dc6a996f013e41e92abfccf7e9de6738202dcff972f"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -98192,7 +98276,7 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言等待续跑租约时上下文取消返回 context.Canceled。Rust 的 challenge_continuation_supervisor_cancellation_signal_propagates 断言取消信号传播到等待方，逐条对应。"
+        "真实生产acquire_run_lease_with_retry在local owner持租约、waiter预取消时立即返回精确499/CLIENT_DISCONNECTED分类和消息，完整原lease不变、工具零执行；直接证明等待取消路径，generic supervisor只保留信号传播子证据。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -349639,7 +349723,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07：审批五条转为各自真实 owner；剩余旧关系保留此前 allowed 审核结论，仅移除本批引用，未新增等价范围。"
+      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::restart_keeps_completed_nodes_and_the_inflight_request_identity": {
       "referenceCount": 2,
@@ -350259,7 +350343,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: both references remain partial. Deterministic takeover proves at-most-once side effects, not callback delta serialization or concurrent sibling approval completion."
+      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
     },
     "crates/jftrade-assistant/tests/run_terminal_recovery_contracts.rs::transient_provider_failure_round_trips_and_clears_on_recovery": {
       "referenceCount": 1,
@@ -350791,11 +350875,12 @@
       "referenceKeys": [
         "internal/assistant/engine/runner_approval_concurrency_test.go:12:TestConcurrentResolveApprovalExecutesApprovedToolOnce",
         "internal/assistant/engine/workflow_agent_test.go:21:TestGoogleADKWorkflowResumeResponsesMatchToolConfirmationByInterruptID",
-        "internal/assistant/engine/workflow_agent_test.go:99:TestGoogleADKWorkflowResumeResponsesIgnoreAlreadyConsumedInterrupt",
-        "internal/assistant/engine/workflow_agent_test.go:274:TestGoogleADKWorkflowNativeAgentNodeResumesToolConfirmation"
+        "internal/assistant/engine/workflow_agent_test.go:274:TestGoogleADKWorkflowNativeAgentNodeResumesToolConfirmation",
+        "internal/assistant/engine/workflow_agent_test.go:99:TestGoogleADKWorkflowResumeResponsesIgnoreAlreadyConsumedInterrupt"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_approval_wakeup_accepts_an_already_claimed_continuation": {
       "referenceCount": 2,
@@ -350805,7 +350890,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: sibling approval reference is partial; this conflict stub proves wakeup envelope preservation only. Other reference conclusions remain unchanged."
+      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_releases_claims_without_extra_initialization": {
       "referenceCount": 2,
@@ -350814,7 +350899,8 @@
         "internal/assistant/engine/runner_continuation_boundaries_test.go:63:TestContinuationQueuesInitializeWithoutRuntimeBackgroundContext"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates": {
       "referenceCount": 2,
@@ -350824,7 +350910,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 reuse audit: shared Rust owner behavior was reviewed against every referenced Go contract; all referencing exact rows have reviewed assertions and passed receipts."
+      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
     },
     "crates/jftrade-engine/src/product_adk_session_context_tests.rs::a_rejected_compaction_records_the_failed_notice": {
       "referenceCount": 2,
@@ -365732,6 +365818,43 @@
       ],
       "allowed": true,
       "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_duplicate_approval_returns_while_the_single_tool_execution_is_blocked": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/runner_approval_concurrency_test.go:12:TestConcurrentResolveApprovalExecutesApprovedToolOnce"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: real approval owner supports async completion/counts and local lease waiting; synchronous sibling/duplicate return semantics remain partial where listed."
+    },
+    "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_concurrent_sibling_approvals_complete_with_one_execution_per_tool": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/assistant/engine/runner_approval_concurrency_test.go:119:TestConcurrentSiblingAsyncApprovalsEnqueueOneContinuation",
+        "internal/assistant/engine/runner_approval_concurrency_test.go:92:TestConcurrentSiblingApprovalsAreMergedBeforeContinuation"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: real approval owner supports async completion/counts and local lease waiting; synchronous sibling/duplicate return semantics remain partial where listed."
+    },
+    "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_approved_tool_waits_for_the_existing_local_run_lease_to_release": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/runner_approval_concurrency_test.go:154:TestAsyncApprovalWaitsForLocalInputContinuationLease"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: real approval owner supports async completion/counts and local lease waiting; synchronous sibling/duplicate return semantics remain partial where listed."
+    },
+    "crates/jftrade-engine/src/product_adk_approval_concurrency_owner_tests.rs::production_lease_wait_precancellation_preserves_the_existing_owner": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/runner_approval_concurrency_test.go:191:TestApprovalLeaseWaitStopsWhenRuntimeContextIsCancelled"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: real approval owner supports async completion/counts and local lease waiting; synchronous sibling/duplicate return semantics remain partial where listed."
     }
   }
 }

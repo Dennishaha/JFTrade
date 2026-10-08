@@ -1167,3 +1167,6 @@ fn best_effort_audit_reports_nothing_when_the_insert_succeeds_or_was_already_rec
 
 #[path = "product_adk_run_lease_owner_tests.rs"]
 mod run_lease;
+
+#[path = "product_adk_approval_concurrency_owner_tests.rs"]
+mod approval_concurrency;
