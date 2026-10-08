@@ -51762,9 +51762,9 @@
     },
     "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:18:TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs; crates/jftrade-api/src/observability.rs::request_observability_matches_go_shape_and_bounded_order",
-      "conclusion": "partial：Go 断言通知文案格式化（%s/Stringer）与可选安全字段 wire 语义；Rust 通知文案由执行投影端口生成，可选字段的 JSON 形状由 serde skip 规则保证，但没有逐字段对照用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/src/product_calendar_notification_tests.rs::calendar_notification_normalizes_levels_titles_and_empty_messages",
+      "conclusion": "partial：Calendar 无 title 不通知；success/error/WARN/unknown 正确映射；title trim 与原 US/nyse 中文 fallback 逐值正确。；BBGO printf/Stringer/generic/error 格式矩阵及全部可选 Futu quote/security nil helper 投影尚未复现。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go",
@@ -51774,23 +51774,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-api/src/observability.rs",
-          "test": "request_observability_matches_go_shape_and_bounded_order",
-          "crate": "jftrade-api",
+          "file": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+          "test": "calendar_notification_normalizes_levels_titles_and_empty_messages",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go",
             "goLine": 18,
-            "rustFile": "crates/jftrade-api/src/observability.rs",
-            "rustLine": 374
+            "rustFile": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+            "rustLine": 79
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言通知文案格式化（%s/Stringer）与可选安全字段 wire 语义；"
+          "Calendar 无 title 不通知；success/error/WARN/unknown 正确映射；title trim 与原 US/nyse 中文 fallback 逐值正确。"
         ],
         "uncovered": [
-          "Rust 通知文案由执行投影端口生成，可选字段的 JSON 形状由 serde skip 规则保证，但没有逐字段对照用例。"
+          "BBGO printf/Stringer/generic/error 格式矩阵及全部可选 Futu quote/security nil helper 投影尚未复现。"
         ],
         "source": "reviewed"
       },
@@ -51801,23 +51801,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)"
         ],
         "testFilter": [
-          "request_observability_matches_go_shape_and_bounded_order"
+          "calendar_notification_normalizes_levels_titles_and_empty_messages"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+        "verifiedAt": "2026-10-08T03:45:12Z",
+        "receiptDigest": "sha256:18a614d352d120ff97631b693557a3c14d860884613c7c28f6fda883232a5322"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -51828,10 +51833,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言通知文案格式化（%s/Stringer）与可选安全字段 wire 语义；"
+        "Calendar 无 title 不通知；success/error/WARN/unknown 正确映射；title trim 与原 US/nyse 中文 fallback 逐值正确。"
       ],
       "uncoveredAssertions": [
-        "Rust 通知文案由执行投影端口生成，可选字段的 JSON 形状由 serde skip 规则保证，但没有逐字段对照用例。"
+        "BBGO printf/Stringer/generic/error 格式矩阵及全部可选 Futu quote/security nil helper 投影尚未复现。"
       ],
       "boundaryReason": null
     },
@@ -52114,11 +52119,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/notification_sources_test.go:13:TestExchangeCalendarAlertRecordingHonorsNotificationSetting": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_calendar.rs; crates/jftrade-engine/src/product_production_assembly_tests.rs::production_calendar_manager_restores_settings_and_snapshots",
-      "conclusion": "partial：Rust 日历管理器按设置决定是否上报提醒（错误通知开关参与 manager settings），但没有“提醒记录受通知设置门控”的端到端断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_calendar_notification_tests.rs::calendar_alert_delivery_reads_the_current_persisted_notification_setting",
+      "conclusion": "function_exact：原 warn/fetch_failed 中文 alert 在默认设置下进入 LiveHub 一次；权威 store 保存原 false 开关后再次记录，重连历史只有原一条。；eventId/entityId/serverTime 与 payload id/at 信封完整。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/notification_sources_test.go",
         "line": 13,
@@ -52127,24 +52132,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "production_calendar_manager_restores_settings_and_snapshots",
+          "file": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+          "test": "calendar_alert_delivery_reads_the_current_persisted_notification_setting",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/notification_sources_test.go",
             "goLine": 13,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 2128
+            "rustFile": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+            "rustLine": 21
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 日历管理器按设置决定是否上报提醒（错误通知开关参与 manager settings），但没有“提醒记录受通知设置门控”的端到端断言。"
+          "原 warn/fetch_failed 中文 alert 在默认设置下进入 LiveHub 一次；权威 store 保存原 false 开关后再次记录，重连历史只有原一条。",
+          "eventId/entityId/serverTime 与 payload id/at 信封完整。"
         ],
-        "uncovered": [
-          "Rust 日历管理器按设置决定是否上报提醒（错误通知开关参与 manager settings），但没有“提醒记录受通知设置门控”的端到端断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -52154,98 +52158,114 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)"
         ],
         "testFilter": [
-          "production_calendar_manager_restores_settings_and_snapshots"
+          "calendar_alert_delivery_reads_the_current_persisted_notification_setting"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+        "verifiedAt": "2026-10-08T03:45:12Z",
+        "receiptDigest": "sha256:18a614d352d120ff97631b693557a3c14d860884613c7c28f6fda883232a5322"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 日历管理器按设置决定是否上报提醒（错误通知开关参与 manager settings），但没有“提醒记录受通知设置门控”的端到端断言。"
+        "原 warn/fetch_failed 中文 alert 在默认设置下进入 LiveHub 一次；权威 store 保存原 false 开关后再次记录，重连历史只有原一条。",
+        "eventId/entityId/serverTime 与 payload id/at 信封完整。"
       ],
-      "uncoveredAssertions": [
-        "Rust 日历管理器按设置决定是否上报提醒（错误通知开关参与 manager settings），但没有“提醒记录受通知设置门控”的端到端断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/notification_sources_test.go:46:TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_execution_notification_projector.rs",
-      "conclusion": "partial：Go 断言交易所日历提醒映射到通知的 source/category；Rust 通知投影端口承担分类，但没有日历来源的 source/category 断言。",
-      "command": "python3 - <<'PY'  # owner review: verify every remaining source-only/boundary row has explicit gap evidence\n...\nPY",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_calendar_notification_tests.rs::calendar_structure_alert_maps_its_notification_source_category_and_timestamp",
+      "conclusion": "function_exact：原 error/structure_changed 输入产生非空通知，level=error、source=exchange-calendars、category=market.calendar.source、at 非空且可解析。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/notification_sources_test.go",
         "line": 46,
         "test": "TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory",
         "blobSha": "64a29e5667a72093e3e70747c5806e3da3d6e810"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+          "test": "calendar_structure_alert_maps_its_notification_source_category_and_timestamp",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/servercore/notification_sources_test.go",
+            "goLine": 46,
+            "rustFile": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+            "rustLine": 57
+          }
+        }
+      ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言交易所日历提醒映射到通知的 source/category；"
+          "原 error/structure_changed 输入产生非空通知，level=error、source=exchange-calendars、category=market.calendar.source、at 非空且可解析。"
         ],
-        "uncovered": [
-          "Rust 通知投影端口承担分类，但没有日历来源的 source/category 断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
-          "python3",
-          "scripts/compatibility/verify_manual_mapping_evidence.py",
-          "--mapping",
-          "docs/history/go-to-rust/manual-test-mappings.json",
-          "--workspace-receipt",
-          "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final.json",
-          "--output",
-          "docs/history/go-to-rust/verification-receipts/manual-evidence-review-2026-10-03.json"
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-engine",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)"
         ],
         "testFilter": [
-          "owner_review_source_and_boundary_rows"
+          "calendar_structure_alert_maps_its_notification_source_category_and_timestamp"
         ],
-        "runnerVersion": "manual-evidence-review.v1",
-        "toolchain": "repository evidence verifier",
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-03T00:00:00Z",
-        "receiptDigest": "sha256:dabdaee2e19d689b2d81e39b431141ef5b34fb1ae09c5fe0feb8e30679a8e13e"
+        "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+        "verifiedAt": "2026-10-08T03:45:12Z",
+        "receiptDigest": "sha256:18a614d352d120ff97631b693557a3c14d860884613c7c28f6fda883232a5322"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言交易所日历提醒映射到通知的 source/category；"
+        "原 error/structure_changed 输入产生非空通知，level=error、source=exchange-calendars、category=market.calendar.source、at 非空且可解析。"
       ],
-      "uncoveredAssertions": [
-        "Rust 通知投影端口承担分类，但没有日历来源的 source/category 断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/notifications_lifecycle_test.go:17:TestServerCloseUnregistersOnlyItsBBGONotificationSink": {
@@ -229265,8 +229285,8 @@
     "internal/exchangecalendar/manager_test.go:543:TestManagerSourceAlertsDeduplicateAndRecover": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::source_alerts_deduplicate_repeats_and_record_recovery",
-      "conclusion": "function_exact：Go 的三次同因失败只产生一次告警，恢复时再产生 recovered 告警。测试断言首次失败后 health_state=unhealthy/health_fingerprint=hk_gov_1823_ical|HK|fetch_failed|temporary fetch failure/last_alert_status=triggered；第二次同因失败 fingerprint 与 last_alert_at 都不变（去重）；成功 probe 后 health_state=healthy、fingerprint 清空、last_error 清空、consecutive_failures=0、next_refresh_at=None，且 last_alert_status=recovered 且 last_alert_fingerprint 保留恢复前的 fingerprint。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -p jftrade-calendar --all-targets --locked --message-format libtest-json --no-fail-fast -E 'test(fetch_preserves_distinct_transport_parse_and_validation_failures) or test(parsers_tolerate_malformed_and_partial_authority_documents) or test(helper_contracts_match_the_go_authority_boundaries) or test(fetch_range_uses_the_market_local_boundaries) or test(authority_validator_handles_missing_anchors_and_sparse_years) or test(parsers_discard_incomplete_or_out_of_range_authority_rows) or test(source_alert_lifecycle_records_failures_deduplicates_and_recovers) or test(parsers_honor_narrow_fetch_windows_and_discard_impossible_dates) or test(default_registry_registers_the_four_official_providers_with_their_markets) or test(fetch_builds_snapshot_metadata_with_checksum_and_validity) or test(fetch_surfaces_a_provider_status_error) or test(fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator) or test(anchor_year_validator_allows_missing_future_year_coverage) or test(us_holiday_override_parser_reads_closed_and_early_close_rows) or test(nyse_parser_reads_multi_year_table_and_footnote_early_closes) or test(hk_holiday_override_parser_reads_english_list_items) or test(hk_ical_parser_reads_closed_days_from_events) or test(sse_parser_expands_closed_ranges_and_skips_makeup_days) or test(sse_parser_infers_a_cross_year_range) or test(cn_holiday_override_parser_reads_a_chinese_date_line) or test(holiday_override_parser_drops_dates_outside_the_fetch_window) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(manual_override_status_and_session_window_boundaries_match_go) or test(adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through) or test(source_availability_notes_and_refresh_target_folding_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(source_registry_normalization_and_duplicate_boundaries_match_go) or test(nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header) or test(probe_targets_one_market_while_warmup_follows_settings) or test(background_refresh_follows_an_auto_refresh_settings_reload) or test(persistence_failure_keeps_the_fetched_snapshot_served_from_memory) or test(status_reports_manual_and_remote_override_modes_distinctly) or test(failing_provider_falls_back_to_builtin_and_keeps_the_error_visible) or test(status_summaries_expose_snapshot_metadata_and_non_open_samples) or test(manual_override_reopens_a_day_instead_of_the_builtin_closure) or test(shared_mainland_snapshot_applies_to_shanghai_and_shenzhen) or test(stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules) or test(probe_marks_a_productive_provider_healthy_with_its_market_and_count) or test(source_alerts_deduplicate_repeats_and_record_recovery) or test(source_registry_honours_preferred_order_over_registration_order) or test(every_source_row_exposes_an_availability_note) or test(status_explains_why_builtin_rules_serve_a_market) or test(status_credits_the_covering_provider_on_a_regular_day) or test(injected_clock_is_normalized_to_utc_for_projected_timestamps) or test(refresh_and_probe_keep_per_source_health_truthful) or test(fresh_snapshot_without_a_special_day_is_coverage_not_override) or test(nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them)'",
+      "conclusion": "function_exact：原 HK 源两次同因失败后成功，sink 实际收到恰两条 fetch_failed/recovered；健康状态、去重时间和恢复前 fingerprint 均直接断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
@@ -229283,13 +229303,13 @@
             "goFile": "internal/exchangecalendar/manager_test.go",
             "goLine": 543,
             "rustFile": "crates/jftrade-calendar/tests/manager_lifecycle.rs",
-            "rustLine": 1804
+            "rustLine": 1824
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 的三次同因失败只产生一次告警，恢复时再产生 recovered 告警。测试断言首次失败后 health_state=unhealthy/health_fingerprint=hk_gov_1823_ical|HK|fetch_failed|temporary fetch failure/last_alert_status=triggered；第二次同因失败 fingerprint 与 last_alert_at 都不变（去重）；成功 probe 后 health_state=healthy、fingerprint 清空、last_error 清空、consecutive_failures=0、next_refresh_at=None，且 last_alert_status=recovered 且 last_alert_fingerprint 保留恢复前的 fingerprint。"
+          "原 HK 源两次同因失败后成功，sink 实际收到恰两条 fetch_failed/recovered；健康状态、去重时间和恢复前 fingerprint 均直接断言。"
         ],
         "uncovered": [],
         "source": "reviewed"
@@ -229301,78 +229321,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)"
         ],
         "testFilter": [
-          "fetch_preserves_distinct_transport_parse_and_validation_failures",
-          "parsers_tolerate_malformed_and_partial_authority_documents",
-          "helper_contracts_match_the_go_authority_boundaries",
-          "fetch_range_uses_the_market_local_boundaries",
-          "authority_validator_handles_missing_anchors_and_sparse_years",
-          "parsers_discard_incomplete_or_out_of_range_authority_rows",
-          "source_alert_lifecycle_records_failures_deduplicates_and_recovers",
-          "parsers_honor_narrow_fetch_windows_and_discard_impossible_dates",
-          "default_registry_registers_the_four_official_providers_with_their_markets",
-          "fetch_builds_snapshot_metadata_with_checksum_and_validity",
-          "fetch_surfaces_a_provider_status_error",
-          "fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator",
-          "anchor_year_validator_allows_missing_future_year_coverage",
-          "us_holiday_override_parser_reads_closed_and_early_close_rows",
-          "nyse_parser_reads_multi_year_table_and_footnote_early_closes",
-          "hk_holiday_override_parser_reads_english_list_items",
-          "hk_ical_parser_reads_closed_days_from_events",
-          "sse_parser_expands_closed_ranges_and_skips_makeup_days",
-          "sse_parser_infers_a_cross_year_range",
-          "cn_holiday_override_parser_reads_a_chinese_date_line",
-          "holiday_override_parser_drops_dates_outside_the_fetch_window",
-          "manager_lifecycle_and_market_lookup_boundaries_match_go",
-          "manual_override_status_and_session_window_boundaries_match_go",
-          "adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through",
-          "source_availability_notes_and_refresh_target_folding_match_go",
-          "cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
-          "source_registry_normalization_and_duplicate_boundaries_match_go",
-          "nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header",
-          "probe_targets_one_market_while_warmup_follows_settings",
-          "background_refresh_follows_an_auto_refresh_settings_reload",
-          "persistence_failure_keeps_the_fetched_snapshot_served_from_memory",
-          "status_reports_manual_and_remote_override_modes_distinctly",
-          "failing_provider_falls_back_to_builtin_and_keeps_the_error_visible",
-          "status_summaries_expose_snapshot_metadata_and_non_open_samples",
-          "manual_override_reopens_a_day_instead_of_the_builtin_closure",
-          "shared_mainland_snapshot_applies_to_shanghai_and_shenzhen",
-          "stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules",
-          "probe_marks_a_productive_provider_healthy_with_its_market_and_count",
-          "source_alerts_deduplicate_repeats_and_record_recovery",
-          "source_registry_honours_preferred_order_over_registration_order",
-          "every_source_row_exposes_an_availability_note",
-          "status_explains_why_builtin_rules_serve_a_market",
-          "status_credits_the_covering_provider_on_a_regular_day",
-          "injected_clock_is_normalized_to_utc_for_projected_timestamps",
-          "refresh_and_probe_keep_per_source_health_truthful",
-          "fresh_snapshot_without_a_special_day_is_coverage_not_override",
-          "nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them"
+          "source_alerts_deduplicate_repeats_and_record_recovery"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+        "verifiedAt": "2026-10-08T03:45:12Z",
+        "receiptDigest": "sha256:18a614d352d120ff97631b693557a3c14d860884613c7c28f6fda883232a5322"
       },
       "risk": "normal",
       "owner": "backtest_calendar",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
+      "nextAction": "maintain_behavioral_parity",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 的三次同因失败只产生一次告警，恢复时再产生 recovered 告警。测试断言首次失败后 health_state=unhealthy/health_fingerprint=hk_gov_1823_ical|HK|fetch_failed|temporary fetch failure/last_alert_status=triggered；第二次同因失败 fingerprint 与 last_alert_at 都不变（去重）；成功 probe 后 health_state=healthy、fingerprint 清空、last_error 清空、consecutive_failures=0、next_refresh_at=None，且 last_alert_status=recovered 且 last_alert_fingerprint 保留恢复前的 fingerprint。"
+        "原 HK 源两次同因失败后成功，sink 实际收到恰两条 fetch_failed/recovered；健康状态、去重时间和恢复前 fingerprint 均直接断言。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -229380,8 +229359,8 @@
     "internal/exchangecalendar/manager_test.go:613:TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-calendar/tests/manager_lifecycle.rs::network_timeout_variants_share_one_alert_fingerprint",
-      "conclusion": "partial（告警 sink 与节流语义差异）：Rust 现在断言三种 network timeout 变体归一为同一 fingerprint，且重复失败不刷新 last_alert_at；Go 还通过 alert sink 直接断言仅产生一条外部告警，Rust 只有状态投影无 alert-sink port，并额外有 24 小时退避门。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-futu -p jftrade-marketdata -p jftrade-trading -p jftrade-calendar -p jftrade-integration-marketdata-helper -p jftrade-settings -p jftrade-kernel -p jftrade-desktop -p jftrade-research -p jftrade-datamanagement -p jftrade-watchlist -p jftrade-store-settings-file -p jftrade-broker --all-targets --locked --no-fail-fast",
+      "conclusion": "partial：三种 timeout/cancel 变体同 fingerprint，sink 实际只有一条 fetch_failed，重复不刷新告警时间。；Rust refresh 仍有 Go 没有的退避门；测试推进 25h，不证明原同一时刻三次 refresh 均调用源。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-calendar -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/exchangecalendar/manager_test.go",
@@ -229398,18 +229377,16 @@
             "goFile": "internal/exchangecalendar/manager_test.go",
             "goLine": 613,
             "rustFile": "crates/jftrade-calendar/tests/manager_lifecycle.rs",
-            "rustLine": 1900
+            "rustLine": 1926
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "三种 network timeout/cancel 变体均归一为 nyse_official|US|fetch_failed|network_timeout_or_cancelled。",
-          "重复失败跨 24 小时推进后 last_alert_at 保持首轮值，状态层去重已直接断言。"
+          "三种 timeout/cancel 变体同 fingerprint，sink 实际只有一条 fetch_failed，重复不刷新告警时间。"
         ],
         "uncovered": [
-          "Go 通过 alert sink 直接断言外部告警列表长度为 1；Rust 没有 alert-sink port，只能用 durable source status 的 last_alert_at/fingerprint 投影验证。",
-          "Rust 的 24 小时 retry backoff 是 Go RefreshAll 没有的额外调度语义。"
+          "Rust refresh 仍有 Go 没有的退避门；测试推进 25h，不证明原同一时刻三次 refresh 均调用源。"
         ],
         "source": "reviewed"
       },
@@ -229420,39 +229397,42 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-calendar",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)"
         ],
         "testFilter": [
           "network_timeout_variants_share_one_alert_fingerprint"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+        "verifiedAt": "2026-10-08T03:45:12Z",
+        "receiptDigest": "sha256:18a614d352d120ff97631b693557a3c14d860884613c7c28f6fda883232a5322"
       },
       "risk": "high",
       "owner": "backtest_calendar",
       "priority": "P1",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "三种 network timeout/cancel 变体均归一为 nyse_official|US|fetch_failed|network_timeout_or_cancelled。",
-        "重复失败跨 24 小时推进后 last_alert_at 保持首轮值，状态层去重已直接断言。"
+        "三种 timeout/cancel 变体同 fingerprint，sink 实际只有一条 fetch_failed，重复不刷新告警时间。"
       ],
       "uncoveredAssertions": [
-        "Go 通过 alert sink 直接断言外部告警列表长度为 1；Rust 没有 alert-sink port，只能用 durable source status 的 last_alert_at/fingerprint 投影验证。",
-        "Rust 的 24 小时 retry backoff 是 Go RefreshAll 没有的额外调度语义。"
+        "Rust refresh 仍有 Go 没有的退避门；测试推进 25h，不证明原同一时刻三次 refresh 均调用源。"
       ],
       "boundaryReason": null
     },
@@ -229636,6 +229616,121 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 先注册 b 再注册 a，但 policy 偏好 a，OrderedSources 必须给出 [a, b]。Rust 的 ordered_source_ids 是私有方法，因此测试通过真实 refresh 路径观察顺序：新增 RecordingOrderSource fixture 记录被 fetch 的顺序，断言为 [a, b]。（原实现试探性地直接调用私有方法，编译失败后改为黑盒断言。）"
+      ],
+      "uncoveredAssertions": [],
+      "boundaryReason": null
+    },
+    "internal/exchangecalendar/source_json_test.go:10:TestSourceStatusJSONOmitsZeroTimes": {
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-calendar/src/sources.rs::tests::nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them",
+      "conclusion": "function_exact：Go 断言零值 SourceStatus 序列化后不含 lastSuccessAt/lastFailureAt/nextRefreshAt/lastSnapshotFetchedAt/lastProbeAt/lastProbeSuccessAt/lastProbeFailureAt/lastAlertAt，非零时间按 RFC3339（2026-06-23T09:30:00Z）输出。Rust 的 wire 投影对 Option<OffsetDateTime> 用 skip_serializing_if 省略零值，并在 sources.rs 模块测试中断言同名 8 个字段缺席与 RFC3339 形态。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -p jftrade-calendar --all-targets --locked --message-format libtest-json --no-fail-fast -E 'test(fetch_preserves_distinct_transport_parse_and_validation_failures) or test(parsers_tolerate_malformed_and_partial_authority_documents) or test(helper_contracts_match_the_go_authority_boundaries) or test(fetch_range_uses_the_market_local_boundaries) or test(authority_validator_handles_missing_anchors_and_sparse_years) or test(parsers_discard_incomplete_or_out_of_range_authority_rows) or test(source_alert_lifecycle_records_failures_deduplicates_and_recovers) or test(parsers_honor_narrow_fetch_windows_and_discard_impossible_dates) or test(default_registry_registers_the_four_official_providers_with_their_markets) or test(fetch_builds_snapshot_metadata_with_checksum_and_validity) or test(fetch_surfaces_a_provider_status_error) or test(fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator) or test(anchor_year_validator_allows_missing_future_year_coverage) or test(us_holiday_override_parser_reads_closed_and_early_close_rows) or test(nyse_parser_reads_multi_year_table_and_footnote_early_closes) or test(hk_holiday_override_parser_reads_english_list_items) or test(hk_ical_parser_reads_closed_days_from_events) or test(sse_parser_expands_closed_ranges_and_skips_makeup_days) or test(sse_parser_infers_a_cross_year_range) or test(cn_holiday_override_parser_reads_a_chinese_date_line) or test(holiday_override_parser_drops_dates_outside_the_fetch_window) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(manual_override_status_and_session_window_boundaries_match_go) or test(adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through) or test(source_availability_notes_and_refresh_target_folding_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(source_registry_normalization_and_duplicate_boundaries_match_go) or test(nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header) or test(probe_targets_one_market_while_warmup_follows_settings) or test(background_refresh_follows_an_auto_refresh_settings_reload) or test(persistence_failure_keeps_the_fetched_snapshot_served_from_memory) or test(status_reports_manual_and_remote_override_modes_distinctly) or test(failing_provider_falls_back_to_builtin_and_keeps_the_error_visible) or test(status_summaries_expose_snapshot_metadata_and_non_open_samples) or test(manual_override_reopens_a_day_instead_of_the_builtin_closure) or test(shared_mainland_snapshot_applies_to_shanghai_and_shenzhen) or test(stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules) or test(probe_marks_a_productive_provider_healthy_with_its_market_and_count) or test(source_alerts_deduplicate_repeats_and_record_recovery) or test(source_registry_honours_preferred_order_over_registration_order) or test(every_source_row_exposes_an_availability_note) or test(status_explains_why_builtin_rules_serve_a_market) or test(status_credits_the_covering_provider_on_a_regular_day) or test(injected_clock_is_normalized_to_utc_for_projected_timestamps) or test(refresh_and_probe_keep_per_source_health_truthful) or test(fresh_snapshot_without_a_special_day_is_coverage_not_override) or test(nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them)'",
+      "evidence_type": "function_exact",
+      "source": {
+        "file": "internal/exchangecalendar/source_json_test.go",
+        "line": 10,
+        "test": "TestSourceStatusJSONOmitsZeroTimes",
+        "blobSha": "6839d6caafdba0be97b9ac17c93b38d78e2a05bc"
+      },
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-calendar/src/sources.rs",
+          "test": "nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them",
+          "crate": "jftrade-calendar",
+          "anchor": {
+            "goFile": "internal/exchangecalendar/source_json_test.go",
+            "goLine": 10,
+            "rustFile": "crates/jftrade-calendar/src/sources.rs",
+            "rustLine": 408
+          }
+        }
+      ],
+      "assertionCoverage": {
+        "covered": [
+          "function_exact：Go 断言零值 SourceStatus 序列化后不含 lastSuccessAt/lastFailureAt/nextRefreshAt/lastSnapshotFetchedAt/lastProbeAt/lastProbeSuccessAt/lastProbeFailureAt/lastAlertAt，非零时间按 RFC3339（2026-06-23T09:30:00Z）输出。Rust 的 wire 投影对 Option<OffsetDateTime> 用 skip_serializing_if 省略零值，并在 sources.rs 模块测试中断言同名 8 个字段缺席与 RFC3339 形态。"
+        ],
+        "uncovered": [],
+        "source": "reviewed"
+      },
+      "verification": {
+        "argv": [
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "--workspace",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast"
+        ],
+        "testFilter": [
+          "fetch_preserves_distinct_transport_parse_and_validation_failures",
+          "parsers_tolerate_malformed_and_partial_authority_documents",
+          "helper_contracts_match_the_go_authority_boundaries",
+          "fetch_range_uses_the_market_local_boundaries",
+          "authority_validator_handles_missing_anchors_and_sparse_years",
+          "parsers_discard_incomplete_or_out_of_range_authority_rows",
+          "source_alert_lifecycle_records_failures_deduplicates_and_recovers",
+          "parsers_honor_narrow_fetch_windows_and_discard_impossible_dates",
+          "default_registry_registers_the_four_official_providers_with_their_markets",
+          "fetch_builds_snapshot_metadata_with_checksum_and_validity",
+          "fetch_surfaces_a_provider_status_error",
+          "fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator",
+          "anchor_year_validator_allows_missing_future_year_coverage",
+          "us_holiday_override_parser_reads_closed_and_early_close_rows",
+          "nyse_parser_reads_multi_year_table_and_footnote_early_closes",
+          "hk_holiday_override_parser_reads_english_list_items",
+          "hk_ical_parser_reads_closed_days_from_events",
+          "sse_parser_expands_closed_ranges_and_skips_makeup_days",
+          "sse_parser_infers_a_cross_year_range",
+          "cn_holiday_override_parser_reads_a_chinese_date_line",
+          "holiday_override_parser_drops_dates_outside_the_fetch_window",
+          "manager_lifecycle_and_market_lookup_boundaries_match_go",
+          "manual_override_status_and_session_window_boundaries_match_go",
+          "adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through",
+          "source_availability_notes_and_refresh_target_folding_match_go",
+          "cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
+          "source_registry_normalization_and_duplicate_boundaries_match_go",
+          "nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header",
+          "probe_targets_one_market_while_warmup_follows_settings",
+          "background_refresh_follows_an_auto_refresh_settings_reload",
+          "persistence_failure_keeps_the_fetched_snapshot_served_from_memory",
+          "status_reports_manual_and_remote_override_modes_distinctly",
+          "failing_provider_falls_back_to_builtin_and_keeps_the_error_visible",
+          "status_summaries_expose_snapshot_metadata_and_non_open_samples",
+          "manual_override_reopens_a_day_instead_of_the_builtin_closure",
+          "shared_mainland_snapshot_applies_to_shanghai_and_shenzhen",
+          "stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules",
+          "probe_marks_a_productive_provider_healthy_with_its_market_and_count",
+          "source_alerts_deduplicate_repeats_and_record_recovery",
+          "source_registry_honours_preferred_order_over_registration_order",
+          "every_source_row_exposes_an_availability_note",
+          "status_explains_why_builtin_rules_serve_a_market",
+          "status_credits_the_covering_provider_on_a_regular_day",
+          "injected_clock_is_normalized_to_utc_for_projected_timestamps",
+          "refresh_and_probe_keep_per_source_health_truthful",
+          "fresh_snapshot_without_a_special_day_is_coverage_not_override",
+          "nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them"
+        ],
+        "runnerVersion": "cargo-nextest-0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
+        "verifiedAt": "2026-10-02T19:26:13Z",
+        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+      },
+      "risk": "normal",
+      "owner": "backtest_calendar",
+      "priority": "P2",
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
+      "waiverExpiresAt": null,
+      "coveredAssertions": [
+        "function_exact：Go 断言零值 SourceStatus 序列化后不含 lastSuccessAt/lastFailureAt/nextRefreshAt/lastSnapshotFetchedAt/lastProbeAt/lastProbeSuccessAt/lastProbeFailureAt/lastAlertAt，非零时间按 RFC3339（2026-06-23T09:30:00Z）输出。Rust 的 wire 投影对 Option<OffsetDateTime> 用 skip_serializing_if 省略零值，并在 sources.rs 模块测试中断言同名 8 个字段缺席与 RFC3339 形态。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -230489,121 +230584,6 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "function_exact：Go 把 early-close 规则刻意放在 now 的“下一个被覆盖日”，要求 Status 报 effectiveMode=remote_covered_day 而非 remote_override，即 provider 记为覆盖但当天仍由 builtin 规则回答。Rust 的 manager_projection market_status 同样区分 manual_override / remote_override / remote_covered_day / builtin_rules，测试断言 effectiveSource=coverage98-covered 且 effectiveMode=remote_covered_day。"
-      ],
-      "uncoveredAssertions": [],
-      "boundaryReason": null
-    },
-    "internal/exchangecalendar/source_json_test.go:10:TestSourceStatusJSONOmitsZeroTimes": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-calendar/src/sources.rs::tests::nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them",
-      "conclusion": "function_exact：Go 断言零值 SourceStatus 序列化后不含 lastSuccessAt/lastFailureAt/nextRefreshAt/lastSnapshotFetchedAt/lastProbeAt/lastProbeSuccessAt/lastProbeFailureAt/lastAlertAt，非零时间按 RFC3339（2026-06-23T09:30:00Z）输出。Rust 的 wire 投影对 Option<OffsetDateTime> 用 skip_serializing_if 省略零值，并在 sources.rs 模块测试中断言同名 8 个字段缺席与 RFC3339 形态。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-integration-calendar -p jftrade-calendar --all-targets --locked --message-format libtest-json --no-fail-fast -E 'test(fetch_preserves_distinct_transport_parse_and_validation_failures) or test(parsers_tolerate_malformed_and_partial_authority_documents) or test(helper_contracts_match_the_go_authority_boundaries) or test(fetch_range_uses_the_market_local_boundaries) or test(authority_validator_handles_missing_anchors_and_sparse_years) or test(parsers_discard_incomplete_or_out_of_range_authority_rows) or test(source_alert_lifecycle_records_failures_deduplicates_and_recovers) or test(parsers_honor_narrow_fetch_windows_and_discard_impossible_dates) or test(default_registry_registers_the_four_official_providers_with_their_markets) or test(fetch_builds_snapshot_metadata_with_checksum_and_validity) or test(fetch_surfaces_a_provider_status_error) or test(fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator) or test(anchor_year_validator_allows_missing_future_year_coverage) or test(us_holiday_override_parser_reads_closed_and_early_close_rows) or test(nyse_parser_reads_multi_year_table_and_footnote_early_closes) or test(hk_holiday_override_parser_reads_english_list_items) or test(hk_ical_parser_reads_closed_days_from_events) or test(sse_parser_expands_closed_ranges_and_skips_makeup_days) or test(sse_parser_infers_a_cross_year_range) or test(cn_holiday_override_parser_reads_a_chinese_date_line) or test(holiday_override_parser_drops_dates_outside_the_fetch_window) or test(manager_lifecycle_and_market_lookup_boundaries_match_go) or test(manual_override_status_and_session_window_boundaries_match_go) or test(adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through) or test(source_availability_notes_and_refresh_target_folding_match_go) or test(cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go) or test(source_registry_normalization_and_duplicate_boundaries_match_go) or test(nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header) or test(probe_targets_one_market_while_warmup_follows_settings) or test(background_refresh_follows_an_auto_refresh_settings_reload) or test(persistence_failure_keeps_the_fetched_snapshot_served_from_memory) or test(status_reports_manual_and_remote_override_modes_distinctly) or test(failing_provider_falls_back_to_builtin_and_keeps_the_error_visible) or test(status_summaries_expose_snapshot_metadata_and_non_open_samples) or test(manual_override_reopens_a_day_instead_of_the_builtin_closure) or test(shared_mainland_snapshot_applies_to_shanghai_and_shenzhen) or test(stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules) or test(probe_marks_a_productive_provider_healthy_with_its_market_and_count) or test(source_alerts_deduplicate_repeats_and_record_recovery) or test(source_registry_honours_preferred_order_over_registration_order) or test(every_source_row_exposes_an_availability_note) or test(status_explains_why_builtin_rules_serve_a_market) or test(status_credits_the_covering_provider_on_a_regular_day) or test(injected_clock_is_normalized_to_utc_for_projected_timestamps) or test(refresh_and_probe_keep_per_source_health_truthful) or test(fresh_snapshot_without_a_special_day_is_coverage_not_override) or test(nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them)'",
-      "evidence_type": "function_exact",
-      "source": {
-        "file": "internal/exchangecalendar/source_json_test.go",
-        "line": 10,
-        "test": "TestSourceStatusJSONOmitsZeroTimes",
-        "blobSha": "6839d6caafdba0be97b9ac17c93b38d78e2a05bc"
-      },
-      "rustEvidence": [
-        {
-          "file": "crates/jftrade-calendar/src/sources.rs",
-          "test": "nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them",
-          "crate": "jftrade-calendar",
-          "anchor": {
-            "goFile": "internal/exchangecalendar/source_json_test.go",
-            "goLine": 10,
-            "rustFile": "crates/jftrade-calendar/src/sources.rs",
-            "rustLine": 408
-          }
-        }
-      ],
-      "assertionCoverage": {
-        "covered": [
-          "function_exact：Go 断言零值 SourceStatus 序列化后不含 lastSuccessAt/lastFailureAt/nextRefreshAt/lastSnapshotFetchedAt/lastProbeAt/lastProbeSuccessAt/lastProbeFailureAt/lastAlertAt，非零时间按 RFC3339（2026-06-23T09:30:00Z）输出。Rust 的 wire 投影对 Option<OffsetDateTime> 用 skip_serializing_if 省略零值，并在 sources.rs 模块测试中断言同名 8 个字段缺席与 RFC3339 形态。"
-        ],
-        "uncovered": [],
-        "source": "reviewed"
-      },
-      "verification": {
-        "argv": [
-          "env",
-          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
-          "node",
-          "scripts/quality/cargo-nextest.mjs",
-          "run",
-          "--workspace",
-          "--all-targets",
-          "--locked",
-          "--message-format",
-          "libtest-json-plus",
-          "--no-fail-fast"
-        ],
-        "testFilter": [
-          "fetch_preserves_distinct_transport_parse_and_validation_failures",
-          "parsers_tolerate_malformed_and_partial_authority_documents",
-          "helper_contracts_match_the_go_authority_boundaries",
-          "fetch_range_uses_the_market_local_boundaries",
-          "authority_validator_handles_missing_anchors_and_sparse_years",
-          "parsers_discard_incomplete_or_out_of_range_authority_rows",
-          "source_alert_lifecycle_records_failures_deduplicates_and_recovers",
-          "parsers_honor_narrow_fetch_windows_and_discard_impossible_dates",
-          "default_registry_registers_the_four_official_providers_with_their_markets",
-          "fetch_builds_snapshot_metadata_with_checksum_and_validity",
-          "fetch_surfaces_a_provider_status_error",
-          "fetch_rejects_a_sparse_annual_schedule_via_the_anchor_validator",
-          "anchor_year_validator_allows_missing_future_year_coverage",
-          "us_holiday_override_parser_reads_closed_and_early_close_rows",
-          "nyse_parser_reads_multi_year_table_and_footnote_early_closes",
-          "hk_holiday_override_parser_reads_english_list_items",
-          "hk_ical_parser_reads_closed_days_from_events",
-          "sse_parser_expands_closed_ranges_and_skips_makeup_days",
-          "sse_parser_infers_a_cross_year_range",
-          "cn_holiday_override_parser_reads_a_chinese_date_line",
-          "holiday_override_parser_drops_dates_outside_the_fetch_window",
-          "manager_lifecycle_and_market_lookup_boundaries_match_go",
-          "manual_override_status_and_session_window_boundaries_match_go",
-          "adapter_validate_snapshot_boundary_passes_market_schedules_and_window_through",
-          "source_availability_notes_and_refresh_target_folding_match_go",
-          "cached_mainland_snapshot_fallback_and_freshness_boundaries_match_go",
-          "source_registry_normalization_and_duplicate_boundaries_match_go",
-          "nyse_header_year_extraction_skips_malformed_rows_before_a_valid_header",
-          "probe_targets_one_market_while_warmup_follows_settings",
-          "background_refresh_follows_an_auto_refresh_settings_reload",
-          "persistence_failure_keeps_the_fetched_snapshot_served_from_memory",
-          "status_reports_manual_and_remote_override_modes_distinctly",
-          "failing_provider_falls_back_to_builtin_and_keeps_the_error_visible",
-          "status_summaries_expose_snapshot_metadata_and_non_open_samples",
-          "manual_override_reopens_a_day_instead_of_the_builtin_closure",
-          "shared_mainland_snapshot_applies_to_shanghai_and_shenzhen",
-          "stale_remote_snapshot_is_ignored_in_favour_of_builtin_rules",
-          "probe_marks_a_productive_provider_healthy_with_its_market_and_count",
-          "source_alerts_deduplicate_repeats_and_record_recovery",
-          "source_registry_honours_preferred_order_over_registration_order",
-          "every_source_row_exposes_an_availability_note",
-          "status_explains_why_builtin_rules_serve_a_market",
-          "status_credits_the_covering_provider_on_a_regular_day",
-          "injected_clock_is_normalized_to_utc_for_projected_timestamps",
-          "refresh_and_probe_keep_per_source_health_truthful",
-          "fresh_snapshot_without_a_special_day_is_coverage_not_override",
-          "nonzero_time_fields_use_wire_rfc3339_and_zero_status_omits_them"
-        ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
-      },
-      "risk": "normal",
-      "owner": "backtest_calendar",
-      "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
-      "blockedBy": [],
-      "waiverExpiresAt": null,
-      "coveredAssertions": [
-        "function_exact：Go 断言零值 SourceStatus 序列化后不含 lastSuccessAt/lastFailureAt/nextRefreshAt/lastSnapshotFetchedAt/lastProbeAt/lastProbeSuccessAt/lastProbeFailureAt/lastAlertAt，非零时间按 RFC3339（2026-06-23T09:30:00Z）输出。Rust 的 wire 投影对 Option<OffsetDateTime> 用 skip_serializing_if 省略零值，并在 sources.rs 模块测试中断言同名 8 个字段缺席与 RFC3339 形态。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
@@ -346241,14 +346221,12 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_calendar_manager_restores_settings_and_snapshots": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/runtimes/handle_lifecycle_test.go:331:TestHandleRestoresCalendarResolverOnShutdown",
-        "internal/app/apiserver/servercore/notification_sources_test.go:13:TestExchangeCalendarAlertRecordingHonorsNotificationSetting"
+        "internal/app/apiserver/runtimes/handle_lifecycle_test.go:331:TestHandleRestoresCalendarResolverOnShutdown"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "allowed": true,
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_runtime_tests.rs::production_runtime_rejects_multiple_pine_workers_without_failover": {
       "referenceCount": 3,
@@ -346462,14 +346440,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-api/src/observability.rs::request_observability_matches_go_shape_and_bounded_order": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:18:TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics",
         "internal/app/apiserver/servercore/request_observability_test.go:14:TestRequestObservabilityInjectsStableContextAndRecordsSummary",
         "internal/app/apiserver/servercore/server_business_test.go:77:TestTimeStatusAndDefaultScriptBoundaries"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08 移除不支持日历通知断言的引用，保留既有批准范围。"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_projection.rs::market_symbol_path_tail_matches_go_split_and_empty_guard": {
       "referenceCount": 1,
@@ -365162,6 +365140,30 @@
       "allowed": true,
       "reviewStatus": "single",
       "reviewNote": "2026-10-08：单引用 owner，逐项复核冻结 Go 输入与全部断言；本批定向 receipt 实际执行该函数。"
+    },
+    "crates/jftrade-engine/src/product_calendar_notification_tests.rs::calendar_alert_delivery_reads_the_current_persisted_notification_setting": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/notification_sources_test.go:13:TestExchangeCalendarAlertRecordingHonorsNotificationSetting"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_calendar_notification_tests.rs::calendar_notification_normalizes_levels_titles_and_empty_messages": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/notification_market_workflow_contracts_test.go:18:TestBusinessNotificationsAndOptionalSecurityFieldsPreserveWireSemantics"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_calendar_notification_tests.rs::calendar_structure_alert_maps_its_notification_source_category_and_timestamp": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/notification_sources_test.go:46:TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
     }
   }
 }

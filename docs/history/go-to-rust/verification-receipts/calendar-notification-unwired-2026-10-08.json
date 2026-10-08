@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-calendar",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T03:30:15Z",
+  "sourceState": {
+    "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+    "trackedDiffSha256": "b2a0742fb79869fd0b48fae1bd68d48e5b4270804e6de1be4fec46dcf28f0b12",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-calendar/src/manager_alert.rs",
+        "sha256": "d75d6217e95d97df99be39b2a874345d895a5a119370ed277f927967f9ece7c7"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+        "sha256": "bb416fb1e139e4f52669f20e31af034438ad5b78d5ae4a0c76e528d42f3f9351"
+      }
+    ]
+  },
+  "rawOutputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

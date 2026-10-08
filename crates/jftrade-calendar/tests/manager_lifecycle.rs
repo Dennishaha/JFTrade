@@ -206,6 +206,26 @@ fn build_manager(
     .expect("create calendar manager")
 }
 
+fn build_manager_with_alerts(
+    source: Arc<FixtureSource>,
+    settings: CalendarManagerSettings,
+    now: Arc<Mutex<OffsetDateTime>>,
+    alerts: Arc<Mutex<Vec<jftrade_calendar::CalendarSourceAlert>>>,
+) -> CalendarManager {
+    let mut registry = CalendarSourceRegistry::default();
+    registry.register(source).expect("register fixture source");
+    CalendarManager::with_clock_and_alert_sink(
+        registry,
+        None,
+        settings,
+        Arc::new(move || *now.lock().expect("fixture clock")),
+        Some(Arc::new(move |alert| {
+            alerts.lock().expect("alerts").push(alert)
+        })),
+    )
+    .expect("create calendar manager")
+}
+
 /// A source that answers every declared market successfully while recording the
 /// markets it was asked for, so a test can assert which markets a probe or a
 /// warmup refresh actually touched.
@@ -1841,7 +1861,8 @@ fn source_alerts_deduplicate_repeats_and_record_recovery() {
         )
         .expect("clock"),
     ));
-    let manager = build_manager(source, None, policy, now);
+    let alerts = Arc::new(Mutex::new(Vec::new()));
+    let manager = build_manager_with_alerts(source, policy, now, Arc::clone(&alerts));
     manager.start().expect("start manager");
 
     let status = |manager: &CalendarManager| {
@@ -1886,6 +1907,11 @@ fn source_alerts_deduplicate_repeats_and_record_recovery() {
         recovered.last_alert_fingerprint, expected,
         "the recovery alert carries the fingerprint it recovered from"
     );
+    let alerts = alerts.lock().expect("alerts");
+    assert_eq!(alerts.len(), 2);
+    assert_eq!(alerts[0].kind, "fetch_failed");
+    assert_eq!(alerts[1].kind, "recovered");
+    assert_eq!(alerts[1].fingerprint, expected);
     manager.close().expect("close manager");
 }
 
@@ -1914,11 +1940,12 @@ fn network_timeout_variants_share_one_alert_fingerprint() {
         )
         .expect("clock"),
     ));
-    let manager = build_manager(
+    let alerts = Arc::new(Mutex::new(Vec::new()));
+    let manager = build_manager_with_alerts(
         source,
-        None,
         settings("nyse_official"),
         Arc::clone(&clock_now),
+        Arc::clone(&alerts),
     );
     manager.start().expect("start manager");
 
@@ -1961,6 +1988,10 @@ fn network_timeout_variants_share_one_alert_fingerprint() {
         fingerprints.windows(2).all(|pair| pair[0] == pair[1]),
         "same normalized timeout fingerprint must not refresh the alert instant"
     );
+    let alerts = alerts.lock().expect("alerts");
+    assert_eq!(alerts.len(), 1);
+    assert_eq!(alerts[0].kind, "fetch_failed");
+    assert_eq!(alerts[0].fingerprint, expected);
     manager.close().expect("close manager");
 }
 

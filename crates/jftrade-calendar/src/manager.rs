@@ -6,7 +6,7 @@ use std::time::Duration as StdDuration;
 
 use jftrade_kernel::WireTimestamp;
 use thiserror::Error;
-use time::{Duration, OffsetDateTime};
+use time::OffsetDateTime;
 
 use crate::manager_calendar::{
     candidate_markets, explicit_utc_date_input, fetch_window_for_market, is_weekend,
@@ -50,6 +50,7 @@ pub struct CalendarManager {
 }
 
 pub(crate) struct ManagerInner {
+    pub(crate) alert_sink: Option<crate::CalendarAlertSink>,
     pub(crate) registry: Arc<CalendarSourceRegistry>,
     pub(crate) persistence: Option<Arc<dyn CalendarPersistencePort>>,
     pub(crate) settings: RwLock<CalendarManagerSettings>,
@@ -91,9 +92,20 @@ impl CalendarManager {
         settings: CalendarManagerSettings,
         clock: Arc<dyn Fn() -> OffsetDateTime + Send + Sync>,
     ) -> Result<Self, CalendarManagerError> {
+        Self::with_clock_and_alert_sink(registry, persistence, settings, clock, None)
+    }
+
+    pub fn with_clock_and_alert_sink(
+        registry: CalendarSourceRegistry,
+        persistence: Option<Arc<dyn CalendarPersistencePort>>,
+        settings: CalendarManagerSettings,
+        clock: Arc<dyn Fn() -> OffsetDateTime + Send + Sync>,
+        alert_sink: Option<crate::CalendarAlertSink>,
+    ) -> Result<Self, CalendarManagerError> {
         validate_settings(&settings)?;
         Ok(Self {
             inner: Arc::new(ManagerInner {
+                alert_sink,
                 registry: Arc::new(registry),
                 persistence,
                 settings: RwLock::new(settings),
@@ -475,99 +487,6 @@ impl ManagerInner {
                 snapshot_key(&snapshot.source_id, &snapshot.market_code, year),
                 snapshot.clone(),
             );
-        }
-        Ok(())
-    }
-
-    /// Go's `recordSuccess`: clears the failure state and publishes a recovery
-    /// alert when the source was previously unhealthy.
-    fn record_success(&self, snapshot: &CalendarSnapshot) -> Result<(), CalendarManagerError> {
-        let now = wire_text(self.now());
-        let mut statuses = self
-            .statuses
-            .write()
-            .map_err(|_| CalendarManagerError::StateUnavailable)?;
-        let status = statuses.entry(snapshot.source_id.clone()).or_default();
-        status.source_id = snapshot.source_id.clone();
-        status.last_success_at = Some(now.clone());
-        status.last_failure_at = None;
-        status.last_error.clear();
-        status.consecutive_failures = 0;
-        status.next_refresh_at = None;
-        status.last_snapshot_fetched_at = Some(snapshot.fetched_at.to_string());
-        status.last_probe_error.clear();
-        let previous_fingerprint = std::mem::take(&mut status.health_fingerprint);
-        let recovered = status.health_state == "unhealthy";
-        status.health_state = "healthy".to_owned();
-        if recovered {
-            status.last_alert_at = Some(now);
-            status.last_alert_status = "recovered".to_owned();
-            status.last_alert_fingerprint = previous_fingerprint;
-        }
-        Ok(())
-    }
-
-    /// Go's `recordOperationFailure`: a durable-store or restore problem. It
-    /// grows the retry ladder and records the error, but deliberately leaves the
-    /// provider health state and alert bookkeeping alone.
-    fn record_operation_failure(
-        &self,
-        source_id: &str,
-        error: String,
-    ) -> Result<(), CalendarManagerError> {
-        self.record_failure_state(source_id, Some(error), None)
-    }
-
-    /// Go's `recordSourceFailure`: a provider fetch/parse failure. It upgrades
-    /// the source to `unhealthy` and publishes a fingerprint-deduplicated alert
-    /// through `sourceFailureAlert` (`kind` is `fetch_failed` or
-    /// `structure_changed`).
-    fn record_source_failure(
-        &self,
-        source_id: &str,
-        market: &str,
-        error: String,
-        kind: &str,
-    ) -> Result<(), CalendarManagerError> {
-        self.record_failure_state(source_id, Some(error.clone()), Some((market, error, kind)))
-    }
-
-    fn record_failure_state(
-        &self,
-        source_id: &str,
-        error: Option<String>,
-        alert: Option<(&str, String, &str)>,
-    ) -> Result<(), CalendarManagerError> {
-        let now = self.now();
-        let market = alert
-            .as_ref()
-            .map_or_else(String::new, |(market, _, _)| normalize_market(market));
-        let fingerprint = alert
-            .as_ref()
-            .map(|(_, message, kind)| source_alert_fingerprint(source_id, &market, kind, message));
-        let mut statuses = self
-            .statuses
-            .write()
-            .map_err(|_| CalendarManagerError::StateUnavailable)?;
-        let status = statuses.entry(source_id.trim().to_owned()).or_default();
-        status.source_id = source_id.trim().to_owned();
-        status.last_failure_at = Some(wire_text(now));
-        if let Some(error) = error {
-            status.last_error = error;
-        }
-        status.consecutive_failures = status.consecutive_failures.saturating_add(1);
-        let hours = i64::from(status.consecutive_failures.clamp(1, 24));
-        status.next_refresh_at = now.checked_add(Duration::hours(hours)).map(wire_text);
-        if let Some(fingerprint) = fingerprint {
-            let should_alert =
-                status.health_state != "unhealthy" || status.health_fingerprint != fingerprint;
-            status.health_state = "unhealthy".to_owned();
-            status.health_fingerprint = fingerprint.clone();
-            if should_alert {
-                status.last_alert_at = status.last_failure_at.clone();
-                status.last_alert_status = "triggered".to_owned();
-                status.last_alert_fingerprint = fingerprint;
-            }
         }
         Ok(())
     }

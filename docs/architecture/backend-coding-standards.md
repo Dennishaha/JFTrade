@@ -54,6 +54,10 @@ Integration 不拥有全局 Provider 选择、业务缓存、策略状态或用�
 - runtime cancellation、join 和逆序 shutdown；
 - 外部依赖 unavailable adapter 与公开 502/503 语义。
 
+Calendar 管理器持有源健康状态和告警去重，在释放状态锁后调用协议中立 alert sink。
+engine 在每次投递时读取权威日历通知设置；读取失败或通知关闭时不投递，健康状态仍由
+Calendar 管理器更新。浏览器日历通知进入现有 LiveHub，沿用通知信封与有界重连历史。
+
 业务规则不要堆入 composition root；重复装配逻辑拆成有清晰 owner 的 builder/adapter。
 
 ## 文件与函数约束

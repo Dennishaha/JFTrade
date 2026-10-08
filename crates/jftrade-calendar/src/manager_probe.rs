@@ -151,49 +151,73 @@ impl CalendarManager {
         status.last_probe_at = Some(now.clone());
         status.last_probe_market = item.market.clone();
         status.last_probe_schedules = item.schedules_parsed;
-        if healthy {
-            let recovered = status.health_state == "unhealthy";
-            let previous_fingerprint = status.health_fingerprint.clone();
-            status.health_state = "healthy".to_owned();
-            status.health_fingerprint.clear();
-            status.last_error.clear();
-            status.consecutive_failures = 0;
-            status.next_refresh_at = None;
-            status.last_probe_success_at = Some(now);
-            status.last_probe_status = "healthy".to_owned();
-            status.last_probe_error.clear();
-            if recovered {
-                status.last_alert_at = status.last_probe_at.clone();
-                status.last_alert_status = "recovered".to_owned();
-                status.last_alert_fingerprint = previous_fingerprint;
-            }
+        let alert = update_probe_health(status, item, healthy, now);
+        drop(statuses);
+        self.inner.emit_alert(alert);
+        Ok(())
+    }
+}
+
+fn update_probe_health(
+    status: &mut CalendarSourceRuntimeStatus,
+    item: &CalendarProbeItem,
+    healthy: bool,
+    now: String,
+) -> Option<crate::CalendarSourceAlert> {
+    let mut alert = None;
+    if healthy {
+        let recovered = status.health_state == "unhealthy";
+        let previous_fingerprint = status.health_fingerprint.clone();
+        status.health_state = "healthy".to_owned();
+        status.health_fingerprint.clear();
+        status.last_error.clear();
+        status.consecutive_failures = 0;
+        status.next_refresh_at = None;
+        status.last_probe_success_at = Some(now);
+        status.last_probe_status = "healthy".to_owned();
+        status.last_probe_error.clear();
+        if recovered {
+            status.last_alert_at = status.last_probe_at.clone();
+            status.last_alert_status = "recovered".to_owned();
+            status.last_alert_fingerprint = previous_fingerprint;
+            alert = Some(crate::manager_alert::recovery_alert(
+                &item.source_id,
+                &item.market,
+                &status.last_alert_fingerprint,
+            ));
+        }
+    } else {
+        let kind = if item.error == "no schedules parsed" {
+            "structure_changed"
         } else {
-            let kind = if item.error == "no schedules parsed" {
-                "structure_changed"
-            } else {
-                "fetch_failed"
-            };
-            let fingerprint = crate::manager::source_alert_fingerprint(
+            "fetch_failed"
+        };
+        let fingerprint = crate::manager::source_alert_fingerprint(
+            &item.source_id,
+            &item.market,
+            kind,
+            &item.error,
+        );
+        let should_alert =
+            status.health_state != "unhealthy" || status.health_fingerprint != fingerprint;
+        status.health_state = "unhealthy".to_owned();
+        status.health_fingerprint = fingerprint.clone();
+        status.last_probe_failure_at = Some(now);
+        status.last_probe_status = "unhealthy".to_owned();
+        status.last_probe_error = item.error.clone();
+        if should_alert {
+            status.last_alert_at = status.last_probe_at.clone();
+            status.last_alert_status = "triggered".to_owned();
+            status.last_alert_fingerprint = fingerprint;
+            alert = Some(crate::manager_alert::failure_alert(
                 &item.source_id,
                 &item.market,
                 kind,
                 &item.error,
-            );
-            let should_alert =
-                status.health_state != "unhealthy" || status.health_fingerprint != fingerprint;
-            status.health_state = "unhealthy".to_owned();
-            status.health_fingerprint = fingerprint.clone();
-            status.last_probe_failure_at = Some(now);
-            status.last_probe_status = "unhealthy".to_owned();
-            status.last_probe_error = item.error.clone();
-            if should_alert {
-                status.last_alert_at = status.last_probe_at.clone();
-                status.last_alert_status = "triggered".to_owned();
-                status.last_alert_fingerprint = fingerprint;
-            }
+            ));
         }
-        Ok(())
     }
+    alert
 }
 
 fn normalized_scope(markets: Vec<String>) -> Vec<String> {

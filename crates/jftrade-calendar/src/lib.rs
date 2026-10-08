@@ -2,6 +2,7 @@
 
 mod candle;
 mod manager;
+mod manager_alert;
 pub use candle::candle_is_closed;
 mod manager_calendar;
 mod manager_policy;
@@ -22,10 +23,10 @@ pub use manager_policy::{
 pub use manager_registry::CalendarSourceRegistry;
 pub use manager_session::CalendarSessionContext;
 pub use manager_types::{
-    CalendarCancellationToken, CalendarManagerSettings, CalendarManualOverride,
+    CalendarAlertSink, CalendarCancellationToken, CalendarManagerSettings, CalendarManualOverride,
     CalendarPersistencePort, CalendarProbeItem, CalendarProbeResult, CalendarRefreshResult,
-    CalendarSessionOverride, CalendarSourceError, CalendarSourcePolicy, CalendarSourcePort,
-    CalendarSourceRuntimeStatus, ManagerLifecycleState,
+    CalendarSessionOverride, CalendarSourceAlert, CalendarSourceError, CalendarSourcePolicy,
+    CalendarSourcePort, CalendarSourceRuntimeStatus, ManagerLifecycleState,
 };
 
 pub use snapshot::{

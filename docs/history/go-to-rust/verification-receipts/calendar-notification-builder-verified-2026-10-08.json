@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-calendar",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(source_alerts_deduplicate_repeats_and_record_recovery) or test(network_timeout_variants_share_one_alert_fingerprint) or test(calendar_alert_delivery_reads_the_current_persisted_notification_setting) or test(calendar_structure_alert_maps_its_notification_source_category_and_timestamp) or test(calendar_notification_normalizes_levels_titles_and_empty_messages) or test(production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering) or test(calendar_notification_delivery_fails_closed_when_settings_are_unreadable) or test(production_calendar_settings_write_reloads_running_manager)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T03:45:12Z",
+  "sourceState": {
+    "verifiedCommit": "04bac21c97425020ad971ab38530b518f29b433f",
+    "trackedDiffSha256": "26a6fe7cc82a3af384d67db0465f385b4c3b5b00c912d751367dd5c0d15be466",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-calendar/src/manager_alert.rs",
+        "sha256": "a5b9344427d47bf1f4310a8dcb49538e871fba4fba58dc60cfe257252ad8821f"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_calendar_notification_tests.rs",
+        "sha256": "a60c7c8f15ac3f60fac4e36e78c63ea82b742873e24255fc217287df60b5a97a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/calendar-notification-delivery-red-2026-10-08.json",
+        "sha256": "a0a26ac463cae71414532a83bcd2dbdd3d4774e08f3932cad2b6e2cc0e0f4ec4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/calendar-notification-owner-closed-2026-10-08.json",
+        "sha256": "e6f448631a1fa1de00fa22d8f579b1d567963dba7ccd0dbf85ada94e749982eb"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/calendar-notification-owner-verified-2026-10-08.json",
+        "sha256": "f841a6913b851c8de48fc2eed3db670657ae88decbb7ccfdcb36eb42c2a9316e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/calendar-notification-unwired-2026-10-08.json",
+        "sha256": "d1f2ae75711167b3592335b24df7746888ea4cb364113785172f072e7924a53b"
+      }
+    ]
+  },
+  "rawOutputSha256": "8016ec7f7829eca0e8312c8a256e8243f531900866723bd42282ae5c0cd6fc5a",
+  "passedTests": [
+    "jftrade-calendar::manager_lifecycle$network_timeout_variants_share_one_alert_fingerprint",
+    "jftrade-calendar::manager_lifecycle$source_alerts_deduplicate_repeats_and_record_recovery",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_calendar::notification_tests::calendar_alert_delivery_reads_the_current_persisted_notification_setting",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_calendar::notification_tests::calendar_notification_delivery_fails_closed_when_settings_are_unreadable",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_calendar::notification_tests::calendar_notification_normalizes_levels_titles_and_empty_messages",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_calendar::notification_tests::calendar_structure_alert_maps_its_notification_source_category_and_timestamp",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_calendar::notification_tests::production_calendar_source_alerts_reach_livehub_after_deduplication_and_settings_filtering",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_calendar_settings_write_reloads_running_manager"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_lifecycle",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 36,
+      "exec_time": 0.062580417,
+      "nextest": {
+        "crate": "jftrade-calendar",
+        "test_binary": "manager_lifecycle",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1865,
+      "exec_time": 3.794067918,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

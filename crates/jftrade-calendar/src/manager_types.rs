@@ -22,6 +22,19 @@ pub struct CalendarManagerSettings {
     pub manual_overrides: Vec<CalendarManualOverride>,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct CalendarSourceAlert {
+    pub source_id: String,
+    pub market: String,
+    pub level: String,
+    pub kind: String,
+    pub title: String,
+    pub message: String,
+    pub fingerprint: String,
+}
+
+pub type CalendarAlertSink = Arc<dyn Fn(CalendarSourceAlert) + Send + Sync>;
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct CalendarSourcePolicy {
