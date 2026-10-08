@@ -578,6 +578,18 @@ impl SemanticContext<'_> {
             return ValueType::Unknown;
         }
         if is_supported_call(&lower) {
+            if matches!(
+                lower.as_str(),
+                "ta.ema" | "ta.sma" | "ta.rma" | "ta.wma" | "ta.hma" | "ta.vwma"
+            ) && arguments.len() != 2
+            {
+                self.summary.diagnostics.push(Diagnostic::error(
+                    "PINE_SEMANTIC_SIGNATURE",
+                    format!("{callee} expects {callee}(source, length)"),
+                    range.start_line,
+                ));
+                return ValueType::Unknown;
+            }
             return call_result_type(&lower);
         }
         if self.functions.contains(callee) {

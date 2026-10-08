@@ -309128,9 +309128,9 @@
     },
     "pkg/strategy/pine/compiler_rejection_contracts_test.go:79:TestTupleHelpersRejectMalformedIndicatorArityWithoutInventingAliases": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected",
-      "conclusion": "partial：Go 断言五类元组助手（bb/dmi/supertrend/kc/macd）在参数不足时报助手文案（requires three arguments 等）、MTF 形态按周期/源/静态周期校验、非相关表达式交回普通赋值解析、normalizationErr 传播。Rust 分片十的 PINE_TUPLE_ARITY 已按同一批脚本拒绝并采用 Go 语义签名表文案（ta.bb expects ta.bb(source, length, mult)），本轮再补 ensure_positive_period 与元组宽度；但助手级文案、handoff 语义与 normalizationErr 传播在 Rust 无同形对象（AST 直接降级）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir",
+      "conclusion": "partial：原bb/dmi/supertrend/kc/macd五种缺参通过真实compile在line15返回PINE_TUPLE_ARITY及对应签名文案，并且无可执行IR及指标计划；原五个参数列表与alias输入完整保留。 原要求私有helper statement=nil/handled=true及requires three/two/four arguments等专用文案；MTF bollinger四参数形状、两个unrelated handoff和request-security normalizationErr原对象传播无同形入口，native的expects签名文案不同，继续partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/compiler_rejection_contracts_test.go",
@@ -309140,24 +309140,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs",
-          "test": "malformed_tuple_and_switch_scripts_are_rejected",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+          "test": "malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/compiler_rejection_contracts_test.go",
             "goLine": 79,
-            "rustFile": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs",
-            "rustLine": 69
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+            "rustLine": 258
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言五类元组助手（bb/dmi/supertrend/kc/macd）在参数不足时报助手文案（requires three arguments 等）、MTF 形态按周期/源/静态周期校验、非相关表达式交回普通赋值解析、normalizationErr 传播。",
-          "Rust 分片十的 PINE_TUPLE_ARITY 已按同一批脚本拒绝并采用 Go 语义签名表文案（ta.bb expects ta.bb(source, length, mult)），本轮再补 ensure_positive_period 与元组宽度；"
+          "原bb/dmi/supertrend/kc/macd五种缺参通过真实compile在line15返回PINE_TUPLE_ARITY及对应签名文案，并且无可执行IR及指标计划；原五个参数列表与alias输入完整保留。"
         ],
         "uncovered": [
-          "但助手级文案、handoff 语义与 normalizationErr 传播在 Rust 无同形对象（AST 直接降级）。"
+          "原要求私有helper statement=nil/handled=true及requires three/two/four arguments等专用文案；MTF bollinger四参数形状、两个unrelated handoff和request-security normalizationErr原对象传播无同形入口，native的expects签名文案不同，继续partial。"
         ],
         "source": "reviewed"
       },
@@ -309168,38 +309167,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)"
         ],
         "testFilter": [
-          "malformed_tuple_and_switch_scripts_are_rejected"
+          "malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "738439106ca6cfc24825b27b426a261271bb89fa",
+        "verifiedAt": "2026-10-08T01:22:18Z",
+        "receiptDigest": "sha256:d702537a80365f0679c8392f842dcea64e6dfb9601ff3cdfc1eb7ba98bddc076"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言五类元组助手（bb/dmi/supertrend/kc/macd）在参数不足时报助手文案（requires three arguments 等）、MTF 形态按周期/源/静态周期校验、非相关表达式交回普通赋值解析、normalizationErr 传播。",
-        "Rust 分片十的 PINE_TUPLE_ARITY 已按同一批脚本拒绝并采用 Go 语义签名表文案（ta.bb expects ta.bb(source, length, mult)），本轮再补 ensure_positive_period 与元组宽度；"
+        "原bb/dmi/supertrend/kc/macd五种缺参通过真实compile在line15返回PINE_TUPLE_ARITY及对应签名文案，并且无可执行IR及指标计划；原五个参数列表与alias输入完整保留。"
       ],
       "uncoveredAssertions": [
-        "但助手级文案、handoff 语义与 normalizationErr 传播在 Rust 无同形对象（AST 直接降级）。"
+        "原要求私有helper statement=nil/handled=true及requires three/two/four arguments等专用文案；MTF bollinger四参数形状、两个unrelated handoff和request-security normalizationErr原对象传播无同形入口，native的expects签名文案不同，继续partial。"
       ],
       "boundaryReason": null
     },
@@ -314383,9 +314382,9 @@
     },
     "pkg/strategy/pine/parse_semantic_test.go:10:TestAnalyzeScriptIncludesV17SemanticSummary": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features",
-      "conclusion": "partial：Go 断言 V17SemanticSummary 场景；Rust 用同一脚本编译通过（需求键 `ma:EMA:5`、`ma:EMA:len`、`security:syminfo.tickerid:\"15\":[close`、`ta.ema(close`、`5)`），但 Go 的 typed IR/语义字段断言在 Rust 只部分对应（Rust 暴露 LoweredStatement/需求键/语义摘要的子集）。owner：crates/jftrade-strategy/src/pine/{mod,semantic,lower}.rs。回归要求：按 Go 的字段断言逐项补齐可观测面。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols",
+      "conclusion": "partial：逐字原V17脚本经真实analysis通过，semantic无错误、len/fast/mtfClose/mtfFast均有symbols与declarations，program恰一个hook及四statement；原input.int(8)长度别名此前被planner拒绝，现在仅不可重写的顶层静态绑定可解析默认值，原IR保持input/alias不变。 原len值种类simple/const及fast/mtfClose/mtfFast的series种类、TupleBindings首项ReturnCount=2且Supported=true、FunctionCalls中的ta.ema签名和request.security支持字段均未提供同形投影；native symbols仍是基础类型字串，不以脚本通过替代这些字段断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/parse_semantic_test.go",
@@ -314395,25 +314394,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_supports_framework_language_features",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+          "test": "semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_semantic_test.go",
             "goLine": 10,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 403
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+            "rustLine": 141
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 V17SemanticSummary 场景；",
-          "Rust 用同一脚本编译通过（需求键 `ma:EMA:5`、`ma:EMA:len`、`security:syminfo.tickerid:\"15\":[close`、`ta.ema(close`、`5)`），但 Go 的 typed IR/语义字段断言在 Rust 只部分对应（Rust 暴露 LoweredStatement/需求键/语义摘要的子集）。",
-          "owner：crates/jftrade-strategy/src/pine/{mod,semantic,lower}.rs。"
+          "逐字原V17脚本经真实analysis通过，semantic无错误、len/fast/mtfClose/mtfFast均有symbols与declarations，program恰一个hook及四statement；原input.int(8)长度别名此前被planner拒绝，现在仅不可重写的顶层静态绑定可解析默认值，原IR保持input/alias不变。"
         ],
         "uncovered": [
-          "回归要求：按 Go 的字段断言逐项补齐可观测面。"
+          "原len值种类simple/const及fast/mtfClose/mtfFast的series种类、TupleBindings首项ReturnCount=2且Supported=true、FunctionCalls中的ta.ema签名和request.security支持字段均未提供同形投影；native symbols仍是基础类型字串，不以脚本通过替代这些字段断言。"
         ],
         "source": "reviewed"
       },
@@ -314424,47 +314421,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)"
         ],
         "testFilter": [
-          "compile_supports_framework_language_features"
+          "semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "738439106ca6cfc24825b27b426a261271bb89fa",
+        "verifiedAt": "2026-10-08T01:22:18Z",
+        "receiptDigest": "sha256:d702537a80365f0679c8392f842dcea64e6dfb9601ff3cdfc1eb7ba98bddc076"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 V17SemanticSummary 场景；",
-        "Rust 用同一脚本编译通过（需求键 `ma:EMA:5`、`ma:EMA:len`、`security:syminfo.tickerid:\"15\":[close`、`ta.ema(close`、`5)`），但 Go 的 typed IR/语义字段断言在 Rust 只部分对应（Rust 暴露 LoweredStatement/需求键/语义摘要的子集）。",
-        "owner：crates/jftrade-strategy/src/pine/{mod,semantic,lower}.rs。"
+        "逐字原V17脚本经真实analysis通过，semantic无错误、len/fast/mtfClose/mtfFast均有symbols与declarations，program恰一个hook及四statement；原input.int(8)长度别名此前被planner拒绝，现在仅不可重写的顶层静态绑定可解析默认值，原IR保持input/alias不变。"
       ],
       "uncoveredAssertions": [
-        "回归要求：按 Go 的字段断言逐项补齐可观测面。"
+        "原len值种类simple/const及fast/mtfClose/mtfFast的series种类、TupleBindings首项ReturnCount=2且Supported=true、FunctionCalls中的ta.ema签名和request.security支持字段均未提供同形投影；native symbols仍是基础类型字串，不以脚本通过替代这些字段断言。"
       ],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_semantic_test.go:55:TestAnalyzeScriptReportsSupportedTASemanticSignatures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features",
-      "conclusion": "partial：Go 断言 SupportedTASemanticSignatures 场景可用；Rust 用同一脚本实测被拒（诊断码 `PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script",
+      "conclusion": "partial：真实analyze_script逐字执行原TA Semantic整份脚本并通过，semantic无诊断、七个赋值变量存在、可执行program与非空指标计划存在；纠正旧映射借用framework通用用例而断言该脚本被拒的结论。 原九种TA的FunctionCalls逐项存在、Supported=true及Signature非空没有Rust同形字段，不能以现有需求计划推断签名表完整；继续partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/parse_semantic_test.go",
@@ -314474,24 +314470,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_supports_framework_language_features",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+          "test": "analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_semantic_test.go",
             "goLine": 55,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 403
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+            "rustLine": 165
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 SupportedTASemanticSignatures 场景可用；"
+          "真实analyze_script逐字执行原TA Semantic整份脚本并通过，semantic无诊断、七个赋值变量存在、可执行program与非空指标计划存在；纠正旧映射借用framework通用用例而断言该脚本被拒的结论。"
         ],
         "uncovered": [
-          "Rust 用同一脚本实测被拒（诊断码 `PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。",
-          "回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
+          "原九种TA的FunctionCalls逐项存在、Supported=true及Signature非空没有Rust同形字段，不能以现有需求计划推断签名表完整；继续partial。"
         ],
         "source": "reviewed"
       },
@@ -314502,46 +314497,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)"
         ],
         "testFilter": [
-          "compile_supports_framework_language_features"
+          "analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "738439106ca6cfc24825b27b426a261271bb89fa",
+        "verifiedAt": "2026-10-08T01:22:18Z",
+        "receiptDigest": "sha256:d702537a80365f0679c8392f842dcea64e6dfb9601ff3cdfc1eb7ba98bddc076"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 SupportedTASemanticSignatures 场景可用；"
+        "真实analyze_script逐字执行原TA Semantic整份脚本并通过，semantic无诊断、七个赋值变量存在、可执行program与非空指标计划存在；纠正旧映射借用framework通用用例而断言该脚本被拒的结论。"
       ],
       "uncoveredAssertions": [
-        "Rust 用同一脚本实测被拒（诊断码 `PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。",
-        "回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
+        "原九种TA的FunctionCalls逐项存在、Supported=true及Signature非空没有Rust同形字段，不能以现有需求计划推断签名表完整；继续partial。"
       ],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_semantic_test.go:98:TestAnalyzeScriptReportsSupportedUtilitySemanticSignatures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features",
-      "conclusion": "partial：Go 断言 SupportedUtilitySemanticSignatures 场景可用；Rust 用同一脚本实测被拒（诊断码 `PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::unsupported_string_helpers_in_the_original_utility_script_prevent_planning",
+      "conclusion": "partial：逐字原Utility Semantic完整脚本经真实analysis失败，无可执行program和指标计划；九个str.upper/lower/length/tostring/pos/substring/replace/format/contains分别在原21至29行返回PINE_CALL_UNSUPPORTED，直接锁定当前缺口，不再引用无关framework用例。 原要求整份脚本ok=true、Semantic非nil及29种utility的FunctionCalls/Supported/非空Signature；Rust九个字符串helper仍未实现且无函数签名表，当前拒绝行为与原成功行为不同，继续partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/parse_semantic_test.go",
@@ -314551,24 +314546,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_supports_framework_language_features",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+          "test": "unsupported_string_helpers_in_the_original_utility_script_prevent_planning",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_semantic_test.go",
             "goLine": 98,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 403
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+            "rustLine": 197
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 SupportedUtilitySemanticSignatures 场景可用；"
+          "逐字原Utility Semantic完整脚本经真实analysis失败，无可执行program和指标计划；九个str.upper/lower/length/tostring/pos/substring/replace/format/contains分别在原21至29行返回PINE_CALL_UNSUPPORTED，直接锁定当前缺口，不再引用无关framework用例。"
         ],
         "uncovered": [
-          "Rust 用同一脚本实测被拒（诊断码 `PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。",
-          "回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
+          "原要求整份脚本ok=true、Semantic非nil及29种utility的FunctionCalls/Supported/非空Signature；Rust九个字符串helper仍未实现且无函数签名表，当前拒绝行为与原成功行为不同，继续partial。"
         ],
         "source": "reviewed"
       },
@@ -314579,47 +314573,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)"
         ],
         "testFilter": [
-          "compile_supports_framework_language_features"
+          "unsupported_string_helpers_in_the_original_utility_script_prevent_planning"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "738439106ca6cfc24825b27b426a261271bb89fa",
+        "verifiedAt": "2026-10-08T01:22:18Z",
+        "receiptDigest": "sha256:d702537a80365f0679c8392f842dcea64e6dfb9601ff3cdfc1eb7ba98bddc076"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 SupportedUtilitySemanticSignatures 场景可用；"
+        "逐字原Utility Semantic完整脚本经真实analysis失败，无可执行program和指标计划；九个str.upper/lower/length/tostring/pos/substring/replace/format/contains分别在原21至29行返回PINE_CALL_UNSUPPORTED，直接锁定当前缺口，不再引用无关framework用例。"
       ],
       "uncoveredAssertions": [
-        "Rust 用同一脚本实测被拒（诊断码 `PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`、`PINE_CALL_UNSUPPORTED`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。",
-        "回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
+        "原要求整份脚本ok=true、Semantic非nil及29种utility的FunctionCalls/Supported/非空Signature；Rust九个字符串helper仍未实现且无函数签名表，当前拒绝行为与原成功行为不同，继续partial。"
       ],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_semantic_test.go:180:TestAnalyzeScriptReportsSemanticSignatureDiagnostics": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features",
-      "conclusion": "partial：Go 断言 SemanticSignatureDiagnostics 场景可用；Rust 用同一脚本实测被拒（诊断码 `PINE_REQUIREMENTS_INVALID`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::analysis_classifies_missing_ema_length_as_a_semantic_signature_error",
+      "conclusion": "function_exact：完整原Bad Signature脚本及include_ast=true经真实analyze_script返回ok=false，serialized semantic为对象，首diagnostic精确为PINE_SEMANTIC_SIGNATURE/line3，semantic首diagnostic与之相同；没有用planner失败或合成helper代替语义分类。 直接断言Error及ta.ema expects ta.ema(source, length)，且无可执行program、无指标requirements；原180仅要求analysis失败、Semantic非nil、首code/line，全部闭合。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "pkg/strategy/pine/parse_semantic_test.go",
         "line": 180,
@@ -314628,25 +314622,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_supports_framework_language_features",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+          "test": "analysis_classifies_missing_ema_length_as_a_semantic_signature_error",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_semantic_test.go",
             "goLine": 180,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 403
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs",
+            "rustLine": 9
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 SemanticSignatureDiagnostics 场景可用；"
+          "完整原Bad Signature脚本及include_ast=true经真实analyze_script返回ok=false，serialized semantic为对象，首diagnostic精确为PINE_SEMANTIC_SIGNATURE/line3，semantic首diagnostic与之相同；没有用planner失败或合成helper代替语义分类。",
+          "直接断言Error及ta.ema expects ta.ema(source, length)，且无可执行program、无指标requirements；原180仅要求analysis失败、Semantic非nil、首code/line，全部闭合。"
         ],
-        "uncovered": [
-          "Rust 用同一脚本实测被拒（诊断码 `PINE_REQUIREMENTS_INVALID`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。",
-          "回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -314656,39 +314648,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(analysis_classifies_missing_ema_length_as_a_semantic_signature_error) or test(moving_average_arity_errors_are_reported_before_lowering_and_planning) or test(moving_averages_with_source_and_length_keep_their_planned_requirements) or test(pine_validation_does_not_offer_requirements_or_hooks_for_invalid_ema_calls) or test(semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols) or test(analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script) or test(unsupported_string_helpers_in_the_original_utility_script_prevent_planning) or test(malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir) or test(immutable_input_lengths_and_aliases_plan_chart_and_higher_timeframe_averages) or test(dynamic_rewritten_shadowed_and_invalid_lengths_cannot_reuse_a_static_default)"
         ],
         "testFilter": [
-          "compile_supports_framework_language_features"
+          "analysis_classifies_missing_ema_length_as_a_semantic_signature_error"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "738439106ca6cfc24825b27b426a261271bb89fa",
+        "verifiedAt": "2026-10-08T01:22:18Z",
+        "receiptDigest": "sha256:d702537a80365f0679c8392f842dcea64e6dfb9601ff3cdfc1eb7ba98bddc076"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 SemanticSignatureDiagnostics 场景可用；"
+        "完整原Bad Signature脚本及include_ast=true经真实analyze_script返回ok=false，serialized semantic为对象，首diagnostic精确为PINE_SEMANTIC_SIGNATURE/line3，semantic首diagnostic与之相同；没有用planner失败或合成helper代替语义分类。",
+        "直接断言Error及ta.ema expects ta.ema(source, length)，且无可执行program、无指标requirements；原180仅要求analysis失败、Semantic非nil、首code/line，全部闭合。"
       ],
-      "uncoveredAssertions": [
-        "Rust 用同一脚本实测被拒（诊断码 `PINE_REQUIREMENTS_INVALID`），该语言族在 Rust 编译器（mod.rs、parser.rs、lower.rs、semantic.rs）尚未实现，也无 Go 同形的 typed 投影。",
-        "回归要求：实现该族后用 Go 脚本作金标断言编译通过与同形 IR/需求键。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_semantic_test.go:195:TestCompileSupportsV15StaticForLoopControl": {
@@ -362195,9 +362186,8 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "pkg/strategy/pine/compiler_rejection_contracts_test.go:79:TestTupleHelpersRejectMalformedIndicatorArityWithoutInventingAliases",
         "pkg/strategy/pine/parser_loop_boundaries_test.go:63:TestTupleIndicatorsExposeUnsupportedCallHistory",
         "pkg/strategy/pine/tuple_switch_reject_test.go:8:TestCompileRejectsMalformedSwitchAndTupleContracts"
       ],
@@ -362266,7 +362256,7 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features": {
-      "referenceCount": 47,
+      "referenceCount": 43,
       "referenceKeys": [
         "pkg/strategy/pine/language_failure_contracts_test.go:9:TestObjectAndCollectionParserFailureContracts",
         "pkg/strategy/pine/object_collect_bounds_test.go:12:TestObjectNamedArgumentNormalizationBusinessBoundaries",
@@ -362303,10 +362293,6 @@
         "pkg/strategy/pine/parse_request_test.go:183:TestCompileSupportsV14RequestSecurityPureExpression",
         "pkg/strategy/pine/parse_request_test.go:217:TestCompileSupportsV15RequestSecurityCommonTAExpression",
         "pkg/strategy/pine/parse_request_test.go:263:TestCompileSupportsV16RequestSecurityTupleWhitelist",
-        "pkg/strategy/pine/parse_semantic_test.go:10:TestAnalyzeScriptIncludesV17SemanticSummary",
-        "pkg/strategy/pine/parse_semantic_test.go:55:TestAnalyzeScriptReportsSupportedTASemanticSignatures",
-        "pkg/strategy/pine/parse_semantic_test.go:98:TestAnalyzeScriptReportsSupportedUtilitySemanticSignatures",
-        "pkg/strategy/pine/parse_semantic_test.go:180:TestAnalyzeScriptReportsSemanticSignatureDiagnostics",
         "pkg/strategy/pine/parse_semantic_test.go:195:TestCompileSupportsV15StaticForLoopControl",
         "pkg/strategy/pine/parse_semantic_test.go:230:TestCompileSupportsInputMathCrossAndSourceAwareMovingAverages",
         "pkg/strategy/pine/parse_semantic_test.go:268:TestCompileSupportsPineStrategyPositionVariables",
@@ -364980,6 +364966,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/marketdata/service_facade_test.go:83:TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::analysis_of_window_channel_and_cross_calls_plans_the_original_ta_script": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_semantic_test.go:55:TestAnalyzeScriptReportsSupportedTASemanticSignatures"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::unsupported_string_helpers_in_the_original_utility_script_prevent_planning": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_semantic_test.go:98:TestAnalyzeScriptReportsSupportedUtilitySemanticSignatures"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::malformed_indicator_tuples_are_rejected_at_the_source_line_without_executable_ir": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/compiler_rejection_contracts_test.go:79:TestTupleHelpersRejectMalformedIndicatorArityWithoutInventingAliases"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::analysis_classifies_missing_ema_length_as_a_semantic_signature_error": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_semantic_test.go:180:TestAnalyzeScriptReportsSemanticSignatureDiagnostics"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_signature_contracts.rs::semantic_analysis_of_input_ema_and_mtf_tuple_preserves_declared_symbols": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_semantic_test.go:10:TestAnalyzeScriptIncludesV17SemanticSummary"
       ],
       "reviewStatus": "single"
     },

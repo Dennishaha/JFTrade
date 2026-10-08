@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Pine MA 语义签名与静态 input 长度
+
+- 逐项复核原semantic180/10/55/98与tuple helper79五条，净 **+1 exact / -1 partial / boundary 0**，当前 **1648 / 2163 / 640**。原180完整Bad Signature脚本与include_ast=true经真实analysis返回ok=false、semantic对象存在、首diagnostic精确为PINE_SEMANTIC_SIGNATURE/line3，semantic首诊断相同，全部原断言闭合才升级。补断言Error、签名文案、无可执行IR/指标，以及实际pinespec validation不提供requirements/hooks并返回save hint。
+- 真实红测 **4 passed / 4 failed**：六种MA全部忽略第三参数而成功生成可执行IR与指标；缺参只有planner错误且仍保留program，原ta.ema(close)首码PINE_REQUIREMENTS_INVALID不同于语义签名；原V17的input.int(8)长度len也被planner拒绝。现在六种MA只接受两个参数，非法调用在semantic阶段拒绝；planner单独解析此前声明、整个program仅写一次的顶层数字/input.int字面默认值及其别名。前向引用、重写/条件写入、循环变量、UDF参数遮蔽、仅分支定义、zero/fractional/dynamic默认值和字符串冒充长度均不放行，MTF MA沿用正整数校验。IR的input/alias保持原样，无公开字段、契约、schema、锁文件、生成物或writer变化。
+- 四条继续partial：原10现在完整脚本通过并有四个symbol/declaration、一个hook/四statement，但value-kind、TupleBindings与FunctionCalls同形字段仍缺；原55整份TA脚本真实通过，旧framework引用和拒绝文字被纠正，九项Supported/Signature表仍缺；原98九个str helper在21至29行实际PINE_CALL_UNSUPPORTED，原29项utility成功签名表仍缺；原79五种缺参真实line15/PINE_TUPLE_ARITY/无IR通过，但私有handled/专用文案、MTF四参数形状、unrelated handoff与normalizationErr仍缺。未通过复用框架测试或修改冻结输入升exact。
+- 原始红receipt `verification-receipts/pine-semantic-signature-original-2026-10-08.json`保留，SHA-256 `e2773da8f1a4e2fb03b31ffd43c8d350440837a7e79c1148094a4ba7b790b7ef`；初始两份Rust原字节与diff于`/tmp/jftrade-pine-semantic-signature-original-source`。当前绿 `verification-receipts/pine-semantic-signature-owner-verified-2026-10-08.json` **10 passed / 0 failed / 0 ignored / 125 filtered/skipped**，SHA-256 `d702537a80365f0679c8392f842dcea64e6dfb9601ff3cdfc1eb7ba98bddc076`；四份Rust原字节、指纹和diff于`/tmp/jftrade-pine-semantic-signature-verified-source`。原八函数未放宽，另两函数补静态默认值/MTF与十三种不安全长度回归；完整strategy crate nextest **135 passed / 0 failed / 0 skipped**。只改五条mapping与必要reuse，现场quick、完整Rust及审计待运行，整体goal继续active。
+
+- 收口现场quick明确退出0，日志`/tmp/jftrade-pine-semantic-signature-quick.log`：受影响nextest **2423 passed / 0 failed / 0 skipped**，无LEAK；fmt、Clippy、trading/strategy replay、Pine worker **98 passed**与desktop脚本 **48 passed**。完整`pnpm run check:rust`明确退出0，日志`/tmp/jftrade-pine-semantic-signature-rust.log`：workspace **3867 passed / 0 failed / 2 skipped**，无LEAK，static与七类兼容replay均通过；2 skipped按runner实际结果保留，不记作执行通过。普通/strict/anchor/context审计通过，anchor **2142 unique / 2094 recorded / 0 unrecorded / 0 stale / 48 unknown**；四份Rust源码指纹与两份receipt SHA匹配。与HEAD比较只改五条mapping及七条必要reuse，净exact **+1** / partial **-1**。整体goal仍active，下一批转向真实WebSocket证券详情首帧与读取生命周期。
+
 ## 2026-10-08 Snapshot HTTP 读取边界与证券市场大小写
 
 - 逐项复核quote_availability35/9与service_facade83/136/69五条，净 **+3 exact / -3 partial / boundary 0**，当前 **1647 / 2164 / 640**。原35只有四个legacy零值断言，真实HTTP缓存读取price100且无snapshot时四字段全为字符串0，清除旧mapping附加的同名helper要求；原83实际是CN/SH.600519，真实reader恰一次收到SH.600519，request完整为SH/600519/SH.600519且价1338.5；原136同一实际helper请求在交付188.5/volume10成功响应前推进active generation，HTTP409 MARKET_DATA_PROVIDER_CHANGED且history为空、cache instrument_count0。三个升级都由同一真实读取的完整原断言支持。

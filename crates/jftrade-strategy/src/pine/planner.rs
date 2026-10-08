@@ -6,6 +6,10 @@ use thiserror::Error;
 use super::lower::{LoweredProgram, LoweredStatement};
 use super::parser::{Expr, ExprKind, UnaryOp};
 
+#[path = "planner_period_aliases.rs"]
+mod period_aliases;
+use period_aliases::PeriodAliases;
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndicatorRequirement {
@@ -327,6 +331,7 @@ pub fn plan_requirements(program: &LoweredProgram) -> Result<Requirements, Plann
         result: Requirements::default(),
         aliases: BTreeMap::new(),
         timeframe_aliases: BTreeMap::new(),
+        period_aliases: PeriodAliases::new(program),
     };
     for hook in &program.hooks {
         for statement in &hook.statements {
@@ -350,6 +355,7 @@ struct PlannerContext {
     /// assigned through a plain identifier (`tf2 = tf`). Go resolves these
     /// defaults before planning request.security requirement keys.
     timeframe_aliases: BTreeMap<String, String>,
+    period_aliases: PeriodAliases,
 }
 
 impl PlannerContext {
@@ -404,12 +410,14 @@ impl PlannerContext {
                         expression.range.start_line,
                         &self.aliases,
                         &self.timeframe_aliases,
+                        &self.period_aliases,
                     )?
                 {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
                 let resolved = self.resolve_alias(expression);
                 self.aliases.insert(name.to_ascii_lowercase(), resolved);
+                self.period_aliases.record(name, expression);
                 if let Some(timeframe) = self.resolve_timeframe_alias(expression) {
                     self.timeframe_aliases
                         .insert(name.to_ascii_lowercase(), timeframe);
@@ -427,6 +435,7 @@ impl PlannerContext {
                         expression.range.start_line,
                         &self.aliases,
                         &self.timeframe_aliases,
+                        &self.period_aliases,
                     )?
                 {
                     self.indicators.insert(requirement.key.clone(), requirement);
@@ -503,6 +512,7 @@ impl PlannerContext {
             line,
             &self.aliases,
             &self.timeframe_aliases,
+            &self.period_aliases,
         )? {
             self.indicators.insert(requirement.key.clone(), requirement);
         }
@@ -595,6 +605,7 @@ impl PlannerContext {
                             expression.range.start_line,
                             &self.aliases,
                             &self.timeframe_aliases,
+                            &self.period_aliases,
                         )?
                     {
                         self.indicators.insert(requirement.key.clone(), requirement);
@@ -609,8 +620,12 @@ impl PlannerContext {
                     && arguments.len() >= 3
                     && indicator_time_unit(&argument_text(arguments.get(1)).unwrap_or_default())
                         .is_some()
-                    && security_inner_binding(arguments.get(2), expression.range.start_line)?
-                        .is_some();
+                    && security_inner_binding(
+                        arguments.get(2),
+                        expression.range.start_line,
+                        &self.period_aliases,
+                    )?
+                    .is_some();
                 for (index, argument) in arguments.iter().enumerate() {
                     if wrapped_by_security && index == 2 {
                         continue;
@@ -627,6 +642,7 @@ impl PlannerContext {
                     expression.range.start_line,
                     &self.aliases,
                     &self.timeframe_aliases,
+                    &self.period_aliases,
                 )? {
                     self.indicators.insert(requirement.key.clone(), requirement);
                 }
@@ -650,7 +666,8 @@ impl PlannerContext {
         match &expression.kind {
             ExprKind::Call { callee, arguments } => {
                 if callee.to_ascii_lowercase().starts_with("ta.")
-                    && let Some((kind, mut parts)) = security_inner_binding(Some(expression), line)?
+                    && let Some((kind, mut parts)) =
+                        security_inner_binding(Some(expression), line, &self.period_aliases)?
                 {
                     if kind == "ma" {
                         parts.insert(2.min(parts.len()), time_unit.to_owned());
@@ -758,6 +775,7 @@ fn requirement_for_call(
     line: usize,
     aliases: &BTreeMap<String, String>,
     timeframe_aliases: &BTreeMap<String, String>,
+    period_aliases: &PeriodAliases,
 ) -> Result<Option<IndicatorRequirement>, PlannerError> {
     let lower = callee.to_ascii_lowercase();
     if lower == "ta.crossover" || lower == "ta.crossunder" || lower == "ta.cross" {
@@ -815,7 +833,8 @@ fn requirement_for_call(
         "ta.ema" | "ta.sma" | "ta.rma" | "ta.wma" | "ta.hma" | "ta.vwma" => {
             let requested = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
             let source = ensure_price_source(line, callee, &requested, aliases)?;
-            let length = argument_text(arguments.get(1))
+            let length = period_aliases
+                .argument(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
             ensure_positive_period(line, callee, &length)?;
             let label = lower
@@ -1178,7 +1197,7 @@ fn requirement_for_call(
             }
             if let Some(time_unit) = indicator_time_unit(&timeframe_text)
                 && let Some((inner_kind, mut parts)) =
-                    security_inner_binding(arguments.get(2), line)?
+                    security_inner_binding(arguments.get(2), line, period_aliases)?
             {
                 if inner_kind == "ma" {
                     // Go's `BuildMovingAverageKeyWithSource` keeps the time
@@ -1392,6 +1411,7 @@ fn stoch_price_source(
 fn security_inner_binding(
     expression: Option<&Expr>,
     line: usize,
+    period_aliases: &PeriodAliases,
 ) -> Result<Option<(String, Vec<String>)>, PlannerError> {
     let Some(expression) = expression else {
         return Ok(None);
@@ -1568,8 +1588,10 @@ fn security_inner_binding(
         // `security:` requirement.
         "ema" | "sma" | "rma" | "wma" | "hma" | "vwma" => {
             let source = argument_text(arguments.first()).unwrap_or_else(|| "close".to_owned());
-            let length = argument_text(arguments.get(1))
+            let length = period_aliases
+                .argument(arguments.get(1))
                 .ok_or_else(|| invalid(line, format!("{callee} requires a length")))?;
+            ensure_positive_period(line, callee, &length)?;
             let mut parts = vec![kind.to_ascii_uppercase(), length];
             if source != "close" {
                 parts.push(source);
