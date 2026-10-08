@@ -1,6 +1,9 @@
 use super::*;
 use crate::product::product_adk_chat_stream_port::{AdkChatRoute, AdkChatStreamPort};
 
+#[path = "product_adk_created_run_failure_owner_tests.rs"]
+mod created_run;
+
 fn ready_port() -> (
     tempfile::TempDir,
     Arc<ProductionAdkPort>,
@@ -134,8 +137,10 @@ async fn production_configured_stream_keeps_existing_durable_payload_failure_out
     assert_eq!(provider.accept().unwrap_err().kind(),io::ErrorKind::WouldBlock);
 }
 
-#[tokio::test]
-async fn production_configured_stream_keeps_post_creation_context_failure_with_durable_owner() {
+fn context_failure_port() -> (
+    tempfile::TempDir, Arc<ProductionAdkPort>, std::net::TcpListener,
+    crate::product::product_adk_chat_stream_port::AdkChatInput,
+) {
     let (directory,port,provider)=ready_port();
     port.store.upsert_agent("agent-context",&json!({"id":"agent-context","name":"Context Agent",
         "providerId":"provider-readiness","model":"fixture-model"}).to_string()).unwrap();
@@ -148,11 +153,26 @@ async fn production_configured_stream_keeps_post_creation_context_failure_with_d
         client_request_id:"11111111-1111-4111-8111-111111111118".to_owned(),
         body:br#"{"clientRequestId":"11111111-1111-4111-8111-111111111118","message":"hello","agentId":"agent-context","sessionId":"session-context"}"#.to_vec(),
     };
-    let error=port.dispatch(AdkChatRoute::Stream,&input).unwrap_err();
-    assert!(matches!(error,crate::product::product_adk_chat_stream_port::AdkChatPortError::Failed {status:500,code,..} if code=="ADK_STORAGE_CORRUPT"));
+    (directory,port,provider,input)
+}
+
+#[tokio::test]
+async fn production_configured_stream_terminalizes_post_creation_context_failure_with_durable_owner() {
+    let (_directory,port,provider,input)=context_failure_port();
+    let output=port.dispatch(AdkChatRoute::Stream,&input).unwrap();
+    let crate::product::product_adk_chat_stream_port::AdkChatPortOutput::Stream(snapshot)=output else {panic!("durable terminal snapshot")};
+    assert!(snapshot.terminal);
     let run=port.store.get_run_by_client_request_id(&input.client_request_id).unwrap().unwrap();
-    assert_eq!(run.status,"RUNNING");
-    assert_eq!(port.session_store.list_events("session-context").unwrap().len(),1);
+    assert_eq!(run.status,"FAILED");
+    let stored:Value=serde_json::from_str(&run.payload_json).unwrap();
+    assert_eq!(stored["response"]["run"]["status"],"FAILED");
+    assert_eq!(snapshot.frames.len(),1);
+    let crate::product::product_adk_chat_stream_port::AdkChatStreamFrame::Event {data,..}=&snapshot.frames[0] else {panic!("final frame")};
+    assert_eq!(data["type"],"final");assert!(data.get("replay").is_none());
+    assert_eq!(data["response"],stored["response"]);
+    let events=port.session_store.list_events("session-context").unwrap();
+    assert_eq!(events.iter().filter(|event|event.author=="user").count(),1);
+    assert_eq!(events.iter().filter(|event|Some(event.id.as_str())==stored["finalMessageId"].as_str()).count(),1);
     assert_eq!(port.unavailable_streams.retained_request_count(), 0);
     port.shutdown_with_error().unwrap();
     assert_eq!(port.store.get_run(&run.id).unwrap().unwrap(),run);

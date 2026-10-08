@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T20:42:49.344995+00:00",
+  "verifiedCommit": "228c13414042ab4f9e66d16bfbbbe3b1663f0c7f",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-created-run-failure-rust-20261009.log",
+  "rawOutputSha256": "b835bdfff58c287d007fc8bcb4ea0e4e253d56172a089b8dd4b6ce4a454f5a51",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4028,
+    "passed": 4028,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 110.662
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_events.rs": "41e456ca3966db3fd2676986cd87ce1b17b00142d1f6bbaf45729bda1dcb70d5",
+    "crates/jftrade-engine/src/product_adk_model_runtime_failure.rs": "8ffd975f47ba2917d57c574545f4649a7a3c9e3a7a0f47400cb2ee9d1520656b",
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs": "7a3e016cf1e832e1f9b6bcaa750edf45a9961bc0a0e0ac4c864b7ec44ac9c2a1",
+    "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs": "cc89dfab174d30170514da8c9fcfa7a7ce3615bfa05d8c8a714ecf2aa31b8fdb",
+    "crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs": "eb49beb7052af9a5174c5b4332fe6af0cceba59a317e689dbd3c717ba3cbb839",
+    "crates/jftrade-engine/src/product_adk_failure_projection_fence_tests.rs": "5adb5605d8a73b98338472fe9314790185baa4f712e5dec8c6e96c5d00a012c5"
+  },
+  "rustSourceFingerprintSha256": "fdfe2cd55174ad37043498cdb1a67a649bb98adb7b6b8761c8b56a3357d446a8",
+  "frozenRustFiles": 1035,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Production post-creation context failures now finalize through the same durable lease writer; sync and stream replay retain the FAILED projection without provider calls. Successful terminal attachment replaces provisional error at the same sequence; journal failure preserves error and rejects stale fencing tokens. Eight frozen originals reviewed, all classifications unchanged at 1662 exact/2151 partial/638 boundary. Known-context suppression, idle per-request pre-cancellation, durable typed decoding, legacy semantic reformatting and lease startup failures remain gaps. Historical LEAKs unresolved; whole goal active.",
+  "static": "passed"
+}

@@ -116,28 +116,24 @@ impl ProductionAdkChatRuntime {
         let prepared = self.prepare_chat(route, input)?;
         match prepared {
             PreparedChat::Existing(output) => Ok(output),
-            PreparedChat::New(chat, run_lease, _run_slot) => {
-                self.execute_chat(chat, run_lease)
-            }
+            PreparedChat::New(chat, run_lease, _run_slot) => self.execute_chat(chat, run_lease),
         }
     }
 
-    fn dispatch_provider_probe(
-        &self,
-        body: &[u8],
-    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
-        let request: Value = serde_json::from_slice(body).map_err(|error| {
-            AdkChatPortError::Failed {
+    fn dispatch_provider_probe(&self, body: &[u8]) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        let request: Value =
+            serde_json::from_slice(body).map_err(|error| AdkChatPortError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
                 message: format!("invalid chat payload: {error}"),
-            }
-        })?;
-        let object = request.as_object().ok_or_else(|| AdkChatPortError::Failed {
-            status: 400,
-            code: "BAD_REQUEST".to_owned(),
-            message: "invalid chat payload".to_owned(),
-        })?;
+            })?;
+        let object = request
+            .as_object()
+            .ok_or_else(|| AdkChatPortError::Failed {
+                status: 400,
+                code: "BAD_REQUEST".to_owned(),
+                message: "invalid chat payload".to_owned(),
+            })?;
         let mode = text_field(object, "providerTestMode")
             .unwrap_or_else(|| "quick".to_owned())
             .to_ascii_lowercase();
@@ -211,7 +207,11 @@ impl ProductionAdkChatRuntime {
         input: &AdkChatInput,
         durable_run_may_exist: &mut bool,
     ) -> Result<PreparedChat, AdkChatPortError> {
-        if self.continuation_supervisor.stopping.load(Ordering::Acquire) {
+        if self
+            .continuation_supervisor
+            .stopping
+            .load(Ordering::Acquire)
+        {
             return Err(unavailable("assistant runtime is stopping"));
         }
         let request: Value =
@@ -238,7 +238,6 @@ impl ProductionAdkChatRuntime {
         // accepted.  The check runs before provider/agent resolution, matching
         // `Runtime.prepareChatRequest`.
 
-
         if message.chars().count() > MAX_MESSAGE_LENGTH {
             return Err(chat_failed(format!(
                 "message exceeds maximum length of {MAX_MESSAGE_LENGTH} characters"
@@ -251,7 +250,8 @@ impl ProductionAdkChatRuntime {
         let permission_override = validate_permission_mode_override(object)?;
         validate_work_mode_override(object)?;
         let reasoning_override = validate_reasoning_effort_override(object)?;
-        let identity = crate::product::product_adk_chat_identity::ChatRequestIdentity::decode(&input.body)?;
+        let identity =
+            crate::product::product_adk_chat_identity::ChatRequestIdentity::decode(&input.body)?;
         if let Some(existing) = self
             .store
             .get_run_by_client_request_id(&input.client_request_id)
@@ -443,7 +443,10 @@ impl ProductionAdkChatRuntime {
             return self.prepare_existing_run(existing_or_created, route, &identity);
         };
         let run_lease = RunLeaseGuard::from_lease(
-            Arc::clone(&self.store), stored_lease, RUN_LEASE_TTL, RUN_LEASE_HEARTBEAT,
+            Arc::clone(&self.store),
+            stored_lease,
+            RUN_LEASE_TTL,
+            RUN_LEASE_HEARTBEAT,
         )?;
         // Go's `ToolDescriptorsForAgent` scopes the model-visible tool list to
         // the resolved agent; an unrestricted agent keeps the whole catalog.
@@ -459,46 +462,63 @@ impl ProductionAdkChatRuntime {
                     .is_some_and(|name| {
                         tool_scope.exposes(name)
                             && (name == "interaction.request_user"
-                                || (model_exposed_tool(name)
-                                    && self.tool_executor.supports(name)))
+                                || (model_exposed_tool(name) && self.tool_executor.supports(name)))
                     })
             })
             .collect();
-        // Go `AutoCompactForModelContext` runs before the provider payload is
-        // assembled, so the model sees the compacted projection.
-        self.auto_compact_for_model_context(&session_id, &message)?;
-        let tool_context = durable_context_items(
+        let mut chat = ChatExecution {
+            route,
+            run_id,
+            session_id,
+            agent_id,
+            resumed: false,
+            resumed_from_input: false,
+            permission_mode: Self::agent_permission_mode(&provider.agent_payload),
+            context_deltas,
+            request: ModelRequest {
+                endpoint: provider.endpoint,
+                api_key: provider.api_key,
+                model,
+                instruction: provider.instruction,
+                message: message.clone(),
+                durable_context: Vec::new(),
+                tool_context: Vec::new(),
+                timeout: provider.timeout,
+                tools,
+                reasoning: provider.reasoning.clone(),
+            },
+        };
+        // Go finalizes ExecuteGoogleADK setup failures through CompleteChatRun
+        // after StartRun. Keep that same durable writer and lease for failures
+        // before the first provider call as well.
+        if let Err(error) = self.prepare_created_chat_context(&mut chat) {
+            let mut output = self.finish_chat(&chat, Err(error), &run_lease)?;
+            if let AdkChatPortOutput::Stream(snapshot) = &mut output {
+                for frame in &mut snapshot.frames {
+                    if let AdkChatStreamFrame::Event { data, .. } = frame
+                        && let Some(event) = data.as_object_mut()
+                    {
+                        event.remove("replay");
+                    }
+                }
+            }
+            return Ok(PreparedChat::Existing(output));
+        }
+        Ok(PreparedChat::New(chat, run_lease, run_slot))
+    }
+
+    fn prepare_created_chat_context(
+        &self,
+        chat: &mut ChatExecution,
+    ) -> Result<(), AdkChatPortError> {
+        self.auto_compact_for_model_context(&chat.session_id, &chat.request.message)?;
+        chat.request.durable_context = durable_context_items(
             self.store.as_ref(),
             self.session_store.as_ref(),
-            &session_id,
-            Some(&run_id),
+            &chat.session_id,
+            Some(&chat.run_id),
         )?;
-        Ok(PreparedChat::New(
-            ChatExecution {
-                route,
-                run_id,
-                session_id,
-                agent_id,
-                resumed: false,
-                resumed_from_input: false,
-                permission_mode: Self::agent_permission_mode(&provider.agent_payload),
-                context_deltas,
-                request: ModelRequest {
-                    endpoint: provider.endpoint,
-                    api_key: provider.api_key,
-                    model,
-                    instruction: provider.instruction,
-                    message: message.clone(),
-                    durable_context: tool_context,
-                    tool_context: Vec::new(),
-                    timeout: provider.timeout,
-                    tools,
-                    reasoning: provider.reasoning.clone(),
-                },
-            },
-            run_lease,
-            run_slot,
-        ))
+        Ok(())
     }
 
     fn prepare_existing_run(
@@ -655,7 +675,10 @@ impl ProductionAdkChatRuntime {
         self.finish_chat(&chat, result, &run_lease)
     }
 
-    pub(crate) fn attach_ports(&self, ports: Arc<crate::product::product_production_ports::ProductionPortBundle>) {
+    pub(crate) fn attach_ports(
+        &self,
+        ports: Arc<crate::product::product_production_ports::ProductionPortBundle>,
+    ) {
         self.tool_executor.attach_ports(ports);
     }
 }
@@ -707,21 +730,19 @@ fn provider_probe_reasoning_config(
         .get_provider(&provider.id)
         .map_err(storage_unavailable)?
         .ok_or_else(|| unavailable("agent provider is unavailable"))?;
-    let mut value: Value = serde_json::from_str(&row.payload_json).map_err(|error| {
-        AdkChatPortError::Failed {
+    let mut value: Value =
+        serde_json::from_str(&row.payload_json).map_err(|error| AdkChatPortError::Failed {
             status: 500,
             code: "ADK_STORAGE_CORRUPT".to_owned(),
             message: format!("stored ADK provider payload is invalid JSON: {error}"),
-        }
-    })?;
+        })?;
     crate::product::product_production_ports::product_production_ports_adk::projection::normalize_provider_reasoning_config(&mut value);
-    let config = value
-        .get("reasoningConfig")
-        .cloned()
-        .unwrap_or_else(|| json!({
+    let config = value.get("reasoningConfig").cloned().unwrap_or_else(|| {
+        json!({
             "requestField": "reasoning.effort",
             "mappings": [],
-        }));
+        })
+    });
     crate::product::product_production_ports::product_production_ports_adk::projection::validate_provider_reasoning_config(&config)
         .map_err(chat_failed)?;
     let request_field = config

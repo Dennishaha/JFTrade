@@ -18,7 +18,9 @@ impl ProductionAdkChatRuntime {
         let (error_status, message) = match error {
             AdkChatPortError::Unavailable(message) => (503, message.clone()),
             AdkChatPortError::Conflict(message) => (409, message.clone()),
-            AdkChatPortError::Failed { status, message, .. } => (*status, message.clone()),
+            AdkChatPortError::Failed {
+                status, message, ..
+            } => (*status, message.clone()),
         };
         let error_message = message.clone();
         let (status, error_code) = run_terminal_state(error);
@@ -298,20 +300,27 @@ impl ProductionAdkChatRuntime {
                 .get_mut("streamEvents")
                 .and_then(Value::as_array_mut)
                 .ok_or_else(|| unavailable("persisted ADK run has no stream event list"))?;
-            let has_terminal = events
+            let terminal_kind = events
                 .last()
                 .and_then(|event| event.get("type"))
-                .and_then(Value::as_str)
-                .is_some_and(|kind| matches!(kind, "final" | "error"));
-            if !has_terminal {
-                let sequence = events.len() as u64 + 1;
+                .and_then(Value::as_str);
+            if terminal_kind != Some("final") {
+                let replaces_error = terminal_kind == Some("error");
+                let sequence = events.len() as u64 + u64::from(!replaces_error);
                 let mut final_event = json!({"type": "final", "response": response.clone()});
                 if let Some(object) = final_event.as_object_mut() {
                     object.insert("streamId".to_owned(), Value::String(chat.run_id.clone()));
                     object.insert("sequence".to_owned(), Value::from(sequence));
                     object.insert("runId".to_owned(), Value::String(chat.run_id.clone()));
                 }
-                events.push(final_event);
+                // The provisional error was never published. Commit the final
+                // projection at its sequence; retain the error if this fenced
+                // attachment transaction fails.
+                if replaces_error {
+                    *events.last_mut().expect("terminal error exists") = final_event;
+                } else {
+                    events.push(final_event);
+                }
             }
         }
         let updated = self

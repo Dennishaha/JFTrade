@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 创建后 context 失败与生产终态 final
+
+- 两条真实生产红0 passed/2 failed：创建run后的context错误返回JSON且遗留RUNNING；live provider失败虽已保存FAILED响应，仍发布临时error。红receipt `adk-created-run-failure-red-2026-10-09.json` SHA `3caee12e8d26931e2a2f2eae59b08125c41493eba1b34898b4b7cf817c192ff1`，原diff、1034文件指纹与源码全文归档保留。
+- 在run创建和原RunLeaseGuard取得后先构造execution；context compaction/读取失败沿原finish_chat/persist_failure保存FAILED、synthetic原生消息及响应。同步返回相同失败投影，stream首次交付不标replay、两路重连同streamId/sequence/final/响应并EOF；首次retry写失败、重放和shutdown保持完整run/audit/events，零provider连接、零第二份内存记录。
+- 成功attachment在同一revision/fencing事务把临时error替换为相同sequence的final。故障注入证明synthetic消息写失败回滚projection/message，保留FAILED/error及一次audit；修复journal后同sequence保存final，重复失败不追加消息或改写终态。确定性SQL过期与takeover控制证明旧token不能写终态或消息、guard释放不删除新owner；原终态winner及UNKNOWN/禁止重复执行控制继续通过。
+- 初次控制3 passed，新增fence/sync控制6 passed；最终定向107 passed/0 failed，receipt SHA `e25a0a6e335b904f7a3a0078149e783c1589b05850374ad33d0d0e95b7298893`。查看quick计划后2430 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4028 passed/0 failed/2 skipped，static和七类replay退出0，无LEAK。1035个Rust文件从最终定向到完整门禁冻结。
+- 8条冻结原函数及blob再次复核：helpers167/216、recovery41、disconnect55/110、routes301、identity17/48。recovery41仅补生产失败final证据，known-context分支继续partial；其他分类保持，当前1662 exact/2151 partial/638 boundary。复用上批review时发现concurrent48仍带升级前partial元数据，验证器失败日志保留，按批次起始HEAD校正review分类后重新核验，未改映射分类或放宽断言。
+- 四份receipt、两份gate/raw SHA、测试时diff、Go原函数、22处reuse及anchor核验；strict/context通过，unrecorded/stale0、既有unknown48。现场证据`.git/adk-created-run-failure-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-created-run-failure-recovery-20261009`。lease启动失败、projection附件失败后的自动补齐、known-context、durable字段类型解码、旧请求语义重排及每请求预取消继续开放；历史LEAK未定位，整体active，继续下一批。
+
 ## 2026-10-09 同步 Responses SSE 与成功并发的原生 final 消息
 
 - 冻结Go concurrent48原样Responses SSE事件使真实生产同步Chat落为FAILED而非COMPLETED；红receipt SHA `d97bc0c8cf197e2492809d2542cb1cfbf71e8430a9b2055c3776aa1e43c63a6f`，0 passed/1 failed。运行前diff及1032个Rust文件指纹/全文归档。首owner在provider处由channel保持，第二实际Chat完成后才释放，无40ms睡眠竞争；Go已有RUNNING请求返回当前投影，两次调用均成功且同run即原要求，不增加等待终态语义。

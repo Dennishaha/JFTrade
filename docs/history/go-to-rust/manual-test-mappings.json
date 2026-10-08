@@ -4039,8 +4039,8 @@
     },
     "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once",
-      "conclusion": "partial（2026-10-09冻结原测试复核）：已持久终态恢复为final而非第二条error的断言闭合；已有session在真实HTTP执行中仅发一次preview也已验证。但Go已知contextSent时ensureSessionAndContext只发布一个session且不重新获取context的独立分支，不能由完整执行流中session计数1替代。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once; crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs::production_live_failure_replays_final_projection_without_provisional_error",
+      "conclusion": "partial（2026-10-09冻结原测试复核）：已持久终态恢复为final而非第二条error的断言闭合；已有session在真实HTTP执行中仅发一次preview也已验证。但Go已知contextSent时ensureSessionAndContext只发布一个session且不重新获取context的独立分支，不能由完整执行流中session计数1替代。 本批新增真实live provider失败终态final及创建后context失败控制；known-context缺口保持，不升级exact。",
       "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -4071,12 +4071,24 @@
             "rustFile": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
             "rustLine": 1684
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs",
+          "test": "production_live_failure_replays_final_projection_without_provisional_error",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
+            "goLine": 41,
+            "rustFile": "crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs",
+            "rustLine": 124
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
           "已持久终态run在错误恢复时发布final而非第二条error。",
-          "真实HTTP执行已有session仅发一次preview且session先于run。"
+          "真实HTTP执行已有session仅发一次preview且session先于run。",
+          "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。"
         ],
         "uncovered": [
           "已知context时preview只发session、不重新获取或发布context的分支尚缺对应owner断言。"
@@ -4099,19 +4111,19 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_retained_error) | test(production_unavailable_chat) | test(expired_unavailable_stream) | test(chat_dispatch_retains_error_stream) | test(production_malformed_chat_stops) | test(production_reconnect_) | test(adk_chat_idempotency_contract_matches_the_go_routes) | test(concurrent_first_delivery_creates_one_durable_run_and_event) | test(production_adk_and_plugin_and_alert_ports) | test(canonical_278_routes_table_driven_reachability_and_auth_matrix) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_stream_missing_agent_emits_no_preview_frames) | test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history)"
+          "test(terminal_audit_tests::) | test(reconnect_live::) | test(fencing_tests::) | test(persisted_terminal_run_is_published)"
         ],
         "testFilter": [
-          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
-          "production_live_chat_stream_reuses_existing_session_preview_once"
+          "production_live_failure_replays_final_projection_without_provisional_error",
+          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
         ],
         "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "29729b52ee5c2697375c9235ffb59b3f09fa5784",
-        "verifiedAt": "2026-10-08T18:59:55Z",
-        "receiptDigest": "sha256:5289c42bc10d2686a1519efcbc6525b6b8e796aab892e6d718e0c034a0b79d00"
+        "verifiedCommit": "228c13414042ab4f9e66d16bfbbbe3b1663f0c7f",
+        "verifiedAt": "2026-10-08T20:36:42Z",
+        "receiptDigest": "sha256:e25a0a6e335b904f7a3a0078149e783c1589b05850374ad33d0d0e95b7298893"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -4121,7 +4133,8 @@
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已持久终态run在错误恢复时发布final而非第二条error。",
-        "真实HTTP执行已有session仅发一次preview且session先于run。"
+        "真实HTTP执行已有session仅发一次preview且session先于run。",
+        "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。"
       ],
       "uncoveredAssertions": [
         "已知context时preview只发session、不重新获取或发布context的分支尚缺对应owner断言。"
@@ -366503,6 +366516,15 @@
       ],
       "allowed": true,
       "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs::production_live_failure_replays_final_projection_without_provisional_error": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: production live failure saves and emits the FAILED final projection. Only terminal recovery portion of recovery41; known-context branch remains partial. No other original assertions claimed."
     }
   }
 }

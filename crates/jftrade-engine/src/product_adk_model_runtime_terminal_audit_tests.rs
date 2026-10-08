@@ -27,6 +27,9 @@ use super::{
 #[path = "product_adk_terminal_disconnect_tests.rs"]
 mod disconnect;
 
+#[path = "product_adk_failure_projection_fence_tests.rs"]
+mod failure_projection;
+
 fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
     let directory = tempdir().expect("temporary directory");
     let adk_path = directory.path().join("adk.db");
