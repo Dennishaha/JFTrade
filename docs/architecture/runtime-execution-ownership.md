@@ -13,6 +13,7 @@
 ## ADK 模型执行
 
 - `RunLeaseGuard` 持有 durable run lease 和唯一 heartbeat worker；停止先唤醒并 join worker，再按 owner/fencing token 释放租约。
+- 同步 chat、live stream 和审批 continuation 共用生产 supervisor 的准入、取消与 completion barrier。关闭先拒绝新执行，再停止恢复扫描、取消 provider 并等待执行退出及租约释放；五秒内未结束时返回未完成并保留 task owner 和工具 ports，后续关闭可以重试。关闭后的 provider 注册继承取消状态，不能漏掉取消 fan-out。
 - 同步请求、live stream 和审批继续中的 provider 等待同时检查运行取消及租约丢失。取消覆盖请求发送、响应头、JSON body 和 idle SSE 等待；heartbeat 写失败不能让旧 owner 继续等待模型回复。
 - 租约丢失后先结束当前执行，禁止旧 owner 写入迟到成功、失败或取消终态。SQLite 持续校验 owner/fencing token，终态与工具副作用仍由原有生产写入 owner 提交。
 

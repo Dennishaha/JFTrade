@@ -167,6 +167,9 @@ impl ProductionAdkChatRuntime {
     }
 
     pub(crate) fn shutdown_with_error(&self) -> Result<(), AdkChatPortError> {
+        self.continuation_supervisor
+            .stopping
+            .store(true, Ordering::Release);
         // Stop the scanner before cancelling continuations.  Otherwise a
         // final poll can enqueue a fresh worker while the runtime is already
         // tearing down its leases.

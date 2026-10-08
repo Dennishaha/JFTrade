@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T12:12:22.024932+00:00",
+  "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-shutdown-rust-full-20261008.log",
+  "rawOutputSha256": "166e3e4d6ea97e898c41020717295fd8c5c5f457185ce876eabbb38c40e20f56",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3966,
+    "passed": 3966,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 105.974
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime.rs": "8614d0ecc23e4c0573eb2830280fca86ff6833339830b184b47214865d6d4e99",
+    "crates/jftrade-engine/src/product_adk_model_runtime_adapters.rs": "91cd92a77f65b65e6a2a1b8bff14fa93fa3c9751c2be656509bc0fa4fb89183d",
+    "crates/jftrade-engine/src/product_adk_model_runtime_cancellation.rs": "1ee7b1700a213ffef6eb106b9ae5a26c7b6dd2023829b869bffd9fd355ef355c",
+    "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs": "46b41afc0d2e725ff1016446fcc67ba67df4c99e10673ffd9ff2f2bb3dd760a6",
+    "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs": "496150d4fb66cf25fca829029850eb3fc2b612163775b05ae25e57d096611721",
+    "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs": "0b0141960536586b8222d36ead7cfdd64f038c2e0a04b66db30128085cc78ff7"
+  },
+  "rustSourceFingerprintSha256": "d2537cec82ea6c16b72e1723f7b8cd91ab340880dd3e948631908a1a9046ad1a",
+  "frozenRustFiles": 1016,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Go nil runtime/function guards remain partial, nullable background context fallback remains boundary; whole parity goal active."
+}

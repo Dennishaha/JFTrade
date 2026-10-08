@@ -7,6 +7,9 @@ use std::time::Instant;
 
 use super::super::{AdkChatPortError, AdkChatRoute, RUN_LEASE_HEARTBEAT, RUN_LEASE_TTL};
 
+#[path = "product_adk_run_lease_shutdown_tests.rs"]
+mod shutdown;
+
 // Parity: go:452dea11:internal/assistant/engine/runtime_execution_lease_boundaries_test.go:161 TestRunExecutionLeaseUsesSafeDefaults
 #[test]
 fn production_run_lease_defaults_use_thirty_second_ttl_and_join_on_drop() {

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_shutdown_waits_for_the_) or test(production_lease_admission_rejects_closing) or test(production_background_shutdown_cancels) or test(production_shutdown_cancels_a_provider_token)"
+  ],
+  "status": "failed",
+  "exitCode": 101,
+  "verifiedAt": "2026-10-08T11:58:42.706856+00:00",
+  "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-shutdown-owner-red-20261008.stderr",
+  "rawOutputSha256": "fd43eef8d42d6d9b8271ea7cd5ae8da28470d98db9d171e02d08a64e0798d6d0",
+  "diagnostic": "Rust E0382 in new test fixture: returned_early partially moved. Compilation failed; no behavior tests ran.",
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs": "496150d4fb66cf25fca829029850eb3fc2b612163775b05ae25e57d096611721",
+    "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs": "496e290b39b9e3a931876681fb1121c57500c4039ee0699141c6866df83a7861"
+  }
+}

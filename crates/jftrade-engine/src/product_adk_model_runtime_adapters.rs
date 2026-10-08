@@ -62,30 +62,35 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
                 .recv()
                 .map_err(|_| unavailable("assistant model stream failed to start"))?;
         }
-        std::thread::Builder::new()
-            .name("jftrade-adk-model".to_owned())
-            .spawn(move || {
-                let runtime = ProductionAdkChatRuntime {
-                    store,
-                    session_store,
-                    secrets_path,
-                    settings_path,
-                    cancellation_registry,
-                    tool_catalog,
-                    tool_executor,
-                    continuation_supervisor,
-                    run_gate,
-                    recovery_supervisor: None,
-                };
-                let result = runtime.dispatch_inner(route, &input);
-                if route == AdkChatRoute::Chat {
-                    result.map_err(chat_route_error)
-                } else {
-                    result
-                }
-            })
-            .map_err(|error| AdkChatPortError::Unavailable(error.to_string()))?
-            .join()
+        let (finished, result) = std::sync::mpsc::sync_channel(1);
+        let task_key = format!(
+            "chat:{}:{}",
+            input.client_request_id,
+            STREAM_TASK_SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        );
+        continuation_supervisor.clone().spawn(&task_key, move |_| {
+            let runtime = ProductionAdkChatRuntime {
+                store,
+                session_store,
+                secrets_path,
+                settings_path,
+                cancellation_registry,
+                tool_catalog,
+                tool_executor,
+                continuation_supervisor,
+                run_gate,
+                recovery_supervisor: None,
+            };
+            let result = runtime.dispatch_inner(route, &input);
+            let result = if route == AdkChatRoute::Chat {
+                result.map_err(chat_route_error)
+            } else {
+                result
+            };
+            let _ = finished.send(result);
+        })?;
+        result
+            .recv()
             .map_err(|_| unavailable("assistant model runtime panicked"))?
     }
 

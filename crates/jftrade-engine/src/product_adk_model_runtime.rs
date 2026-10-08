@@ -628,6 +628,13 @@ impl ProductionAdkChatRuntime {
         cancellation: &Arc<AtomicBool>,
     ) -> Result<RunLeaseGuard, AdkChatPortError> {
         loop {
+            if self
+                .continuation_supervisor
+                .stopping
+                .load(Ordering::Acquire)
+            {
+                return Err(unavailable("assistant runtime is stopping"));
+            }
             if cancellation.load(Ordering::Acquire) || self.run_is_cancelled(run_id) {
                 return Err(cancellation_error());
             }

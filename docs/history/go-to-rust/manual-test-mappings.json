@@ -101162,11 +101162,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping",
-      "conclusion": "function_exact（closing 部分）：Go 的 `goBackground` 在 closing 状态拒绝新工作。Rust 的等价物是 `ContinuationSupervisor::spawn`：`stopping` 置位后 spawn 返回 `Unavailable(\"assistant continuation supervisor is stopping\")`。新回归 `challenge_continuation_supervisor_rejects_new_work_once_stopping` 断言关闭前可 spawn、shutdown 后拒绝、且再次尝试仍被拒绝。Go 的 nil-runtime/nil-func 边界不适用（Rust 无 nil，`spawn` 只接受 `FnOnce` 值）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping; crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_background_shutdown_cancels_joins_and_rejects_new_work",
+      "conclusion": "partial：2026-10-08冻结Go原断言复核。真实生产runtime准入后台任务并在原100ms内执行；shutdown开始后及结束后均拒绝新任务，取消和join由真实owner完成。 剩余：Go nil-runtime和nil-function拒绝在Rust FnOnce/非nullable receiver下无同形可调用分支；旧closing-only exact未闭合整条函数，纠正partial并保留类型边界。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/runner_continuation_boundaries_test.go",
         "line": 314,
@@ -101182,59 +101182,81 @@
             "goFile": "internal/assistant/engine/runner_continuation_boundaries_test.go",
             "goLine": 314,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 631
+            "rustLine": 655
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+          "test": "production_background_shutdown_cancels_joins_and_rejects_new_work",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_continuation_boundaries_test.go",
+            "goLine": 314,
+            "rustFile": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+            "rustLine": 225
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact（closing 部分）：Go 的 `goBackground` 在 closing 状态拒绝新工作。Rust 的等价物是 `ContinuationSupervisor::spawn`：`stopping` 置位后 spawn 返回 `Unavailable(\"assistant continuation supervisor is stopping\")`。新回归 `challenge_continuation_supervisor_rejects_new_work_once_stopping` 断言关闭前可 spawn、shutdown 后拒绝、且再次尝试仍被拒绝。Go 的 nil-runtime/nil-func 边界不适用（Rust 无 nil，`spawn` 只接受 `FnOnce` 值）。"
+          "真实生产runtime准入后台任务并在原100ms内执行；shutdown开始后及结束后均拒绝新任务，取消和join由真实owner完成。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "Go nil-runtime和nil-function拒绝在Rust FnOnce/非nullable receiver下无同形可调用分支；旧closing-only exact未闭合整条函数，纠正partial并保留类型边界。"
+        ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T12:03:25Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_shutdown_waits_for_the_) or test(production_lease_admission_rejects_closing) or test(production_background_shutdown_cancels) or test(production_shutdown_cancels_a_provider_token) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning)"
         ],
         "testFilter": [
-          "challenge_continuation_supervisor_rejects_new_work_once_stopping"
+          "challenge_continuation_supervisor_rejects_new_work_once_stopping",
+          "production_background_shutdown_cancels_joins_and_rejects_new_work"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+        "receiptDigest": "sha256:69a2a8307dbdab0fb85fbbaab53eedaa6f5594b54d8f38dc275fecb97f1fb52e"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "retain_receipt_and_reaudit",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact（closing 部分）：Go 的 `goBackground` 在 closing 状态拒绝新工作。Rust 的等价物是 `ContinuationSupervisor::spawn`：`stopping` 置位后 spawn 返回 `Unavailable(\"assistant continuation supervisor is stopping\")`。新回归 `challenge_continuation_supervisor_rejects_new_work_once_stopping` 断言关闭前可 spawn、shutdown 后拒绝、且再次尝试仍被拒绝。Go 的 nil-runtime/nil-func 边界不适用（Rust 无 nil，`spawn` 只接受 `FnOnce` 值）。"
+        "真实生产runtime准入后台任务并在原100ms内执行；shutdown开始后及结束后均拒绝新任务，取消和join由真实owner完成。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "Go nil-runtime和nil-function拒绝在Rust FnOnce/非nullable receiver下无同形可调用分支；旧closing-only exact未闭合整条函数，纠正partial并保留类型边界。"
+      ],
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_continuation_boundaries_test.go:347:TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work",
-      "conclusion": "function_exact：Go 的 `Close` 先取消在途后台工作、等待其结束再返回，并在 closing/closed 状态拒绝新工作。Rust 的 `ContinuationSupervisor::shutdown` 置 stopping、取消每个在飞任务的 cancellation 标志，再阻塞在 completion barrier 上等待所有任务退出。新回归断言 shutdown 返回时在途任务已观察到取消（`observed_cancel == 1`），且此后的 spawn 必须失败；既有的 `challenge_continuation_supervisor_shutdown_blocks_for_all_tasks` 进一步断言 shutdown 会等到全部任务完成而不是提前返回。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work; crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_background_shutdown_cancels_joins_and_rejects_new_work",
+      "conclusion": "function_exact：2026-10-08冻结Go原断言复核。真实runtime后台任务已进入，shutdown一秒内发出取消；任务等待信号放行期间close不返回、closing拒绝新任务，放行并join后关闭无error、task map为空，closed继续拒绝新任务。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runner_continuation_boundaries_test.go",
@@ -101251,41 +101273,57 @@
             "goFile": "internal/assistant/engine/runner_continuation_boundaries_test.go",
             "goLine": 347,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 671
+            "rustLine": 696
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+          "test": "production_background_shutdown_cancels_joins_and_rejects_new_work",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runner_continuation_boundaries_test.go",
+            "goLine": 347,
+            "rustFile": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+            "rustLine": 226
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 的 `Close` 先取消在途后台工作、等待其结束再返回，并在 closing/closed 状态拒绝新工作。Rust 的 `ContinuationSupervisor::shutdown` 置 stopping、取消每个在飞任务的 cancellation 标志，再阻塞在 completion barrier 上等待所有任务退出。新回归断言 shutdown 返回时在途任务已观察到取消（`observed_cancel == 1`），且此后的 spawn 必须失败；既有的 `challenge_continuation_supervisor_shutdown_blocks_for_all_tasks` 进一步断言 shutdown 会等到全部任务完成而不是提前返回。"
+          "真实runtime后台任务已进入，shutdown一秒内发出取消；任务等待信号放行期间close不返回、closing拒绝新任务，放行并join后关闭无error、task map为空，closed继续拒绝新任务。"
         ],
         "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T12:03:25Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_shutdown_waits_for_the_) or test(production_lease_admission_rejects_closing) or test(production_background_shutdown_cancels) or test(production_shutdown_cancels_a_provider_token) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning)"
         ],
         "testFilter": [
-          "challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work"
+          "challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work",
+          "production_background_shutdown_cancels_joins_and_rejects_new_work"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+        "receiptDigest": "sha256:69a2a8307dbdab0fb85fbbaab53eedaa6f5594b54d8f38dc275fecb97f1fb52e"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -101294,16 +101332,16 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 的 `Close` 先取消在途后台工作、等待其结束再返回，并在 closing/closed 状态拒绝新工作。Rust 的 `ContinuationSupervisor::shutdown` 置 stopping、取消每个在飞任务的 cancellation 标志，再阻塞在 completion barrier 上等待所有任务退出。新回归断言 shutdown 返回时在途任务已观察到取消（`observed_cancel == 1`），且此后的 spawn 必须失败；既有的 `challenge_continuation_supervisor_shutdown_blocks_for_all_tasks` 进一步断言 shutdown 会等到全部任务完成而不是提前返回。"
+        "真实runtime后台任务已进入，shutdown一秒内发出取消；任务等待信号放行期间close不返回、closing拒绝新任务，放行并join后关闭无error、task map为空，closed继续拒绝新任务。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/runner_continuation_boundaries_test.go:406:TestGoBackgroundUsesBackgroundCtxOrFallback": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping",
-      "conclusion": "不适用/需保留边界：Go 的 `goBackground` 需要为 nil `backgroundCtx` 兜底一个非 nil context 才能执行后台工作。Rust 没有等价结构：`ContinuationSupervisor::spawn` 的任务闭包只接收 `Arc<AtomicBool>` 取消位，不存在「runtime 级 backgroundCtx 可能为 nil」这个状态，因此没有可迁移的兜底分支。相邻的 admission/cancel 语义（spawn 被拒、任务执行、取消位传播）已由 challenge_continuation_supervisor_rejects_new_work_once_stopping 与 challenge_continuation_supervisor_cancellation_signal_propagates 覆盖。保留边界原因：若未来 Rust 引入 runtime 级后台 context，需要重新评估该兜底是否可省略。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_background_shutdown_cancels_joins_and_rejects_new_work",
+      "conclusion": "boundary：2026-10-08冻结Go原断言复核。真实生产后台owner交付非nullable Arc<AtomicBool>，任务执行、取消、join及closing/closed拒绝直接验证。 剩余：Go runtime.backgroundCtx=nil时context.Background兜底在Rust取消token结构中不存在；保留结构边界，不从邻接取消测试推断Go nil fallback。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "boundary",
       "source": {
         "file": "internal/assistant/engine/runner_continuation_boundaries_test.go",
@@ -101313,50 +101351,54 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-          "test": "challenge_continuation_supervisor_rejects_new_work_once_stopping",
+          "file": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+          "test": "production_background_shutdown_cancels_joins_and_rejects_new_work",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/runner_continuation_boundaries_test.go",
             "goLine": 406,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 631
+            "rustFile": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+            "rustLine": 227
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust continuation supervisor rejects new work once stopping."
+          "真实生产后台owner交付非nullable Arc<AtomicBool>，任务执行、取消、join及closing/closed拒绝直接验证。"
         ],
         "uncovered": [
-          "Rust has no Go-style nullable background context or fallback context helper; the context-ownership boundary is not representable."
+          "Go runtime.backgroundCtx=nil时context.Background兜底在Rust取消token结构中不存在；保留结构边界，不从邻接取消测试推断Go nil fallback。"
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T12:03:25Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_shutdown_waits_for_the_) or test(production_lease_admission_rejects_closing) or test(production_background_shutdown_cancels) or test(production_shutdown_cancels_a_provider_token) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning)"
         ],
         "testFilter": [
-          "challenge_continuation_supervisor_rejects_new_work_once_stopping"
+          "production_background_shutdown_cancels_joins_and_rejects_new_work"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+        "receiptDigest": "sha256:69a2a8307dbdab0fb85fbbaab53eedaa6f5594b54d8f38dc275fecb97f1fb52e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -101367,12 +101409,12 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust continuation supervisor rejects new work once stopping."
+        "真实生产后台owner交付非nullable Arc<AtomicBool>，任务执行、取消、join及closing/closed拒绝直接验证。"
       ],
       "uncoveredAssertions": [
-        "Rust has no Go-style nullable background context or fallback context helper; the context-ownership boundary is not representable."
+        "Go runtime.backgroundCtx=nil时context.Background兜底在Rust取消token结构中不存在；保留结构边界，不从邻接取消测试推断Go nil fallback。"
       ],
-      "boundaryReason": null
+      "boundaryReason": "Go runtime.backgroundCtx=nil时context.Background兜底在Rust取消token结构中不存在；保留结构边界，不从邻接取消测试推断Go nil fallback。"
     },
     "internal/assistant/engine/runner_continuation_boundaries_test.go:427:TestGoalResumeExecutionErrorPaths": {
       "status": "[~]",
@@ -102841,9 +102883,9 @@
     },
     "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176:TestRuntimeCloseCancelsAndWaitsForInFlightRunLease": {
       "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_concurrent_spawn_shutdown_race + crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates + crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_claims_are_exclusive_and_released",
-      "conclusion": "function_exact（三元组合，逐分支对应）：Go 断言关闭取消在途 run 租约、关闭等待释放完成后再返回、释放后租约行 OwnerID 清空。取消半由 challenge_continuation_supervisor_cancellation_signal_propagates 覆盖（20 个在途任务全部观察到取消标志且 shutdown 快速返回）；等待半由 challenge_continuation_supervisor_concurrent_spawn_shutdown_race 覆盖（200 轮并发 spawn 与 shutdown 竞态下 shutdown 返回后无任务仍活动）；释放半由 challenge_continuation_supervisor_claims_are_exclusive_and_released 覆盖（任务结束 claim 即释放、同一 run 可再次认领、shutdown 后不再受理）。本批把原单测 entry 纠正为三元组合（单测只覆盖等待半），组合全文在 [x] 行间唯一；三处锚点均在 fencing_tests.rs。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_concurrent_spawn_shutdown_race; crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_cancellation_signal_propagates; crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_claims_are_exclusive_and_released; crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_shutdown_waits_for_the_sync_chat_lease_release; crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_shutdown_waits_for_the_live_stream_lease_release",
+      "conclusion": "function_exact：2026-10-08冻结Go原断言复核。实际生产dispatch持有run lease，外部SQLite BEGIN IMMEDIATE阻塞真实释放写入；shutdown在一秒内取消provider，释放阻塞前不返回，ROLLBACK后无error、durable owner清空且supervisor任务为空。同步chat与live stream均直接验证；旧generic三元组合只支持其本身task/claim断言，不能单独证明durable lease释放。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
@@ -102860,7 +102902,7 @@
             "goFile": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
             "goLine": 176,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 794
+            "rustLine": 825
           }
         },
         {
@@ -102871,7 +102913,7 @@
             "goFile": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
             "goLine": 176,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 755
+            "rustLine": 786
           }
         },
         {
@@ -102882,86 +102924,71 @@
             "goFile": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
             "goLine": 176,
             "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 501
+            "rustLine": 532
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+          "test": "production_shutdown_waits_for_the_sync_chat_lease_release",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
+            "goLine": 176,
+            "rustFile": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+            "rustLine": 149
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+          "test": "production_shutdown_waits_for_the_live_stream_lease_release",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
+            "goLine": 176,
+            "rustFile": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+            "rustLine": 161
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact（三元组合，逐分支对应）：Go 断言关闭取消在途 run 租约、关闭等待释放完成后再返回、释放后租约行 OwnerID 清空。取消半由 challenge_continuation_supervisor_cancellation_signal_propagates 覆盖（20 个在途任务全部观察到取消标志且 shutdown 快速返回）；等待半由 challenge_continuation_supervisor_concurrent_spawn_shutdown_race 覆盖（200 轮并发 spawn 与 shutdown 竞态下 shutdown 返回后无任务仍活动）；释放半由 challenge_continuation_supervisor_claims_are_exclusive_and_released 覆盖（任务结束 claim 即释放、同一 run 可再次认领、shutdown 后不再受理）。本批把原单测 entry 纠正为三元组合（单测只覆盖等待半），组合全文在 [x] 行间唯一；三处锚点均在 fencing_tests.rs。"
+          "实际生产dispatch持有run lease，外部SQLite BEGIN IMMEDIATE阻塞真实释放写入；shutdown在一秒内取消provider，释放阻塞前不返回，ROLLBACK后无error、durable owner清空且supervisor任务为空。同步chat与live stream均直接验证；旧generic三元组合只支持其本身task/claim断言，不能单独证明durable lease释放。"
         ],
         "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T12:03:25Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_shutdown_waits_for_the_) or test(production_lease_admission_rejects_closing) or test(production_background_shutdown_cancels) or test(production_shutdown_cancels_a_provider_token) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning)"
         ],
         "testFilter": [
-          "advanced_feature_defaults_build_strict_opend_requests",
-          "advanced_page_size_respects_protocol_limits",
-          "broker_lot_size_initializes_minimum_and_step_quantity",
-          "broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease",
-          "broker_read_projects_futu_funds_from_neutral_client",
-          "buying_power_requires_opend_trade_reader_and_forwards_max_quantity_query",
+          "challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
           "challenge_continuation_supervisor_cancellation_signal_propagates",
           "challenge_continuation_supervisor_claims_are_exclusive_and_released",
-          "challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
-          "clear_route_preserves_running_strategy_lease",
-          "concurrent_reconcile_passes_are_idempotent_for_subscribe_and_release",
-          "delayed_snapshot_fallback_reads_static_info_and_pages_stock_screen_without_subscribing",
-          "every_catalog_protocol_maps_to_a_feature_with_one_stable_id",
-          "exact_physical_subscriptions_are_shared_and_final_release_is_deferred",
-          "fills_projection_sorts_filled_at_desc_with_id_tiebreak",
-          "funds_missing_s2c_normalizes_to_an_empty_snapshot",
-          "funds_snapshot_projection_preserves_available_and_withdrawable_cash",
-          "futu_earnings_calendar_route_defaults_to_earnings_and_projects_event_identity",
-          "futu_securities_route_projects_broker_neutral_envelope_boundary",
-          "groups_encode_group_type_all_and_project_custom_and_system",
-          "history_fill_call_uses_history_protocol_and_forwards_time_filter",
-          "history_fill_read_projects_fill_identity",
-          "history_query_converts_hk_rfc3339_to_local_wall_clock",
-          "history_query_converts_supported_trade_markets_to_local_wall_clock",
-          "hk_lunch_snapshot_keeps_previous_close_and_does_not_mark_extended_hours",
-          "max_trade_quantity_rejects_invalid_inputs",
-          "max_trade_quantity_requires_response_payload",
-          "modify_order_returns_stable_identity_for_an_empty_success_payload",
-          "next_schedule_run_calculation_with_timezone",
-          "next_schedule_run_skips_weekend_for_weekday_cron",
-          "parse_invalid_cron_expressions",
-          "product_states_match_go_quote_right_table",
-          "production_backtest_cancel_reports_false_without_a_cancellable_run",
-          "resolver_projects_us_early_close_extended_window_with_timezone",
-          "screen_catalog_normalizes_padded_lowercase_markets_and_rejects_unsupported_labels",
-          "subscribe_trade_accounts_forwards_every_account_id",
-          "subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear",
-          "trade_push_subscription_failure_surfaces_a_transport_error",
-          "watchlist_fresh_member_read_rechecks_remote_ambiguity",
-          "watchlist_fresh_read_bypasses_and_replaces_group_and_member_caches",
-          "watchlist_group_conversion_marks_every_normalized_duplicate_ambiguous",
-          "watchlist_read_gate_enforces_ten_calls_per_rolling_thirty_seconds",
-          "watchlist_reader_cache_expires_at_the_ttl_boundary",
-          "watchlist_reader_rate_limit_applies_only_to_physical_reads",
-          "workflow_wait_tool_returns_context_cancellation",
-          "yfinance_rankings_route_converts_entries_and_applies_default_limit"
+          "production_shutdown_waits_for_the_sync_chat_lease_release",
+          "production_shutdown_waits_for_the_live_stream_lease_release"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+        "receiptDigest": "sha256:69a2a8307dbdab0fb85fbbaab53eedaa6f5594b54d8f38dc275fecb97f1fb52e"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -102970,17 +102997,17 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact（三元组合，逐分支对应）：Go 断言关闭取消在途 run 租约、关闭等待释放完成后再返回、释放后租约行 OwnerID 清空。取消半由 challenge_continuation_supervisor_cancellation_signal_propagates 覆盖（20 个在途任务全部观察到取消标志且 shutdown 快速返回）；等待半由 challenge_continuation_supervisor_concurrent_spawn_shutdown_race 覆盖（200 轮并发 spawn 与 shutdown 竞态下 shutdown 返回后无任务仍活动）；释放半由 challenge_continuation_supervisor_claims_are_exclusive_and_released 覆盖（任务结束 claim 即释放、同一 run 可再次认领、shutdown 后不再受理）。本批把原单测 entry 纠正为三元组合（单测只覆盖等待半），组合全文在 [x] 行间唯一；三处锚点均在 fencing_tests.rs。"
+        "实际生产dispatch持有run lease，外部SQLite BEGIN IMMEDIATE阻塞真实释放写入；shutdown在一秒内取消provider，释放阻塞前不返回，ROLLBACK后无error、durable owner清空且supervisor任务为空。同步chat与live stream均直接验证；旧generic三元组合只支持其本身task/claim断言，不能单独证明durable lease释放。"
       ],
       "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:234:TestRuntimeCloseRejectsRunLeaseWorkAfterClosingStarts": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping",
-      "conclusion": "partial：Go 断言关闭开始后新的租约工作被拒绝。Rust 的 stopping 闸门由 challenge_continuation_supervisor_rejects_new_work_once_stopping 覆盖（已作为 runner_continuation_boundaries_test.go:314 的等价证据）；Go 的 run 租约专属入口在 Rust 复用同一 supervisor admission。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_lease_admission_rejects_closing_and_closed_without_persisting",
+      "conclusion": "function_exact：2026-10-08冻结Go原断言复核。生产shutdown取消后台barrier进入closing；真正acquire_run_lease_with_retry在closing和closed均返回Unavailable/assistant runtime is stopping，两次均无lease row。生产chat/stream入口拒绝且零run写入，释放barrier后关闭无error。",
+      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
         "line": 234,
@@ -102989,65 +103016,63 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-          "test": "challenge_continuation_supervisor_rejects_new_work_once_stopping",
+          "file": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+          "test": "production_lease_admission_rejects_closing_and_closed_without_persisting",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/runtime_execution_lease_boundaries_test.go",
             "goLine": 234,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs",
-            "rustLine": 631
+            "rustFile": "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs",
+            "rustLine": 176
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust continuation supervisor rejects new work once stopping begins."
+          "生产shutdown取消后台barrier进入closing；真正acquire_run_lease_with_retry在closing和closed均返回Unavailable/assistant runtime is stopping，两次均无lease row。生产chat/stream入口拒绝且零run写入，释放barrier后关闭无error。"
         ],
-        "uncovered": [
-          "Rust does not expose a run-lease-specific close API proving all lease work is rejected after close starts."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-08T12:03:25Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_shutdown_waits_for_the_) or test(production_lease_admission_rejects_closing) or test(production_background_shutdown_cancels) or test(production_shutdown_cancels_a_provider_token) or test(challenge_continuation_supervisor_concurrent_spawn_shutdown_race) or test(challenge_continuation_supervisor_cancellation_signal_propagates) or test(challenge_continuation_supervisor_claims_are_exclusive_and_released) or test(challenge_continuation_supervisor_rejects_new_work_once_stopping) or test(challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work) or test(production_assistant_shutdown_reports_an_unfinished_continuation_deadline) or test(synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes) or test(concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning)"
         ],
         "testFilter": [
-          "challenge_continuation_supervisor_rejects_new_work_once_stopping"
+          "production_lease_admission_rejects_closing_and_closed_without_persisting"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d55862232511e5840d25c905686d61e776227b48",
+        "receiptDigest": "sha256:69a2a8307dbdab0fb85fbbaab53eedaa6f5594b54d8f38dc275fecb97f1fb52e"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust continuation supervisor rejects new work once stopping begins."
+        "生产shutdown取消后台barrier进入closing；真正acquire_run_lease_with_retry在closing和closed均返回Unavailable/assistant runtime is stopping，两次均无lease row。生产chat/stream入口拒绝且零run写入，释放barrier后关闭无error。"
       ],
-      "uncoveredAssertions": [
-        "Rust does not expose a run-lease-specific close API proving all lease work is rejected after close starts."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/runtime_store_test.go:36:TestStoreDefaultAgentEnsureAgentAndSessionOrdering": {
@@ -350910,7 +350935,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: existing domain/stub/supervisor references only support their listed subassertions; complete async sibling/lease-wait proof comes from the new production owner. Other reference conclusions unchanged."
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
     },
     "crates/jftrade-engine/src/product_adk_session_context_tests.rs::a_rejected_compaction_records_the_failed_notice": {
       "referenceCount": 2,
@@ -351088,7 +351113,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 Assistant shared-owner review: all 2 referenceKeys were compared; 2 function_exact reference(s) retain their claims, runtime, workflow, timeout, approval, or tool-failure assertions and partial rows preserve their missing-stub, live-adapter, or error-branch differences."
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs::a_continuation_for_a_missing_run_is_a_silent_no_op": {
       "referenceCount": 1,
@@ -351123,14 +351148,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_rejects_new_work_once_stopping": {
-      "referenceCount": 3,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState",
-        "internal/assistant/engine/runner_continuation_boundaries_test.go:406:TestGoBackgroundUsesBackgroundCtxOrFallback",
-        "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:234:TestRuntimeCloseRejectsRunLeaseWorkAfterClosingStarts"
+        "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_fencing_tests.rs::challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work": {
       "referenceCount": 1,
@@ -351138,7 +351162,8 @@
         "internal/assistant/engine/runner_continuation_boundaries_test.go:347:TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_expiry_tests.rs::the_run_read_routes_reconcile_expired_runs_before_serving": {
       "referenceCount": 1,
@@ -351188,7 +351213,8 @@
         "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176:TestRuntimeCloseCancelsAndWaitsForInFlightRunLease"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_adk_updates_do_not_create_missing_agents_or_providers": {
       "referenceCount": 1,
@@ -365855,6 +365881,44 @@
       "allowed": true,
       "reviewStatus": "single",
       "reviewNote": "2026-10-08: real approval owner supports async completion/counts and local lease waiting; synchronous sibling/duplicate return semantics remain partial where listed."
+    },
+    "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_lease_admission_rejects_closing_and_closed_without_persisting": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:234:TestRuntimeCloseRejectsRunLeaseWorkAfterClosingStarts"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
+    },
+    "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_shutdown_waits_for_the_live_stream_lease_release": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176:TestRuntimeCloseCancelsAndWaitsForInFlightRunLease"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
+    },
+    "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_background_shutdown_cancels_joins_and_rejects_new_work": {
+      "referenceCount": 3,
+      "referenceKeys": [
+        "internal/assistant/engine/runner_continuation_boundaries_test.go:314:TestGoBackgroundNilGuardsAndClosingState",
+        "internal/assistant/engine/runner_continuation_boundaries_test.go:347:TestRuntimeCloseWaitsForInFlightBackgroundWorkAndRejectsNewWork",
+        "internal/assistant/engine/runner_continuation_boundaries_test.go:406:TestGoBackgroundUsesBackgroundCtxOrFallback"
+      ],
+      "allowed": true,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
+    },
+    "crates/jftrade-engine/src/product_adk_run_lease_shutdown_tests.rs::production_shutdown_waits_for_the_sync_chat_lease_release": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/runtime_execution_lease_boundaries_test.go:176:TestRuntimeCloseCancelsAndWaitsForInFlightRunLease"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08: production shutdown tests support cancellation/join/lease release and refusal as explicitly listed. Generic supervisor evidence does not prove durable lease cleanup by itself. Nil/context fallback branches remain partial/boundary; other references unchanged."
     }
   }
 }

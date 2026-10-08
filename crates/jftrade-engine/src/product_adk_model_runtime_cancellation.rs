@@ -2,6 +2,7 @@
 #[derive(Debug, Default)]
 pub(crate) struct RunCancellationRegistry {
     active: Mutex<BTreeMap<String, Vec<Arc<AtomicBool>>>>,
+    stopping: AtomicBool,
 }
 
 impl RunCancellationRegistry {
@@ -12,6 +13,9 @@ impl RunCancellationRegistry {
 
     fn register_token(&self, run_id: &str, token: Arc<AtomicBool>) -> Arc<AtomicBool> {
         if let Ok(mut active) = self.active.lock() {
+            if self.stopping.load(Ordering::Acquire) {
+                token.store(true, Ordering::Release);
+            }
             active
                 .entry(run_id.to_owned())
                 .or_default()
@@ -48,6 +52,9 @@ impl RunCancellationRegistry {
     #[allow(dead_code)]
     fn cancel_all(&self) {
         if let Ok(active) = self.active.lock() {
+            // Serialize late registrations with shutdown cancellation. A
+            // provider admitted earlier must not miss this fan-out.
+            self.stopping.store(true, Ordering::Release);
             for tokens in active.values() {
                 for token in tokens {
                     token.store(true, Ordering::Release);

@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK shutdown 与租约释放
+## 当前批次：ADK durable 工具与 owner fence
 
-审批并发批次已完成，当前 1662 exact、2151 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+审批并发及shutdown批次已完成，当前 1662 exact、2151 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 复核 runtime_execution_lease_boundaries 的176/234及runner_continuation_boundaries的314/347/406五条；使用生产shutdown、执行准入和SQLite租约释放owner，纠正generic supervisor推断。
-- [ ] 受控阻塞真实租约释放，验证先取消、释放前不返回、释放后owner清空；验证closing/closed准入拒绝和零租约写入，原nullable context等差异保留显式边界。
+- [ ] 复核execution_claims_test.go的54/108/167/265/343五条，直接定位生产tool loop、durable replay、过期reconciliation和SQLite状态写入owner。
+- [ ] 验证durable结果复用、失败工具投影、旧租约零工具执行、fresh foreign lease保护及跨run fence拒绝；稳定key context和持久化状态拼写差异须明确保留。
 - [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK shutdown 与租约释放
+
+- [x] 五条冻结lease_boundaries176/234与continuation_boundaries314/347/406复核。实际SQLite写队列阻塞时，同步chat shutdown提前返回建立行为红；closing lease仍认领、关闭后provider注册漏取消各自建立红，live stream及后台join正向控制通过。
+- [x] 同步chat加入现有supervisor，关闭先停止准入，lease重试入口拒绝closing/closed，取消registry在锁内传递永久停止状态。直接owner验证一秒内取消、释放阻塞前不返回、释放后owner清空与零新lease/run写入；既有五秒deadline保留任务和ports回归通过。
+- [x] 234升exact，176改用真实durable owner证据，347完整原断言闭合；314旧closing-only exact降partial，406 nullable context继续boundary，净数量不变。首次test fixture E0382编译失败与2 passed/3 failed行为receipt均保留，修复后最终定向13 passed，无LEAK。
+- [x] quick2374 Rust/98 Pine、desktop11+48通过；现场完整Rust3966 passed、0 failed、2 skipped，static/七类replay通过且退出0。1016个Rust文件运行期间指纹不变，ordinary/strict/anchor/context、receipt/reuse/diff复核后独立提交，继续durable工具批次。
 
 ## 已验证批次：ADK 审批并发与续跑租约
 
