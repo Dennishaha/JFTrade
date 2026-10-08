@@ -206,9 +206,9 @@ fn test_client_disconnect_returns_499_within_250ms() {
 
 #[test]
 fn test_immediate_cancellation_returns_instantly() {
-    let sse_response =
-        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: keep-alive\r\n\r\n";
-    let (url, server_thread) = run_mock_sse_server(sse_response, Duration::ZERO);
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let url = format!("http://{}/v1/responses", listener.local_addr().unwrap());
 
     let request = ModelRequest {
         endpoint: Url::parse(&url).unwrap(),
@@ -231,7 +231,10 @@ fn test_immediate_cancellation_returns_instantly() {
     );
     let elapsed = start.elapsed();
 
-    server_thread.join().unwrap();
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "pre-cancelled stream must not open a provider connection"
+    );
 
     assert!(result.is_err());
     match result.unwrap_err() {

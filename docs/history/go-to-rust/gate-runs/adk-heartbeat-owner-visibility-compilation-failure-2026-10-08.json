@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_run_lease_defaults) or test(production_run_lease_reuses) or test(production_heartbeat_)"
+  ],
+  "status": "failed",
+  "exitCode": 101,
+  "verifiedCommit": "b155e97365f0cad94d004438903bd80227eebf4e",
+  "verifiedAt": "2026-10-08T11:04:57.850000+00:00",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-heartbeat-red-20261008.stderr",
+  "rawOutputSha256": "d9ea525315250c6f0c91556ad60d37f634e1c24d290821601b21a63000bd0ed2",
+  "testsExecuted": false,
+  "failure": "E0624: production live stream method is private to its child module",
+  "remainingRisk": "Compilation failure only; no behavior checks are counted as passed."
+}

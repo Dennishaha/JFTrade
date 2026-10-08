@@ -1297,3 +1297,12 @@ runtime resource ownership 与 lifecycle 两批已完成真实 owner 测试、as
 - 定向 nextest 15/15 passed；canonical receipt `verification-receipts/adk-disconnect-production-owner-2026-10-08.json`。TLS provider、错误模板 URL 和未 seed session 的外键错误分别保留三份 failure receipt；断言没有放宽。首次 strict/anchor 因新增 evidence 未同步 reuse 失败，原日志保留在本机 `.git/adk-disconnect-strict-20261008.log` 和 `.git/adk-disconnect-anchor-20261008.log`；复核引用关系后重跑通过。
 - quick 2357 Rust passed、98 Pine worker passed、七类 replay 通过；现场完整 Rust 3949 passed、0 failed、2 skipped，static 与七类 replay 通过，两门禁明确退出 0。证据为 `gate-runs/adk-disconnect-quick-verified-2026-10-08.json` 和 `gate-runs/adk-disconnect-rust-verified-2026-10-08.json`；1013 个 Rust 文件在运行期间指纹未变。
 - ordinary/strict 通过，anchor 未登记 0、stale 0，既有 unknown Go line 48 保持显式记录。终态表 reuse 仅支持两项 mapping 中列明的断言；整体对齐继续 active，下一批检查生产 heartbeat 丢失与 provider 取消链。
+
+## 2026-10-08 ADK heartbeat 存储故障与 provider 取消
+
+- 五条冻结 `runtime_execution_lease_boundaries_test.go` 原测试14/108/133/144/161及blob SHA逐项复核。使用真实SQLite trigger拒绝实际生产heartbeat UPDATE，默认30秒TTL/10秒heartbeat不缩短；阻塞provider只通过信号放行，不以短租约和sleep制造失效。
+- 独立行为红证明sync和idle SSE在heartbeat丢失后仍等回复；首次修复后，响应头等待与JSON body等待又各自红。生产取消检查接入RunLeaseGuard.is_lost，stream适配器同时取消发送及非SSE body等待；旧owner结束provider执行、join heartbeat、释放owner，不改完整run或追加session events/audit。
+- 原默认配置30秒TTL和近过期caller snapshot请求1秒TTL的完整原断言闭合，两条升exact。context/reuse矩阵、无store/caller snapshot在写入前拒绝，以及Go显式5ms heartbeat/存储故障注入后1秒context.Done仍未闭合，保持partial。净exact+2、partial−2：1662 exact、2151 partial、638 boundary。
+- 最终定向22/22 passed，receipt `verification-receipts/adk-heartbeat-production-owner-final-2026-10-08.json`；此前16/16绿色receipt同样保留。三份行为失败receipt分别为provider、stream headers、stream JSON body；首次provider receipt另含四条未seed run的fixture错误，随后补齐run。两次模块可见性/独立include编译失败有独立gate receipt，均不记为测试通过。
+- 首次quick因预取消在发送前退出、旧mock仍无界accept/join而挂起，单个测试进程SIGTERM后gate明确退出1；失败receipt `gate-runs/adk-heartbeat-quick-precancel-fixture-failure-2026-10-08.json`，含2364 passed/1 failed和单个LEAK标记。改为非阻塞listener零连接断言，保留499/CLIENT_DISCONNECTED和原 `<200ms` 断言，没有放宽阈值。重跑quick2365 passed、98 Pine passed，七类replay通过，退出0且无LEAK标记。
+- 现场完整 `CARGO_INCREMENTAL=0 pnpm run check:rust`：3957 passed、0 failed、2 skipped，static与七类replay通过，退出0且无LEAK标记；receipt `gate-runs/adk-heartbeat-rust-verified-2026-10-08.json`。1014个Rust文件从最终定向到quick及完整Rust期间指纹未变；普通/strict/anchor通过，unrecorded/stale=0，既有unknown Go line=48。架构专题同步生产取消与fencing规则，owner边界和公开契约未变；整体目标继续active，接续审批并发五条。

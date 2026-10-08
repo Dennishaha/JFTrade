@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_run_lease_defaults) or test(production_run_lease_reuses) or test(production_heartbeat_) or test(fail_closed_lease_takeover) or test(multiple_workers_simultaneous_takeover) or test(takeover_worker_never_invokes) or test(a_cancelled_tool_call_reports_the_context_cancellation) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(production_stream_final_run_retains_provider_input_and_output_usage) or test(responses_stream_final_model_result_retains_input_output_and_total_usage_metadata)"
+  ],
+  "status": "failed",
+  "exitCode": 101,
+  "verifiedCommit": "b155e97365f0cad94d004438903bd80227eebf4e",
+  "verifiedAt": "2026-10-08T11:12:15.080000+00:00",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-heartbeat-owner-verified-20261008.stderr",
+  "rawOutputSha256": "e58a6b286bc9b7631a117801c9e3f7498cdbfc58441c2593c0af6502d80cd3f8",
+  "testsExecuted": false,
+  "failure": "E0432: independently included adapter cannot import runtime_stream from the integration test crate root",
+  "remainingRisk": "Compilation failure only; no behavior checks are counted as passed."
+}

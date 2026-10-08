@@ -557,6 +557,7 @@ impl ProductionAdkChatRuntime {
                 || {
                     cancellation_for_stream.load(Ordering::Acquire)
                         || self.run_is_cancelled(&run_id)
+                        || run_lease.is_lost()
                 },
             );
             if run_lease.is_lost() {
@@ -575,7 +576,9 @@ impl ProductionAdkChatRuntime {
             let _ = self.persist_cancelled(&chat, &error, &run_lease);
             return Err(error);
         }
-        let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
+        let result = execute_model_cancellable(chat.request.clone(), || {
+            cancellation.load(Ordering::Acquire) || run_lease.is_lost()
+        });
         if run_lease.is_lost() {
             return Err(unavailable("assistant run execution lease was lost"));
         }

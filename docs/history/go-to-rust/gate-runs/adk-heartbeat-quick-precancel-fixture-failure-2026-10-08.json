@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T11:22:36.649637+00:00",
+  "verifiedCommit": "b155e97365f0cad94d004438903bd80227eebf4e",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-heartbeat-quick-20261008.log",
+  "rawOutputSha256": "16635eff52cc38793a46f01004447d1a01d9da3198f8686733cfe8a9d91abe4b",
+  "nextestSummary": {
+    "planned": 2365,
+    "passed": 2364,
+    "failed": 1,
+    "leaky": 1,
+    "skipped": 0,
+    "testSeconds": 218.5
+  },
+  "failedTest": "jftrade-engine::adk_chat_stream_timing_challenge::test_immediate_cancellation_returns_instantly",
+  "termination": "SIGTERM sent to the single hung fixture process after 128 seconds; mock server waited in accept/join although production precancel correctly sent no request",
+  "rustSourceFingerprintSha256": "0779b3525a67b37e06bdbd42a5f28295d125530ee99f103ec29d602201ec9e5b",
+  "frozenRustFiles": 1014,
+  "rustSourceChangedDuringGate": [],
+  "remainingRisk": "Fixture needs a zero-connection assertion while retaining 499 and <200ms timing checks; this gate is failed, not passed."
+}

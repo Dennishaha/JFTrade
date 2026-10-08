@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T11:27:58.839125+00:00",
+  "verifiedCommit": "b155e97365f0cad94d004438903bd80227eebf4e",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-heartbeat-quick-final-20261008.log",
+  "rawOutputSha256": "984bf3f95bcc44cdc4557d4430f684f3c11a9e9ce09e95209c1b7c4737281f12",
+  "planOutputSha256": "c6d3ca8288635e7c48495b481bd3905868521116d439399d505f80ee070c4051",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2365,
+    "passed": 2365,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 102.198
+  },
+  "pineWorker": {
+    "passed": 98,
+    "failed": 0
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "rustSourceFingerprintSha256": "094166bd851cf4aa4486f096a0c017ab93aa3fe5c02ab11bcc935406a0fce259",
+  "frozenRustFiles": 1014,
+  "rustSourceChangedDuringGate": [],
+  "previousFailure": "adk-heartbeat-quick-precancel-fixture-failure-2026-10-08.json",
+  "leakyTestMarkerCount": 0
+}

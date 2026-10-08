@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_run_lease_defaults) or test(production_run_lease_reuses) or test(production_heartbeat_)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T11:06:51Z",
+  "sourceState": {
+    "verifiedCommit": "b155e97365f0cad94d004438903bd80227eebf4e",
+    "trackedDiffSha256": "9ea82904939e8483d22f049f2f424dee88eedc08a82c69808152fd8d5c4f6736",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_model_runtime_stream.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_model_runtime_terminal_audit_tests.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_run_lease_owner_tests.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs",
+        "sha256": "25dde70d3fd35140ebe2d130ccc566c9335a92b5c7f74f01c245fedabe23bcc8"
+      }
+    ]
+  },
+  "rawOutputSha256": "1d4cbe084d50db7b9c40baee005f476aafda1052e02cab0f77e8d018179783c5",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_near_expiry_snapshot_restores_the_requested_ttl",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_rejects_expired_durable_lease_without_changing_the_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_waiting_sync_provider_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_an_idle_stream_provider_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_run_lease_defaults_use_thirty_second_ttl_and_join_on_drop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_run_lease_reuses_its_owner_and_rejects_a_foreign_owner"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 6,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1905,
+      "exec_time": 24.646516918,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T11:31:28.793973+00:00",
+  "verifiedCommit": "b155e97365f0cad94d004438903bd80227eebf4e",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-heartbeat-rust-full-20261008.log",
+  "rawOutputSha256": "4622396d2160b7ce1dc8b53ce2a8777ae1f7cda790717dbbc20e3df3cf5d83a1",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "cargoDeny": "0.20.2",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 3957,
+    "passed": 3957,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 105.779
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_adapters.rs": "f262575d924bd0e1d134c11651e348e46e9f3ccf9b625674ee06ed3f223b05d3",
+    "crates/jftrade-engine/src/product_adk_model_runtime_events.rs": "65b03711ffe00c59beb2162aa2301814fcfa63d5bbcb643a094d5c3c540d87af",
+    "crates/jftrade-engine/src/product_adk_model_runtime_stream.rs": "6d69fe4790f951216567b19f4318e3842e1b4da9d3bc66951eeea30f12597f0c",
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs": "78637b7383a0ef9622da48eec9b737c29eedd63af87434788235d7b234b00445",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "9897f91461b446f79af8878173e069a0c663d8a96de4675eb7fa0fb48477c4b0",
+    "crates/jftrade-engine/src/product_adk_model_stream.rs": "e71aee9ebedb67a8bf3596bb3eaa7ebb44bd0a80b493e14928cce2ea4a966af3",
+    "crates/jftrade-engine/src/product_adk_run_lease_owner_tests.rs": "960dfbd96f5061026f44430c64fbc1bea217c8d3691ece0df47c4626c51837f4",
+    "crates/jftrade-engine/tests/adk_chat_stream_timing_challenge.rs": "9edae03036ad24a8a840bcca6dd22fa1e7e01bc4e54f6e2a14df28c8c630fcaf"
+  },
+  "rustSourceFingerprintSha256": "094166bd851cf4aa4486f096a0c017ab93aa3fe5c02ab11bcc935406a0fce259",
+  "frozenRustFiles": 1014,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Context/reuse matrix, expired snapshot rejection before store access and Go explicit 5ms heartbeat/1s-from-injection assertions remain partial; whole parity goal active."
+}

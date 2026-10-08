@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK 租约 heartbeat 与 provider 取消
+## 当前批次：ADK 审批并发与续跑租约
 
 内置 agent 配置批次之后，租约夹具已改为受控失效及 worker 同步信号，保留 takeover、UNKNOWN、禁止重复执行和旧 fencing token 拒绝断言。新机器定向 12 passed，quick 2353 passed，完整 Rust 3945 passed、0 failed、2 skipped；五条 Go 原测试复核中纠正一条证据不足的 exact，当前 1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 逐项复核 runtime_execution_lease_boundaries 的 context/reuse、heartbeat failure、expired refresh、near-expiry TTL 和 safe defaults 五条；直接验证生产 RunLeaseGuard、SQLite owner 与 provider 取消链。
-- [ ] 用受控存储故障和阻塞 provider 验证 heartbeat 丢失是否立即取消当前执行并 join；完整原行为闭合才升级 exact，nil/context 与写入前检查差异保留。
+- [ ] 逐项复核 runner_approval_concurrency 的重复决议、sync/async sibling、local input lease 等待及预取消五条；直接验证生产 mutation、continuation supervisor、SQLite lease 和工具执行 owner。
+- [ ] 并发批准全部 sibling 后检查 COMPLETED 和每工具单次执行；重复批准不能阻塞在途工具；局部租约释放和取消须有真实 owner 证据，原 sync/private helper 差异保持显式。
 - [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK heartbeat 与 provider 取消
+
+- [x] 复核 runtime_execution_lease_boundaries 的14/108/133/144/161五条及 blob SHA。实际 heartbeat UPDATE 存储错误建立独立行为红；生产 provider 取消检查接入租约丢失，覆盖 sync、idle SSE、响应头及 JSON body 等待，旧 owner 不写迟到终态。
+- [x] 默认TTL精确30秒、heartbeat10秒及近过期snapshot刷新TTL精确1秒闭合，两条升exact；context/reuse、写入前/无store拒绝和原短heartbeat配置/故障注入后1秒仍partial，当前1662 exact、2151 partial、638 boundary。
+- [x] 预取消保留499和 `<200ms` 原断言，新增零provider连接断言；旧mock无界accept/join导致首次quick挂起，停止单个测试进程并保留失败receipt。两次编译故障、三份行为红及首次quick单个LEAK标记均保留，重跑未见LEAK。
+- [x] 新机器最终定向22 passed，quick2365 Rust/98 Pine passed，完整Rust3957 passed、0 failed、2 skipped，static和七类replay通过，明确退出0；1014个Rust文件运行期间指纹不变，ordinary/strict/anchor/context通过，继续审批并发批次。
 
 ## 已验证批次：ADK 重连失败与取消
 

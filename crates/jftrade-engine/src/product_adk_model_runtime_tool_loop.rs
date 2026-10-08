@@ -298,7 +298,9 @@ impl ProductionAdkChatRuntime {
             let empty = serde_json::Map::new();
             chat.request.tool_context =
                 tool_context_from_payload(latest_payload.as_object().unwrap_or(&empty));
-            let result = execute_model(chat.request.clone(), Arc::clone(&cancellation));
+            let result = execute_model_cancellable(chat.request.clone(), || {
+                cancellation.load(Ordering::Acquire) || run_lease.is_lost()
+            });
             if run_lease.is_lost() {
                 return;
             }

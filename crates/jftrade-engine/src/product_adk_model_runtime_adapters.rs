@@ -398,6 +398,13 @@ fn execute_model(
     request: ModelRequest,
     cancellation: Arc<AtomicBool>,
 ) -> Result<ModelResponse, AdkChatPortError> {
+    execute_model_cancellable(request, || cancellation.load(Ordering::Acquire))
+}
+
+fn execute_model_cancellable(
+    request: ModelRequest,
+    is_cancelled: impl Fn() -> bool,
+) -> Result<ModelResponse, AdkChatPortError> {
     // reqwest is built with rustls-no-provider so the engine can use the same
     // ring-backed crypto provider as the desktop runtime without relying on a
     // process-global provider installed by an unrelated integration crate.
@@ -407,7 +414,7 @@ fn execute_model(
         .build()
         .map_err(|error| unavailable(format!("assistant model runtime unavailable: {error}")))?;
     runtime.block_on(async move {
-        if cancellation.load(Ordering::Acquire) {
+        if is_cancelled() {
             return Err(cancellation_error());
         }
         let client = Client::builder()
@@ -447,7 +454,7 @@ fn execute_model(
                     })?;
                 }
                 _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                    if cancellation.load(Ordering::Acquire) {
+                    if is_cancelled() {
                         return Err(cancellation_error());
                     }
                 }
@@ -467,7 +474,7 @@ fn execute_model(
                     break result.map_err(|error| upstream_error(error.to_string()))?;
                 }
                 _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                    if cancellation.load(Ordering::Acquire) {
+                    if is_cancelled() {
                         return Err(cancellation_error());
                     }
                 }

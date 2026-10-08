@@ -142,7 +142,7 @@ impl ProductionAdkChatRuntime {
         self.run_live_stream(chat, sender, cancellation, run_lease);
     }
 
-    fn run_live_stream(
+    pub(super) fn run_live_stream(
         &self,
         chat: super::ChatExecution,
         sender: ApiStreamSender,
@@ -161,6 +161,7 @@ impl ProductionAdkChatRuntime {
                 sender.is_closed()
                     || cancellation.load(Ordering::Acquire)
                     || self.run_is_cancelled(&chat.run_id)
+                    || run_lease.is_lost()
             },
         );
         // A takeover may happen after the provider returns but before the

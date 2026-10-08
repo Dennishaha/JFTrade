@@ -12,6 +12,14 @@ use super::{
 };
 use crate::product::product_adk_chat_stream_port::AdkChatPortError;
 
+fn client_disconnected() -> AdkChatPortError {
+    AdkChatPortError::Failed {
+        status: 499,
+        code: "CLIENT_DISCONNECTED".to_owned(),
+        message: "assistant chat client disconnected".to_owned(),
+    }
+}
+
 /// Read one Responses request and invoke `on_event` for each complete SSE
 /// event before returning.  The callback is deliberately synchronous so the
 /// runtime can durably append each event before reading the next chunk.
@@ -29,6 +37,9 @@ where
         .build()
         .map_err(|error| unavailable(format!("assistant model runtime unavailable: {error}")))?;
     runtime.block_on(async move {
+        if is_cancelled() {
+            return Err(client_disconnected());
+        }
         let client = Client::builder()
             .connect_timeout(request.timeout)
             .timeout(request.timeout)
@@ -43,14 +54,21 @@ where
         if let Some((field, value)) = request.reasoning.as_ref() {
             set_json_path(&mut body, field, Value::String(value.clone()));
         }
-        let response = client
+        let send = client
             .post(request.endpoint)
             .bearer_auth(request.api_key)
             .header("content-type", "application/json")
             .json(&body)
-            .send()
-            .await
-            .map_err(|error| model_request_error(error, request.timeout))?;
+            .send();
+        tokio::pin!(send);
+        let response = loop {
+            tokio::select! {
+                result = &mut send => break result.map_err(|error| model_request_error(error, request.timeout))?,
+                _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                    if is_cancelled() { return Err(client_disconnected()); }
+                }
+            }
+        };
         let status = response.status();
         let retry_after = response
             .headers()
@@ -64,11 +82,11 @@ where
             .unwrap_or_default()
             .to_ascii_lowercase();
         if !status.is_success() {
-            let bytes = bounded_response(response, MAX_RESPONSE_BYTES).await?;
+            let bytes = bounded_response(response, MAX_RESPONSE_BYTES, &is_cancelled).await?;
             return Err(provider_rejection(status, retry_after.as_deref(), &bytes));
         }
         if !content_type.contains("text/event-stream") {
-            let bytes = bounded_response(response, MAX_RESPONSE_BYTES).await?;
+            let bytes = bounded_response(response, MAX_RESPONSE_BYTES, &is_cancelled).await?;
             let value: Value = serde_json::from_slice(&bytes)
                 .map_err(|error| upstream_error(format!("decode model response: {error}")))?;
             on_event(&value)?;
@@ -96,11 +114,7 @@ where
         let mut bytes_seen = 0usize;
         loop {
             if is_cancelled() {
-                return Err(AdkChatPortError::Failed {
-                    status: 499,
-                    code: "CLIENT_DISCONNECTED".to_owned(),
-                    message: "assistant chat client disconnected".to_owned(),
-                });
+                return Err(client_disconnected());
             }
             let event = tokio::select! {
                 item = stream.next() => match item {
@@ -115,11 +129,7 @@ where
                 },
                 _ = tokio::time::sleep(Duration::from_millis(250)) => {
                     if is_cancelled() {
-                        return Err(AdkChatPortError::Failed {
-                            status: 499,
-                            code: "CLIENT_DISCONNECTED".to_owned(),
-                            message: "assistant chat client disconnected".to_owned(),
-                        });
+                        return Err(client_disconnected());
                     }
                     continue;
                 }
@@ -210,11 +220,18 @@ fn model_request_error(error: reqwest::Error, timeout: Duration) -> AdkChatPortE
 async fn bounded_response(
     response: reqwest::Response,
     limit: usize,
+    is_cancelled: &impl Fn() -> bool,
 ) -> Result<Vec<u8>, AdkChatPortError> {
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|error| upstream_error(error.to_string()))?;
+    let body = response.bytes();
+    tokio::pin!(body);
+    let bytes = loop {
+        tokio::select! {
+            result = &mut body => break result.map_err(|error| upstream_error(error.to_string()))?,
+            _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                if is_cancelled() { return Err(client_disconnected()); }
+            }
+        }
+    };
     if bytes.len() > limit {
         return Err(upstream_error(
             "assistant model response exceeded size limit",
