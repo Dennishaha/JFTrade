@@ -4,6 +4,11 @@ impl AdkChatStreamPort for ProductionAdkPort {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        // Serialize transport admission through readiness and preparation;
+        // concurrent POSTs cannot both execute before the error is retained.
+        let _admission = (route == AdkChatRoute::Stream)
+            .then(|| self.unavailable_streams.admit())
+            .transpose()?;
         if route == AdkChatRoute::Stream {
             self.check_chat_request_conflict(input)?;
             if let Some(replay) = self.unavailable_streams.replay(input)? {
@@ -15,7 +20,17 @@ impl AdkChatStreamPort for ProductionAdkPort {
             .as_deref()
             .filter(|runtime| runtime.runtime_ready())
         {
-            return runtime.dispatch(route, input);
+            return match runtime.dispatch(route, input)? {
+                AdkChatPortOutput::PreRunError(error) if route == AdkChatRoute::Stream => {
+                    let message = match error {
+                        AdkChatPortError::Unavailable(message)
+                        | AdkChatPortError::Failed { message, .. } => message,
+                        error @ AdkChatPortError::Conflict(_) => return Err(error),
+                    };
+                    self.unavailable_streams.retain_error(input, &message)
+                }
+                output => Ok(output),
+            };
         }
         if route == AdkChatRoute::Stream {
             return self.unavailable_streams.dispatch(input);

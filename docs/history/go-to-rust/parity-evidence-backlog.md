@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 已配置 runtime 的准备错误断连重放
+
+- 实际生产红证明配置可用runtime的空message在准备阶段直接JSON返回，首次retry BrokenPipe探针计数0。`adk-pre-run-red-2026-10-09.json`为0 passed/1 failed，SHA `83d975963f1e7cb0bd05274865609c312a34931e777273f840a659258646502f`；运行前完整源码指纹已保存，红测试源码由最终源码及基线重建后逐文件匹配原指纹，共1027个Rust文件归档。内部新增准备结果类型暴露provider probe非穷尽匹配的编译失败单独留证，按原runtime_error映射补齐，不放宽断言。
+- model runtime显式标记已有/已尝试创建durable run；只有创建前的准备失败返回内部PreRunError，由原ProductionAdkPort保留原terminal文本并先分配ID再交付retry。stream准入串行到准备结果返回，6个并发相同请求共用一个保留ID。空message、缺agent、permission/work/reasoning无效override共5条真实socket失败控制均重连到原error/sequence1/replay/EOF，同步chat原400路径保持，provider连接为0、run/audit/session完整保持。已有畸形run、已有身份提前校验和INSERT后context损坏控制不生成第二内存终态，durable writer及原run/user event保持。
+- 复核8条冻结Go原函数及blob：helpers167/216、recovery41、disconnect55/110、routes301、identity17/48。helpers216补真实生产owner与单引用reuse；缺identity的直接空ChatRequest与HTTP准入、preview/context组合仍partial。其他7条分类保持，无exact升级，当前1660 exact/2153 partial/638 boundary。冻结Go的ChatRunByClientRequestID还会先解码payload再比指纹；Rust现有预检只比指纹，畸形durable payload可能被旧保留流遮蔽，此项列为下一批而非本批通过结论。
+- 初次9 passed控制receipt独立保留；最终canonical定向33 passed/0 failed、无LEAK，`adk-pre-run-production-owner-verified-2026-10-09.json` SHA `e73e9348ddc6d734c28644127d88e13b5fe74237b99bb7cfc2e2d31b357a482f`。查看quick计划后2414 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4009 passed/0 failed/2 skipped，static与七类回放通过，无LEAK。最终定向至门禁1027个Rust文件冻结，2 skipped不计执行通过。
+- 四份receipt、两份gate、raw SHA、8条原函数、anchor、17处reuse与diff逐项复核；strict/context通过，unrecorded/stale0、既有unknown48。本机证据`.git/adk-pre-run-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-pre-run-recovery-20261009`保留。创建后的准备失败仍走durable错误路径，其terminal重连尚未闭合；canonical身份、known-context、成功并发执行及idle request-context预取消继续开放，历史LEAK未定位。整体active，提交后继续下一批。
+
 ## 2026-10-09 ADK 保留错误流在配置恢复后的请求所有权
 
 - 两条真实生产红证明：首次retry BrokenPipe后恢复同一runtime配置，重复POST绕过原终态记录而返回400；已安装但未就绪的runtime已有durable请求冲突时，保留记录掩盖冲突。`adk-retained-readiness-red-2026-10-09.json`明确0 passed/2 failed，运行前完整Rust源码指纹已保存。后续SHA格式夹具编译失败及漏安装TLS crypto provider的14 passed/1 failed分别留证，不作为生产红、不放宽断言。

@@ -65,6 +65,9 @@ pub enum AdkChatPortOutput {
     Json(Value),
     Stream(AdkChatStreamSnapshot),
     LiveStream(AdkChatLiveStream),
+    /// Model preparation failed before attempting to create a durable run.
+    /// The composition owner retains this terminal error for reconnection.
+    PreRunError(AdkChatPortError),
 }
 
 #[allow(dead_code)]
@@ -233,6 +236,9 @@ pub fn dispatch_adk_chat(
         }
         (AdkChatRoute::Stream, AdkChatPortOutput::LiveStream(stream)) => {
             live_stream_success(stream, stream_idle_timeout_ms)
+        }
+        (AdkChatRoute::Stream, AdkChatPortOutput::PreRunError(error)) => {
+            port_error_response(error, timestamp)
         }
         (_, _) => json_error(
             500,

@@ -202,6 +202,15 @@ impl ProductionAdkChatRuntime {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<PreparedChat, AdkChatPortError> {
+        self.prepare_chat_with_run_tracking(route, input, &mut false)
+    }
+
+    fn prepare_chat_with_run_tracking(
+        &self,
+        route: AdkChatRoute,
+        input: &AdkChatInput,
+        durable_run_may_exist: &mut bool,
+    ) -> Result<PreparedChat, AdkChatPortError> {
         if self.continuation_supervisor.stopping.load(Ordering::Acquire) {
             return Err(unavailable("assistant runtime is stopping"));
         }
@@ -248,6 +257,7 @@ impl ProductionAdkChatRuntime {
             .get_run_by_client_request_id(&input.client_request_id)
             .map_err(storage_unavailable)?
         {
+            *durable_run_may_exist = true;
             return self.prepare_existing_run(existing, route, &fingerprint);
         }
         // Go's `runChat` admits the run here: after the idempotent replay check
@@ -408,6 +418,9 @@ impl ProductionAdkChatRuntime {
             content: &message,
         };
         let lease_owner = lease_owner_id(&run_id);
+        // Once durable creation is attempted, all errors retain the existing
+        // run/lease writer's ownership, even if transaction outcome is unknown.
+        *durable_run_may_exist = true;
         let (existing_or_created, stored_lease) = self
             .store
             .create_run_with_event_idempotent(

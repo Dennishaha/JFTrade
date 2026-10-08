@@ -27,9 +27,18 @@ struct TerminalRecord {
 // This port owns the pre-run records. They never acquire a SQLite writer or
 // spawn an execution worker; terminal publication precedes HTTP body polling.
 #[derive(Debug, Default)]
-pub(crate) struct UnavailableStreams(Mutex<BTreeMap<String, TerminalRecord>>);
+pub(crate) struct UnavailableStreams(Mutex<BTreeMap<String, TerminalRecord>>, Mutex<()>);
 
 impl UnavailableStreams {
+    #[cfg(test)]
+    pub(crate) fn retained_request_count(&self) -> usize {
+        self.0.lock().unwrap().len()
+    }
+
+    pub(super) fn admit(&self) -> Result<std::sync::MutexGuard<'_, ()>, AdkChatPortError> {
+        self.1.lock().map_err(|_| unavailable())
+    }
+
     pub(super) fn replay(
         &self,
         input: &AdkChatInput,
@@ -50,6 +59,14 @@ impl UnavailableStreams {
         &self,
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        self.retain_error(input, UNAVAILABLE)
+    }
+
+    pub(super) fn retain_error(
+        &self,
+        input: &AdkChatInput,
+        message: &str,
+    ) -> Result<AdkChatPortOutput, AdkChatPortError> {
         let mut records = self.0.lock().map_err(|_| unavailable())?;
         let now = Instant::now();
         records.retain(|_, record| record.expires_at > now);
@@ -69,7 +86,7 @@ impl UnavailableStreams {
                         .collect::<String>()
                 );
                 let event =
-                    json!({"type":"error", "streamId":id, "sequence":1, "message":UNAVAILABLE});
+                    json!({"type":"error", "streamId":id, "sequence":1, "message":message});
                 (
                     entry.insert(TerminalRecord {
                         id,

@@ -145,6 +145,9 @@ fn test_provider(
         )
         .map_err(|error| runtime_error(error, 502, "ADK_PROVIDER_TEST_FAILED"))?;
     let response = match output {
+        AdkChatPortOutput::PreRunError(error) => {
+            return Err(runtime_error(error, 502, "ADK_PROVIDER_TEST_FAILED"));
+        }
         AdkChatPortOutput::Json(value) => value,
         AdkChatPortOutput::Stream(_) | AdkChatPortOutput::LiveStream(_) => {
             return Err(AdkMutationPortError::Failed {

@@ -34,6 +34,32 @@ use super::{
 mod stream_events;
 
 impl ProductionAdkChatRuntime {
+    fn prepare_stream_chat(
+        &self,
+        input: &AdkChatInput,
+    ) -> Result<super::PreparedChat, AdkChatPortError> {
+        let mut durable_run_may_exist = self
+            .store
+            .get_run_by_client_request_id(&input.client_request_id)
+            .map_err(storage_unavailable)?
+            .is_some();
+        let result = self.prepare_chat_with_run_tracking(
+            AdkChatRoute::Stream,
+            input,
+            &mut durable_run_may_exist,
+        );
+        match result {
+            Err(error)
+                if !durable_run_may_exist && !matches!(error, AdkChatPortError::Conflict(_)) =>
+            {
+                Ok(super::PreparedChat::Existing(
+                    AdkChatPortOutput::PreRunError(error),
+                ))
+            }
+            other => other,
+        }
+    }
+
     pub(super) fn start_live_stream(
         &self,
         input: AdkChatInput,
@@ -42,7 +68,7 @@ impl ProductionAdkChatRuntime {
         started: SyncSender<Result<AdkChatPortOutput, AdkChatPortError>>,
         supervisor_cancel: Arc<AtomicBool>,
     ) {
-        let prepared = self.prepare_chat(AdkChatRoute::Stream, &input);
+        let prepared = self.prepare_stream_chat(&input);
         let chat = match prepared {
             Ok(super::PreparedChat::Existing(AdkChatPortOutput::Stream(snapshot)))
                 if !snapshot.terminal =>

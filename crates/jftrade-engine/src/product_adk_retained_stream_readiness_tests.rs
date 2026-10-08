@@ -3,7 +3,7 @@ use crate::product::product_adk_chat_stream_port::{AdkChatInput, AdkChatRoute, A
 
 const REQUEST: &str = "11111111-1111-4111-8111-111111111111";
 
-fn configured_port() -> (
+pub(super) fn configured_port() -> (
     tempfile::TempDir,
     Arc<ProductionAdkPort>,
     std::net::TcpListener,
@@ -24,7 +24,7 @@ fn configured_port() -> (
     (directory, port, provider)
 }
 
-fn set_provider(port: &ProductionAdkPort, socket: &std::net::TcpListener, enabled: bool) {
+pub(super) fn set_provider(port: &ProductionAdkPort, socket: &std::net::TcpListener, enabled: bool) {
     port.store
         .upsert_provider(
             "provider-readiness",

@@ -3684,8 +3684,8 @@
     },
     "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames; crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame",
-      "conclusion": "partial：2026-10-08在冻结Go同一blob重新逐项复核并本机重跑原owner证据。复核原空 ChatRequest terminal error、已有 session preview/context 和未知 agent 零 preview 三分支；复跑有效 session→run→terminal、缺 agent 无 preview 和非法 JSON。原空请求与 Rust clientRequestId admission 返回400 JSON的差异仍在，有效 preview 不等同原 sessionSent 一次状态断言。",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_stream_missing_agent_emits_no_preview_frames; crates/jftrade-engine/tests/adk_chat_stream_compatibility.rs::adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_emits_session_before_run_and_terminal_frame; crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs::production_configured_stream_preserves_prepare_errors_after_retry_disconnect",
+      "conclusion": "partial：配置可用runtime的准备错误已由生产owner保留终态并在真实retry写失败后重连；原Go空ChatRequest缺identity时的直接执行路径与HTTP UUID准入差异、已有session/context preview联动仍未闭合。",
       "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
       "evidence_type": "partial",
       "source": {
@@ -3722,11 +3722,23 @@
           "test": "production_live_chat_stream_emits_session_before_run_and_terminal_frame",
           "crate": "jftrade-engine",
           "anchor": null
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs",
+          "test": "production_configured_stream_preserves_prepare_errors_after_retry_disconnect",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_helpers_test.go",
+            "goLine": 216,
+            "rustFile": "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs",
+            "rustLine": 44
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust stream tests cover invalid-JSON terminal errors, valid session→run preview ordering, and unknown-agent fail-closed with no preview frames."
+          "Rust stream tests cover invalid-JSON terminal errors, valid session→run preview ordering, and unknown-agent fail-closed with no preview frames.",
+          "实际配置可用runtime的空message、缺agent及无效override在首次retry BrokenPipe后保留原非空terminal error、identity和sequence，生产重连EOF，且零provider/run/audit/session写入。"
         ],
         "uncovered": [
           "Go 空 ChatRequest 的非空 terminal error，与 Rust 缺 clientRequestId 的 400 JSON admission failure 不同。",
@@ -3735,11 +3747,6 @@
         "source": "reviewed"
       },
       "verification": {
-        "runnerVersion": "cargo-nextest 0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedAt": "2026-10-08T18:28:58.816871+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -3755,15 +3762,21 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_unavailable_chat) | test(expired_unavailable_stream) | test(chat_dispatch_retains_error_stream) | test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms) | test(production_adk_and_plugin_and_alert_ports) | test(canonical_278_routes_table_driven_reachability_and_auth_matrix)"
+          "test(production_configured_stream) | test(production_retained_error) | test(production_unavailable_chat) | test(expired_unavailable_stream) | test(chat_dispatch_retains_error_stream) | test(production_malformed_chat_stops) | test(production_reconnect_) | test(adk_chat_idempotency_contract_matches_the_go_routes) | test(concurrent_first_delivery_creates_one_durable_run_and_event) | test(production_adk_and_plugin_and_alert_ports) | test(canonical_278_routes_table_driven_reachability_and_auth_matrix) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_stream_missing_agent_emits_no_preview_frames) | test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(provider_probe)"
         ],
         "testFilter": [
           "production_stream_missing_agent_emits_no_preview_frames",
           "adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases",
-          "production_live_chat_stream_emits_session_before_run_and_terminal_frame"
+          "production_live_chat_stream_emits_session_before_run_and_terminal_frame",
+          "production_configured_stream_preserves_prepare_errors_after_retry_disconnect"
         ],
-        "verifiedCommit": "42d01f3434de6d8543fb237925df425df3243e1a",
-        "receiptDigest": "sha256:6c41ff100d5dedd971a967e733f43fa2a3d9c67cdf6a12d52f61272dc86259e1"
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedCommit": "a445a0bbfaabadb49de4f332c60a677b5c96d7f0",
+        "verifiedAt": "2026-10-08T19:16:44Z",
+        "receiptDigest": "sha256:e73e9348ddc6d734c28644127d88e13b5fe74237b99bb7cfc2e2d31b357a482f"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -3772,7 +3785,8 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust stream tests cover invalid-JSON terminal errors, valid session→run preview ordering, and unknown-agent fail-closed with no preview frames."
+        "Rust stream tests cover invalid-JSON terminal errors, valid session→run preview ordering, and unknown-agent fail-closed with no preview frames.",
+        "实际配置可用runtime的空message、缺agent及无效override在首次retry BrokenPipe后保留原非空terminal error、identity和sequence，生产重连EOF，且零provider/run/audit/session写入。"
       ],
       "uncoveredAssertions": [
         "Go 空 ChatRequest 的非空 terminal error，与 Rust 缺 clientRequestId 的 400 JSON admission failure 不同。",
@@ -366406,6 +366420,14 @@
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
+    },
+    "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs::production_configured_stream_preserves_prepare_errors_after_retry_disconnect": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_helpers_test.go:216:TestExecuteADKChatStreamPublishesTerminalErrorForInvalidRequest"
+      ],
+      "allowed": true,
+      "reviewStatus": "single"
     }
   }
 }

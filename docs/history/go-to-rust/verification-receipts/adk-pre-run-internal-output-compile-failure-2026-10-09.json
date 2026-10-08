@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_configured_stream_preserves_prepare_errors_after_retry_disconnect) | test(production_retained_error) | test(production_stream_missing_agent_emits_no_preview_frames)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T19:12:44Z",
+  "sourceState": {
+    "verifiedCommit": "a445a0bbfaabadb49de4f332c60a677b5c96d7f0",
+    "trackedDiffSha256": "0eb8fbc4a4c9c9fbea9cb4d12a365c19a3423d0890b1095ab8ffce3dec050eef",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_chat_stream_port.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_model_runtime_events.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_model_runtime_stream.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_pre_run_stream_tests.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_adk_unavailable_stream.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/._product_production_ports_adk_stream.rs",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs",
+        "sha256": "b5146ee99eb3fb31fb9132303cfd32cf4269c5a4212050286f423cb8f240bb8c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/._adk-pre-run-red-2026-10-09.json",
+        "sha256": "d2fdabe41fe17dd7446608064fb694bf732f357d5b9d3571dab36d625093ab09"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-pre-run-red-2026-10-09.json",
+        "sha256": "83d975963f1e7cb0bd05274865609c312a34931e777273f840a659258646502f"
+      }
+    ]
+  },
+  "rawOutputSha256": "500c17a0d863b507592a38a05cb6fa7d76ad2667bbd7c59add3e5569ccb5635c",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

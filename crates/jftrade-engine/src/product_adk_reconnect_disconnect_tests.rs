@@ -13,6 +13,9 @@ use tokio::sync::oneshot;
 #[path = "product_adk_retained_stream_readiness_tests.rs"]
 mod retained_readiness;
 
+#[path = "product_adk_pre_run_stream_tests.rs"]
+mod pre_run;
+
 // Inject only the socket failure. Routes, cursor projection, body polling and
 // connection cleanup all run through the prepared production router/Hyper.
 struct FailingListener {

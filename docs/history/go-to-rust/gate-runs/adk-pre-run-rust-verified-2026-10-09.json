@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T19:22:50.477755+00:00",
+  "verifiedCommit": "a445a0bbfaabadb49de4f332c60a677b5c96d7f0",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-pre-run-rust-20261009.log",
+  "rawOutputSha256": "6426e03071bd355ca6b21f219aa48ad39add12d122ed5a74d40d82c6d5e8e15d",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4009,
+    "passed": 4009,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 109.584
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_chat_stream_port.rs": "94b9e1175de1a65fcdc606b5d85c25efdf89bf13d4cd54fa1465eae81037b620",
+    "crates/jftrade-engine/src/product_adk_model_runtime_events.rs": "d4eced6a59cc6e2d27504d058f537f4c8d67374d4af3f3c6a285a43fa741e91d",
+    "crates/jftrade-engine/src/product_adk_model_runtime_stream.rs": "df845fbd66f4f0840f72d8a0eb02c0ce0ba0c730b7f6834f6bca8d34b4113127",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "6681ef91d3e18ec726858702f162c389122d2ffdce2215f66e6de343eb3e22b7",
+    "crates/jftrade-engine/src/product_adk_retained_stream_readiness_tests.rs": "7fcf3f679f8eb7696f501eef7373eca6134e5efca6ba3d3a6644f812bd61688e",
+    "crates/jftrade-engine/src/product_adk_unavailable_stream.rs": "7fab75442debc7c4972cd581080baa2032a8c407f2db0f7f8eee81eba76f9fae",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_runtime.rs": "a19e332804a4b080a2ca24972e86896e183276a04304f8c820d2a0da7d07eaa9",
+    "crates/jftrade-engine/src/product_production_ports_adk_stream.rs": "c329737a54f5a652bf1748b7b0decf8b9b29300d705ce751fb8d13f6ba160752",
+    "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs": "e77aa7c421fd688d06f43d3ba79741349f2a1368cb474c8b05b5d53ed1a2687b"
+  },
+  "rustSourceFingerprintSha256": "4416592d8d28cc529797fa8a77acc8087cb42e0b7423401eb651bb26beb6f72b",
+  "frozenRustFiles": 1027,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Configured runtime pre-run errors retain original terminal text before retry; five validation/agent cases, concurrent reuse, existing malformed run, existing early validation and post-creation context corruption controls pass. Eight actual frozen tests reviewed with no status upgrades. Errors after durable creation remain on the original writer; final stream terminal retention on those preparation failures, canonical request fingerprint, known context preview, concurrent successful execution and idle per-request pre-cancellation remain gaps. One stable production red and an internal-output exhaustiveness compile failure are preserved. Whole parity active.",
+  "static": "passed"
+}
