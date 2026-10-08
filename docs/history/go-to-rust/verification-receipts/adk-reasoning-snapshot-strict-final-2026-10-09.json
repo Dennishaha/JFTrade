@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(reasoning_resume)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T23:20:26Z",
+  "sourceState": {
+    "verifiedCommit": "ad7b9411a1eb42cc087f8f2efc4ce1c7496bca5b",
+    "trackedDiffSha256": "853863ee4aaeea44da615504d95280683523c7046b9aae197f5b501934b012b8",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_reasoning_resume_owner_tests.rs",
+        "sha256": "b6c97dcd92b126277a9154c7af08a1a4d17a7ec0339da739e01d14d4424dd9c1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-reasoning-snapshot-control-2026-10-09.json",
+        "sha256": "c41a1ac5cc63cc4b1c190752f07ce07791096f5bb5bb0a1fe74f393ac01824f4"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-reasoning-snapshot-directed-2026-10-09.json",
+        "sha256": "45b99b6a9dc928e076090b5d9253d970b56aa106f6a4305657a33198a2d23ead"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-reasoning-snapshot-red-2026-10-09.json",
+        "sha256": "7c2b2c68bd1cff336117e13a491ac7340d5133e849d09b3542d18828b5400fb3"
+      }
+    ]
+  },
+  "rawOutputSha256": "3071d19c7fa7fa89a14100207c6f4c316c61e9909742000ffa5b6f960fb0f4f2",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_new_request_cannot_supply_private_snapshot_to_bypass_provider_mapping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_request_override_wins_over_agent_and_rejects_unknown_effort",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_resume_uses_saved_wire_mapping_after_provider_config_drift",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_resume_without_complete_snapshot_keeps_current_provider_validation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1990,
+      "exec_time": 0.420151709,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

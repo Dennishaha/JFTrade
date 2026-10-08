@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(reasoning_resume)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T23:15:43Z",
+  "sourceState": {
+    "verifiedCommit": "ad7b9411a1eb42cc087f8f2efc4ce1c7496bca5b",
+    "trackedDiffSha256": "78159d57edbe8a2f68edc7a39c199a734a4e777aad337ae9fbba4167ee3db13a",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_reasoning_resume_owner_tests.rs",
+        "sha256": "4ec093f75bee63d28edc0702eee7e5feb93e21c114015811c5be0e3b038a7502"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-reasoning-snapshot-red-2026-10-09.json",
+        "sha256": "7c2b2c68bd1cff336117e13a491ac7340d5133e849d09b3542d18828b5400fb3"
+      }
+    ]
+  },
+  "rawOutputSha256": "6b7634107d4bf1b9a1642631996c767299e5b3bd4951c189ac7c96c89d5ef87f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_new_request_cannot_supply_private_snapshot_to_bypass_provider_mapping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_request_override_wins_over_agent_and_rejects_unknown_effort",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_resume_uses_saved_wire_mapping_after_provider_config_drift",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_resume_without_complete_snapshot_keeps_current_provider_validation"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1990,
+      "exec_time": 0.379761918,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

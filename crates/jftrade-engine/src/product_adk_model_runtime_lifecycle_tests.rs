@@ -13,6 +13,9 @@ mod workflow_shutdown;
 #[path = "product_adk_stream_usage_tests.rs"]
 mod stream_usage;
 
+#[path = "product_adk_reasoning_resume_owner_tests.rs"]
+mod reasoning_resume;
+
 #[path = "product_adk_reconnect_live_tests.rs"]
 mod reconnect_live;
 

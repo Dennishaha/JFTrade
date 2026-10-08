@@ -1,5 +1,12 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 reasoning 恢复配置漂移与请求优先级
+
+- 冻结Go reasoning_lifecycle23的current provider只有low=LOW_V2、agent low，但旧run保存max/reasoning_effort/MAX_V1。直接生产resume owner红1 passed/1 failed确认现行resolver先拒绝max，尚未采用durable快照；[红receipt](verification-receipts/adk-reasoning-snapshot-red-2026-10-09.json) SHA `7c2b2c68bd1cff336117e13a491ac7340d5133e849d09b3542d18828b5400fb3`、原源码/diff/1043文件指纹保留。
+- 内部resolver先采用完整保存field/value，再按原provider身份、endpoint/key等解析；新请求路径传None，缺失或空白任一值时仍执行现行mapping校验。mock provider实际捕获snapshot-model和reasoning_effort=MAX_V1，无vendor.current；终态重试完整row/audit/native events保持且provider恰好一次。四条控制通过，shutdown_with_error明确成功，最终定向243 passed/0 failed。
+- 复核7条冻结原函数/blob：reasoning10/23、config8/27/65、persistence31、runner_chat552。reasoning10直接resolver断言agent medium继承、request max覆盖、extreme拒绝，partial→exact；reasoning23 chat分支闭合但workflowResumeContext仍缺直接owner证据，保持partial。解除旧composer保存测试对reasoning23的错误引用及reuse关系，其他四条composer引用保留。config27旧exact缺字段语法和完整mapping矩阵断言，降partial，当前1666 exact/2148 partial/637 boundary。
+- [quick](gate-runs/adk-reasoning-snapshot-quick-verified-2026-10-09.json) 2449 Rust/98 Pine/desktop11+48及[现场完整Rust](gate-runs/adk-reasoning-snapshot-rust-verified-2026-10-09.json) 4049 passed/0 failed/2 skipped通过，static/七类replay退出0，无LEAK。1043文件冻结，四份receipt/raw SHA、两份gate、7条原函数及8处reuse/anchor/diff核验通过；strict-verified退出0，anchor unrecorded/stale0、既有unknown48。strict-final辅助lane误派发四条控制，其真实nextest命令与receipt保留，不计作strict；只有实际strict audit计入通过。证据备份`/Users/jiangfan/.cache/jftrade/parity-reasoning-snapshot-20261009`。失败证据不删除。workflow快照传播、GET typed解码/history、完整chat投影、HTTP idle关闭等待及其余已登记缺口继续开放，整体目标未完成。 最终verifier发现reasoning10旧generic门禁无物理anchor，失败日志保留；解除该错误引用，专属owner完整断言保留，permission原引用独立保留，不放宽anchor要求。
+
 ## 2026-10-09 私有 provider reasoning 快照与公开 run 投影
 
 - 实际HTTP生产红0 passed/2 failed：GET run及RUNNING同步重放均泄露`reasoningEffortField/Value`。生产prepare owner已保存正确field=provider.reasoning.level/value=DEEP，公开字段应按冻结Go `persistedRun`私有保存及Run JSON规则隐藏。红receipt SHA `93048e626899b3e95d2b41d1491376c8051afa66f269b60feea219a14dfc051a`、1042文件源码及diff独立保留。

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T23:24:50.526622+00:00",
+  "verifiedCommit": "ad7b9411a1eb42cc087f8f2efc4ce1c7496bca5b",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-reasoning-snapshot-rust-20261009.log",
+  "rawOutputSha256": "8def03ede752c7783d497400c8af026bb7cabe8e0f65cd7c0c1788ac4136dab3",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4049,
+    "passed": 4049,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 113.138
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle.rs": "c59ec771ae71434af6780203c85105a5e3a37f36befade7af0326105f9a45e72",
+    "crates/jftrade-engine/src/product_adk_model_runtime_lifecycle_tests.rs": "6dcac78cddd3f3ef47271be8599c0f5d2730f0c4fdc994360edc0aa911b5453f",
+    "crates/jftrade-engine/src/product_adk_model_runtime_resume.rs": "c2b3cb0450b7ab1b7f1f60975dd8b64c85a13757d40386f47bd5537f84971cae",
+    "crates/jftrade-engine/src/product_adk_reasoning_resume_owner_tests.rs": "b6c97dcd92b126277a9154c7af08a1a4d17a7ec0339da739e01d14d4424dd9c1"
+  },
+  "rustSourceFingerprintSha256": "ce350d3e883c4860cf45e4cc75e60b0fb671b15d3e4376b77ae22554cc56e433",
+  "frozenRustFiles": 1043,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Actual chat continuation reuses durable model/max/reasoning_effort/MAX_V1 after current provider changes to low-only. Complete snapshot is an internal argument; incomplete snapshot and new request preserve current mapping validation. Provider executes once and terminal row/audit/native events remain unchanged on retry. Seven frozen originals reviewed; request override10 partial→exact, config27 false exact corrected to partial for missing validation matrix assertions, resume23 remains partial for workflow context.1666 exact/2148 partial/637 boundary. GET typed decoding/history, whole chat projection, workflow snapshot propagation, HTTP idle shutdown and all other registered gaps remain unfinished.",
+  "static": "passed"
+}

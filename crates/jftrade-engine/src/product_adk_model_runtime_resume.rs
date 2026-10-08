@@ -184,15 +184,12 @@ impl ProductionAdkChatRuntime {
                 Value::String(effort.to_owned()),
             );
         }
-        let mut provider = self.resolve_provider(&request)?;
-        if let (Some(field), Some(value)) = (
-            object.get("reasoningEffortField").and_then(Value::as_str),
-            object.get("reasoningEffortValue").and_then(Value::as_str),
-        ) && !field.trim().is_empty()
-            && !value.trim().is_empty()
-        {
-            provider.reasoning = Some((field.trim().to_owned(), value.trim().to_owned()));
-        }
+        let reasoning_snapshot = object.get("reasoningEffortField").and_then(Value::as_str)
+            .zip(object.get("reasoningEffortValue").and_then(Value::as_str))
+            .map(|(field, value)| (field.trim(), value.trim()))
+            .filter(|(field, value)| !field.is_empty() && !value.is_empty())
+            .map(|(field, value)| (field.to_owned(), value.to_owned()));
+        let provider = self.resolve_provider_with_reasoning_snapshot(&request, reasoning_snapshot)?;
         let model = object
             .get("model")
             .and_then(Value::as_str)

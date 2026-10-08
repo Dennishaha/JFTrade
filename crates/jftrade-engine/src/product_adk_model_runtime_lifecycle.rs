@@ -442,6 +442,14 @@ impl ProductionAdkChatRuntime {
         &self,
         request: &serde_json::Map<String, Value>,
     ) -> Result<ResolvedProvider, AdkChatPortError> {
+        self.resolve_provider_with_reasoning_snapshot(request, None)
+    }
+
+    fn resolve_provider_with_reasoning_snapshot(
+        &self,
+        request: &serde_json::Map<String, Value>,
+        reasoning_snapshot: Option<(String, String)>,
+    ) -> Result<ResolvedProvider, AdkChatPortError> {
         let requested = request
             .get("providerId")
             .and_then(Value::as_str)
@@ -567,8 +575,12 @@ impl ProductionAdkChatRuntime {
                 .filter(|value| !value.is_empty())
                 .map(str::to_owned)
         });
-        let (reasoning_effort, reasoning) =
-            resolve_provider_reasoning(value, requested_effort.as_deref())?;
+        // A resumed run already resolved its wire mapping. Go applies that
+        // snapshot before consulting the provider's current support matrix.
+        let (reasoning_effort, reasoning) = match reasoning_snapshot {
+            Some(snapshot) => (requested_effort.map(|effort| effort.to_ascii_lowercase()), Some(snapshot)),
+            None => resolve_provider_reasoning(value, requested_effort.as_deref())?,
+        };
         Ok(ResolvedProvider {
             id: selected.id.clone(),
             name: value
