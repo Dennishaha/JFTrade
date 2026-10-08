@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_and_continues_remaining_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T07:23:49Z",
+  "sourceState": {
+    "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+    "trackedDiffSha256": "b47ef4f470bf487b4f50e0a7316231fd3456f00554230d5fd2374ebded4b9589",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs",
+        "sha256": "7fd0bcd161828c7214aa4fa7d7582dd1e38c7f1a8119761ff25df9ac3b59e7cf"
+      },
+      {
+        "path": "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs",
+        "sha256": "745c3bf8d06564b8572bd87d9af3f384a2ed3ce7cdc80a079d429247a6bccfa6"
+      }
+    ]
+  },
+  "rawOutputSha256": "55e5c2e0deef17cf206ac1f8a4bdbe8b411866f2bae8281780370e7d16b18a68",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::adk_workflow_scheduler_contracts$disabled_schedule_parity::disabled_due_schedule_advances_without_recording_an_execution",
+    "jftrade-engine::adk_workflow_scheduler_contracts$disabled_schedule_parity::disabled_due_schedule_preserves_its_previous_execution_time",
+    "jftrade-engine::adk_workflow_scheduler_contracts$poll_failure_parity::market_poll_persists_read_failure_and_continues_remaining_instruments",
+    "jftrade-engine::adk_workflow_scheduler_contracts$poll_failure_parity::market_poll_persists_read_failure_when_threshold_values_are_unchanged"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 4,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 12,
+      "exec_time": 1.121077165,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

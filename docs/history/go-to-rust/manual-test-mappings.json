@@ -133076,8 +133076,8 @@
     "internal/assistant/workflows_extended_test.go:135:TestWorkflowBuiltinTemplatesWatchedInstrumentsAndScheduleHelpers": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_schedule_trigger_creation_and_next_run_calculation",
-      "conclusion": "partial：Go 断言内置工作流模板幂等创建、内置触发器为禁用的无 nextRunAt 计划、被观察标的集合、触发器调度准备（启用/手动/nil）与非法 cron 不产生 nextRunAt。Rust 的调度用例断言计划触发器创建与下次运行计算（同一调度准备语义）；Go 的内置模板幂等与 W atchedWorkflowInstruments 在 Rust 由内置目录与设置投影覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：重新执行真实ProductionAdkPort schedule creation/update/disable/re-enable：nextRunAt创建与重配非空、disabled清空、重新enabled恢复；这里只支持通用调度准备，不证明builtin实例。 原daily-stock-review两次EnsureBuiltin幂等、DISABLED/default builtin agent/每日股票盘点及单一disabled trigger仍缺直接owner证据；原watched instruments顺序US.AAPL,HK.00700与nil Service空集合、manual/nil schedule helper及invalid cron组合未被此单测闭合。撤回旧结论将目录或设置投影笼统算覆盖的说法，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_extended_test.go",
@@ -133089,21 +133089,15 @@
         {
           "file": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
           "test": "test_schedule_trigger_creation_and_next_run_calculation",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/workflows_extended_test.go",
-            "goLine": 135,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-            "rustLine": 160
-          }
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust schedule test covers trigger creation and next-run calculation; built-in catalog/settings projections cover static templates and watched instruments."
+          "重新执行真实ProductionAdkPort schedule creation/update/disable/re-enable：nextRunAt创建与重配非空、disabled清空、重新enabled恢复；这里只支持通用调度准备，不证明builtin实例。"
         ],
         "uncovered": [
-          "No Rust idempotent built-in template creation or complete enabled/manual/nil schedule matrix proving invalid cron leaves nextRunAt absent."
+          "原daily-stock-review两次EnsureBuiltin幂等、DISABLED/default builtin agent/每日股票盘点及单一disabled trigger仍缺直接owner证据；原watched instruments顺序US.AAPL,HK.00700与nil Service空集合、manual/nil schedule helper及invalid cron组合未被此单测闭合。撤回旧结论将目录或设置投影笼统算覆盖的说法，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -133114,23 +133108,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)"
         ],
         "testFilter": [
           "test_schedule_trigger_creation_and_next_run_calculation"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+        "verifiedAt": "2026-10-08T07:30:22Z",
+        "receiptDigest": "sha256:e6c4df1b4076b4a5d26ae532ef3f899a2a12f048534d654ea6db95ec83501c70"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -133141,18 +133138,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust schedule test covers trigger creation and next-run calculation; built-in catalog/settings projections cover static templates and watched instruments."
+        "重新执行真实ProductionAdkPort schedule creation/update/disable/re-enable：nextRunAt创建与重配非空、disabled清空、重新enabled恢复；这里只支持通用调度准备，不证明builtin实例。"
       ],
       "uncoveredAssertions": [
-        "No Rust idempotent built-in template creation or complete enabled/manual/nil schedule matrix proving invalid cron leaves nextRunAt absent."
+        "原daily-stock-review两次EnsureBuiltin幂等、DISABLED/default builtin agent/每日股票盘点及单一disabled trigger仍缺直接owner证据；原watched instruments顺序US.AAPL,HK.00700与nil Service空集合、manual/nil schedule helper及invalid cron组合未被此单测闭合。撤回旧结论将目录或设置投影笼统算覆盖的说法，保持partial。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_extended_test.go:208:TestWorkflowSchedulerTickAndMarketPollingStablePaths": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_schedule_trigger_tick_advances_and_fires",
-      "conclusion": "partial：Go 断言调度 tick 与市场轮询的稳定路径（禁用工作流的触发器只重排不发运行、市场触发器读取状态）。Rust 的调度用例断言计划触发器 tick 推进并触发；Go 的“禁用工作流只重排”由调度用例 test_schedule_trigger_disabled_parent_workflow_safely_advances 覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs::disabled_due_schedule_advances_without_recording_an_execution; crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs::disabled_due_schedule_preserves_its_previous_execution_time; crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs::market_poll_persists_read_failure_without_discarding_successful_instruments; crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs::market_poll_persists_read_failure_when_threshold_values_are_unchanged",
+      "conclusion": "partial：原cron0 8 * * 1-5/Asia-Shanghai/due2026-01-01经生产scheduler tick：disabled parent不执行、零logs、nextRunAt准确推进至2026-07-02T00:00:00Z，空lastRunAt与既有历史时间均保留。owner红测实证曾错误覆写，现只推进schedule。 原US.BAD/US.AAPL/value100/cross_up/snapshot.price的read失败通过真实quote port注入，保存lastError并保留AAPL99 state，零invocations/tick.errors为空。另native无numeric price辅助输入的config全值不变时仍保存诊断。native排序实际AAPL→BAD已直接断言；不宣称保留Go原调用次序或实际context cancellation。 原Go BAD的context.Canceled不是native消息quote canceled的Unavailable错误，本批只证明typed upstream错误传播；Go nil/empty scheduler/service及pre-canceled Start等无同形owner调用，泛market-data event/no Service入口组合未闭合。整条partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_extended_test.go",
@@ -133162,23 +133159,57 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-          "test": "test_schedule_trigger_tick_advances_and_fires",
+          "file": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs",
+          "test": "disabled_due_schedule_advances_without_recording_an_execution",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_extended_test.go",
             "goLine": 208,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-            "rustLine": 249
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs",
+            "rustLine": 3
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs",
+          "test": "disabled_due_schedule_preserves_its_previous_execution_time",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/workflows_extended_test.go",
+            "goLine": 208,
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs",
+            "rustLine": 9
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs",
+          "test": "market_poll_persists_read_failure_without_discarding_successful_instruments",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/workflows_extended_test.go",
+            "goLine": 208,
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs",
+            "rustLine": 28
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs",
+          "test": "market_poll_persists_read_failure_when_threshold_values_are_unchanged",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/workflows_extended_test.go",
+            "goLine": 208,
+            "rustFile": "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs",
+            "rustLine": 34
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust scheduler tests advance and fire schedule triggers and safely advance disabled parent workflows."
+          "原cron0 8 * * 1-5/Asia-Shanghai/due2026-01-01经生产scheduler tick：disabled parent不执行、零logs、nextRunAt准确推进至2026-07-02T00:00:00Z，空lastRunAt与既有历史时间均保留。owner红测实证曾错误覆写，现只推进schedule。",
+          "原US.BAD/US.AAPL/value100/cross_up/snapshot.price的read失败通过真实quote port注入，保存lastError并保留AAPL99 state，零invocations/tick.errors为空。另native无numeric price辅助输入的config全值不变时仍保存诊断。native排序实际AAPL→BAD已直接断言；不宣称保留Go原调用次序或实际context cancellation。"
         ],
         "uncovered": [
-          "No Rust combined tick assertion reads market-trigger state and proves disabled workflows only reschedule without dispatching a run."
+          "原Go BAD的context.Canceled不是native消息quote canceled的Unavailable错误，本批只证明typed upstream错误传播；Go nil/empty scheduler/service及pre-canceled Start等无同形owner调用，泛market-data event/no Service入口组合未闭合。整条partial。"
         ],
         "source": "reviewed"
       },
@@ -133189,23 +133220,29 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)"
         ],
         "testFilter": [
-          "test_schedule_trigger_tick_advances_and_fires"
+          "disabled_due_schedule_advances_without_recording_an_execution",
+          "disabled_due_schedule_preserves_its_previous_execution_time",
+          "market_poll_persists_read_failure_without_discarding_successful_instruments",
+          "market_poll_persists_read_failure_when_threshold_values_are_unchanged"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+        "verifiedAt": "2026-10-08T07:30:22Z",
+        "receiptDigest": "sha256:e6c4df1b4076b4a5d26ae532ef3f899a2a12f048534d654ea6db95ec83501c70"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -133216,18 +133253,19 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust scheduler tests advance and fire schedule triggers and safely advance disabled parent workflows."
+        "原cron0 8 * * 1-5/Asia-Shanghai/due2026-01-01经生产scheduler tick：disabled parent不执行、零logs、nextRunAt准确推进至2026-07-02T00:00:00Z，空lastRunAt与既有历史时间均保留。owner红测实证曾错误覆写，现只推进schedule。",
+        "原US.BAD/US.AAPL/value100/cross_up/snapshot.price的read失败通过真实quote port注入，保存lastError并保留AAPL99 state，零invocations/tick.errors为空。另native无numeric price辅助输入的config全值不变时仍保存诊断。native排序实际AAPL→BAD已直接断言；不宣称保留Go原调用次序或实际context cancellation。"
       ],
       "uncoveredAssertions": [
-        "No Rust combined tick assertion reads market-trigger state and proves disabled workflows only reschedule without dispatching a run."
+        "原Go BAD的context.Canceled不是native消息quote canceled的Unavailable错误，本批只证明typed upstream错误传播；Go nil/empty scheduler/service及pre-canceled Start等无同形owner调用，泛market-data event/no Service入口组合未闭合。整条partial。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_extended_test.go:278:TestWorkflowEventAndSchedulerTriggerBackgroundRuns": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_workflow_scheduler_worker_start_stop_and_status",
-      "conclusion": "partial：Go 断言事件与调度触发器的后台运行（后台调度器启动/停止与状态）。Rust 的调度用例断言调度器 worker 的启停与状态（同一后台调度面）；Go 的事件触发器后台运行在 Rust 由阈值触发用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：重新执行native后台worker：ready状态、40ms周期至少两次tick，stop后实际join成功和stopped；只支持worker启停这个子行为。 原broker.connection/warn事件成功与MatchedEvent category、600秒cooldown无logs、missing workflow event/poll无logs、cron后台SUCCEEDED/scheduledAt、AAPL99→105 threshold结果、TSLA240→260 tick entityId、pre-canceled event与幂等Start整组未由worker状态测试证明，保留partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_extended_test.go",
@@ -133239,21 +133277,15 @@
         {
           "file": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
           "test": "test_workflow_scheduler_worker_start_stop_and_status",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/workflows_extended_test.go",
-            "goLine": 278,
-            "rustFile": "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs",
-            "rustLine": 585
-          }
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust scheduler worker test covers start/stop/status; threshold-trigger tests cover event dispatch."
+          "重新执行native后台worker：ready状态、40ms周期至少两次tick，stop后实际join成功和stopped；只支持worker启停这个子行为。"
         ],
         "uncovered": [
-          "No Rust combined background-run assertion joins both event and schedule trigger paths with their resulting run/log state."
+          "原broker.connection/warn事件成功与MatchedEvent category、600秒cooldown无logs、missing workflow event/poll无logs、cron后台SUCCEEDED/scheduledAt、AAPL99→105 threshold结果、TSLA240→260 tick entityId、pre-canceled event与幂等Start整组未由worker状态测试证明，保留partial。"
         ],
         "source": "reviewed"
       },
@@ -133264,23 +133296,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)"
         ],
         "testFilter": [
           "test_workflow_scheduler_worker_start_stop_and_status"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+        "verifiedAt": "2026-10-08T07:30:22Z",
+        "receiptDigest": "sha256:e6c4df1b4076b4a5d26ae532ef3f899a2a12f048534d654ea6db95ec83501c70"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -133291,18 +133326,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust scheduler worker test covers start/stop/status; threshold-trigger tests cover event dispatch."
+        "重新执行native后台worker：ready状态、40ms周期至少两次tick，stop后实际join成功和stopped；只支持worker启停这个子行为。"
       ],
       "uncoveredAssertions": [
-        "No Rust combined background-run assertion joins both event and schedule trigger paths with their resulting run/log state."
+        "原broker.connection/warn事件成功与MatchedEvent category、600秒cooldown无logs、missing workflow event/poll无logs、cron后台SUCCEEDED/scheduledAt、AAPL99→105 threshold结果、TSLA240→260 tick entityId、pre-canceled event与幂等Start整组未由worker状态测试证明，保留partial。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_extended_test.go:528:TestWorkflowActiveRunSkipAndReconciliation": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_distinguishes_missing_durable_winner",
-      "conclusion": "partial：Go 断言活动运行跳过与运行状态调和（陈旧/缺失运行）。Rust 的工作流运行用例断言失败 CAS 落败时区分“缺失耐久赢家”（同一并发/陈旧状态区分）；Go 的跳过逻辑在 Rust 由队列原子性用例覆盖。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：重新执行旧native owner：failure CAS loser找不到durable log时返回409 ADK_WORKFLOW_CONFLICT和invocation disappeared；这是附加native状态防护，不是原Go missing-run调和断言。 原QUEUED active检测、RunWorkflowTrigger返回SKIPPED/previous trigger run、completed run驱动SUCCEEDED+finishedAt、missing-run驱动FAILED/run not found均缺直接对应断言。旧CAS-loser用例不能替代这些行为，明确撤回泛称队列原子性已覆盖整组的结论，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_extended_test.go",
@@ -133314,21 +133349,15 @@
         {
           "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs",
           "test": "failure_cas_loser_distinguishes_missing_durable_winner",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/assistant/workflows_extended_test.go",
-            "goLine": 528,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs",
-            "rustLine": 468
-          }
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust failure-CAS test distinguishes a missing durable winner; queue atomicity covers stale active-run claims and skip behavior."
+          "重新执行旧native owner：failure CAS loser找不到durable log时返回409 ADK_WORKFLOW_CONFLICT和invocation disappeared；这是附加native状态防护，不是原Go missing-run调和断言。"
         ],
         "uncovered": [
-          "No Rust table reconciles stale, missing, terminal, and active stored runs with exact skip/continue decisions."
+          "原QUEUED active检测、RunWorkflowTrigger返回SKIPPED/previous trigger run、completed run驱动SUCCEEDED+finishedAt、missing-run驱动FAILED/run not found均缺直接对应断言。旧CAS-loser用例不能替代这些行为，明确撤回泛称队列原子性已覆盖整组的结论，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -133339,23 +133368,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)"
         ],
         "testFilter": [
           "failure_cas_loser_distinguishes_missing_durable_winner"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+        "verifiedAt": "2026-10-08T07:30:22Z",
+        "receiptDigest": "sha256:e6c4df1b4076b4a5d26ae532ef3f899a2a12f048534d654ea6db95ec83501c70"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -133366,18 +133398,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust failure-CAS test distinguishes a missing durable winner; queue atomicity covers stale active-run claims and skip behavior."
+        "重新执行旧native owner：failure CAS loser找不到durable log时返回409 ADK_WORKFLOW_CONFLICT和invocation disappeared；这是附加native状态防护，不是原Go missing-run调和断言。"
       ],
       "uncoveredAssertions": [
-        "No Rust table reconciles stale, missing, terminal, and active stored runs with exact skip/continue decisions."
+        "原QUEUED active检测、RunWorkflowTrigger返回SKIPPED/previous trigger run、completed run驱动SUCCEEDED+finishedAt、missing-run驱动FAILED/run not found均缺直接对应断言。旧CAS-loser用例不能替代这些行为，明确撤回泛称队列原子性已覆盖整组的结论，保持partial。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/workflows_extended_test.go:631:TestWorkflowResultAndRunStatusHelpers": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_trigger_update_switches_a_manual_trigger_to_a_schedule",
-      "conclusion": "partial：Go 断言工作流结果与运行状态助手（状态文本/结果回退）。Rust 的工作流用例断言触发器更新从手动切换为计划（同一触发器状态字段语义）；Go 的结果文本助手在 Rust 由运行投影用例覆盖，无独立断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments",
+      "conclusion": "partial：新增真实threshold owner原输入：payload snapshot.price101缺instrument时matches为空/changed=false且无US.AAPL状态；原snapshot..price空段解析精确返回101。移除原manual→schedule测试引用，它与原result/status helper没有直接对应断言。 原Reply空的provider down markdown/RawResponse、七种run→log状态映射、finish失败error/finishedAt、取消errorString、fallback node title/objective、failed/pending response日志投影仍未闭合；Rust现有result是模型response对象而非Go markdown聚合，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/workflows_extended_test.go",
@@ -133387,23 +133419,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs",
-          "test": "workflow_trigger_update_switches_a_manual_trigger_to_a_schedule",
+          "file": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+          "test": "threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/workflows_extended_test.go",
             "goLine": 631,
-            "rustFile": "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs",
-            "rustLine": 393
+            "rustFile": "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs",
+            "rustLine": 3
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust trigger-update test switches a manual trigger to schedule and run-projection tests cover durable result/status fields."
+          "新增真实threshold owner原输入：payload snapshot.price101缺instrument时matches为空/changed=false且无US.AAPL状态；原snapshot..price空段解析精确返回101。移除原manual→schedule测试引用，它与原result/status helper没有直接对应断言。"
         ],
         "uncovered": [
-          "No Rust helper-level status text/result fallback matrix matching Go formatting and fallback semantics."
+          "原Reply空的provider down markdown/RawResponse、七种run→log状态映射、finish失败error/finishedAt、取消errorString、fallback node title/objective、failed/pending response日志投影仍未闭合；Rust现有result是模型response对象而非Go markdown聚合，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -133414,23 +133446,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_without_discarding_successful_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup) or test(test_schedule_trigger_creation_and_next_run_calculation) or test(test_workflow_scheduler_worker_start_stop_and_status) or test(failure_cas_loser_distinguishes_missing_durable_winner)"
         ],
         "testFilter": [
-          "workflow_trigger_update_switches_a_manual_trigger_to_a_schedule"
+          "threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+        "verifiedAt": "2026-10-08T07:30:22Z",
+        "receiptDigest": "sha256:e6c4df1b4076b4a5d26ae532ef3f899a2a12f048534d654ea6db95ec83501c70"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -133441,10 +133476,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust trigger-update test switches a manual trigger to schedule and run-projection tests cover durable result/status fields."
+        "新增真实threshold owner原输入：payload snapshot.price101缺instrument时matches为空/changed=false且无US.AAPL状态；原snapshot..price空段解析精确返回101。移除原manual→schedule测试引用，它与原result/status helper没有直接对应断言。"
       ],
       "uncoveredAssertions": [
-        "No Rust helper-level status text/result fallback matrix matching Go formatting and fallback semantics."
+        "原Reply空的provider down markdown/RawResponse、七种run→log状态映射、finish失败error/finishedAt、取消errorString、fallback node title/objective、failed/pending response日志投影仍未闭合；Rust现有result是模型response对象而非Go markdown聚合，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -340646,6 +340681,51 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:631:TestWorkflowResultAndRunStatusHelpers"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08只支持Workflow原631缺instrument不匹配与snapshot..price返回101；结果markdown、状态与trace仍未闭合，保持partial，不扩大其他引用。"
+    },
+    "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs::disabled_due_schedule_advances_without_recording_an_execution": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:208:TestWorkflowSchedulerTickAndMarketPollingStablePaths"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08只支持Workflow原208 disabled due schedule推进nextRunAt且不伪写空lastRunAt；nil/pre-canceled与实际context取消尚缺，保持partial。"
+    },
+    "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs::disabled_due_schedule_preserves_its_previous_execution_time": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:208:TestWorkflowSchedulerTickAndMarketPollingStablePaths"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08补充验证Workflow disabled due schedule保留既有lastRunAt；不以历史执行时间夹具冒称原208全量等价，保持partial。"
+    },
+    "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs::market_poll_persists_read_failure_when_threshold_values_are_unchanged": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:208:TestWorkflowSchedulerTickAndMarketPollingStablePaths"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08补充验证无numeric price且threshold config全值不变时仍保存quote错误；typed Unavailable并非Go context.Canceled，原208保持partial。"
+    },
+    "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs::market_poll_persists_read_failure_without_discarding_successful_instruments": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/workflows_extended_test.go:208:TestWorkflowSchedulerTickAndMarketPollingStablePaths"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08支持Workflow原208 BAD/AAPL/value100读取失败保存lastError与成功AAPL99状态；native排序AAPL→BAD已断言，不宣称Go调用顺序或context取消等价，保持partial。"
+    },
     "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_login_failed_persistence_preserves_sessions_before_capacity_eviction": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -352069,7 +352149,7 @@
       ],
       "allowed": false,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-08仅支持原278 worker启停与join；event/cooldown/background结果仍缺，不扩大旧reuse批准，保持partial。"
     },
     "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_schedule_trigger_creation_and_next_run_calculation": {
       "referenceCount": 1,
@@ -352077,15 +352157,15 @@
         "internal/assistant/workflows_extended_test.go:135:TestWorkflowBuiltinTemplatesWatchedInstrumentsAndScheduleHelpers"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08仅支持原135通用schedule准备；builtin实例、watched instruments和nil/invalid cron组合仍缺，保持partial。"
     },
     "crates/jftrade-engine/tests/adk_workflow_scheduler_contracts.rs::test_schedule_trigger_tick_advances_and_fires": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflows_extended_test.go:208:TestWorkflowSchedulerTickAndMarketPollingStablePaths"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批Workflow旧引用，其他断言范围及reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_runtime.rs::failure_cas_loser_distinguishes_missing_durable_winner": {
       "referenceCount": 1,
@@ -352094,15 +352174,14 @@
       ],
       "allowed": false,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-08仅native failure CAS loser找不到durable log回归；不是原528 active SKIPPED或completed/missing-run调和，不扩大旧reuse批准，保持partial。"
     },
     "crates/jftrade-engine/src/product_adk_workflow_tool_error_tests.rs::workflow_trigger_update_switches_a_manual_trigger_to_a_schedule": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/assistant/workflows_extended_test.go:631:TestWorkflowResultAndRunStatusHelpers"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批Workflow旧引用，其他断言范围及reuse审批不扩大。"
     },
     "crates/jftrade-engine/tests/adk_workflow_canvas_contracts.rs::workflow_mutation_rejects_invalid_work_mode": {
       "referenceCount": 1,

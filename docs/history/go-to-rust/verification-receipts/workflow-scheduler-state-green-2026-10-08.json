@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(disabled_due_schedule_advances_without_recording_an_execution) or test(disabled_due_schedule_preserves_its_previous_execution_time) or test(market_poll_persists_read_failure_and_continues_remaining_instruments) or test(market_poll_persists_read_failure_when_threshold_values_are_unchanged) or test(test_market_threshold_quote_error_resilience) or test(test_schedule_trigger_disabled_parent_workflow_safely_advances) or test(scheduler_join_reports_pending_cancelled_snapshot_cleanup)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T07:26:16Z",
+  "sourceState": {
+    "verifiedCommit": "15e844e05f8f42ad8be1e6b95ceda65989ca7dc5",
+    "trackedDiffSha256": "2f4cf5f8403b5e41739d25802251fea7f7a32815eb3345d394d5d84a90672727",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/tests/support/workflow_disabled_schedule_parity.rs",
+        "sha256": "7fd0bcd161828c7214aa4fa7d7582dd1e38c7f1a8119761ff25df9ac3b59e7cf"
+      },
+      {
+        "path": "crates/jftrade-engine/tests/support/workflow_poll_failure_parity.rs",
+        "sha256": "8d433e0f919da34e9cdea04d7fce77e5008c74e52d0f871cb3b975cec53be501"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workflow-scheduler-state-red-2026-10-08.json",
+        "sha256": "478674ca103e7dacbfda6ddc16c0d78b4805e391d91a7b28598a7c4da219d89b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/workflow-scheduler-state-refined-red-2026-10-08.json",
+        "sha256": "f3c68808fdb75cb520086b7ba0a1348185b6a229b34229893016b04a65978a11"
+      }
+    ]
+  },
+  "rawOutputSha256": "4e9c46ea347d294aa04f64083b62fa41b07b33ef9e0dafc7f57b42303a95ab6a",
+  "passedTests": [
+    "jftrade-engine::adk_workflow_scheduler_contracts$disabled_schedule_parity::disabled_due_schedule_advances_without_recording_an_execution",
+    "jftrade-engine::adk_workflow_scheduler_contracts$disabled_schedule_parity::disabled_due_schedule_preserves_its_previous_execution_time",
+    "jftrade-engine::adk_workflow_scheduler_contracts$lifecycle::scheduler_join_reports_pending_cancelled_snapshot_cleanup",
+    "jftrade-engine::adk_workflow_scheduler_contracts$test_market_threshold_quote_error_resilience",
+    "jftrade-engine::adk_workflow_scheduler_contracts$test_schedule_trigger_disabled_parent_workflow_safely_advances"
+  ],
+  "failedTests": [
+    "jftrade-engine::adk_workflow_scheduler_contracts$poll_failure_parity::market_poll_persists_read_failure_and_continues_remaining_instruments",
+    "jftrade-engine::adk_workflow_scheduler_contracts$poll_failure_parity::market_poll_persists_read_failure_when_threshold_values_are_unchanged"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 5,
+      "failed": 2,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 9,
+      "exec_time": 1.7735411669999999,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

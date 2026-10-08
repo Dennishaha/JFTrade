@@ -1,5 +1,23 @@
 use super::*;
 
+// Parity: go:452dea11:internal/assistant/workflows_extended_test.go:631 TestWorkflowResultAndRunStatusHelpers
+#[test]
+fn threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments() {
+    let mut config = json!({"instrumentIds":["US.AAPL"],"value":100});
+    let (matches, changed) = evaluate_market_threshold_trigger(
+        &mut config,
+        &[json!({"payload":{"snapshot":{"price":101}}})],
+        now(),
+    );
+    assert!(matches.is_empty());
+    assert!(!changed);
+    assert!(config["state"]["lastValues"].get("US.AAPL").is_none());
+    assert_eq!(
+        numeric_at_path(&json!({"snapshot":{"price":101}}), "snapshot..price"),
+        Some(101.0)
+    );
+}
+
 fn now() -> OffsetDateTime {
     OffsetDateTime::parse("2026-07-01T01:00:00Z", &Rfc3339).expect("frozen time")
 }

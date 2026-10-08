@@ -279,7 +279,6 @@ impl WorkflowScheduler {
         if !workflow_valid {
             let mut payload: Value =
                 serde_json::from_str(&trigger.payload_json).unwrap_or_default();
-            payload["lastRunAt"] = json!(now_iso);
             payload["nextRunAt"] = json!(next_run);
             payload["lastError"] = json!("workflow is disabled or missing");
             if let Err(error) =
@@ -357,11 +356,14 @@ impl WorkflowScheduler {
         };
 
         let mut config = payload.get("config").cloned().unwrap_or_else(|| json!({}));
-        let events = self.fetch_market_events(&config, now).await;
+        let (events, read_error) = self.fetch_market_events(&config, now).await;
         let (matches, changed) = evaluate_market_threshold_trigger(&mut config, &events, now);
 
-        if !changed {
+        if !changed && read_error.is_none() {
             return;
+        }
+        if let Some(error) = read_error {
+            payload["lastError"] = json!(error);
         }
         let enabled = self
             .store
@@ -405,30 +407,36 @@ impl WorkflowScheduler {
         }
     }
 
-    async fn fetch_market_events(&self, config: &Value, now: OffsetDateTime) -> Vec<Value> {
+    async fn fetch_market_events(
+        &self,
+        config: &Value,
+        now: OffsetDateTime,
+    ) -> (Vec<Value>, Option<String>) {
         let Some(quote_port) = &self.quote_port else {
-            return Vec::new();
+            return (Vec::new(), None);
         };
 
         let instrument_ids = config_instrument_ids(config);
         let now_iso = now.format(&Rfc3339).unwrap_or_default();
         let mut events = Vec::with_capacity(instrument_ids.len());
+        let mut read_error = None;
 
         for id in instrument_ids {
             let path = instrument_to_snapshot_path(&id);
-            if let Ok(snapshot) = quote_port.read(&path, "").await {
-                events.push(json!({
+            match quote_port.read(&path, "").await {
+                Ok(snapshot) => events.push(json!({
                     "type": "market-data.tick",
                     "source": "workflow.poll",
                     "entityId": id.to_ascii_uppercase(),
                     "at": now_iso,
                     "instrument": { "instrumentId": id.to_ascii_uppercase() },
                     "payload": snapshot,
-                }));
+                })),
+                Err(error) => read_error = Some(error.to_string()),
             }
         }
 
-        events
+        (events, read_error)
     }
 
     fn launch_queued(&self, log_id: &str) {

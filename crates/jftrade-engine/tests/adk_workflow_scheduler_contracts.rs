@@ -6,6 +6,12 @@ mod lifecycle;
 #[path = "support/workflow_threshold_config_parity.rs"]
 mod threshold_config_parity;
 
+#[path = "support/workflow_disabled_schedule_parity.rs"]
+mod disabled_schedule_parity;
+
+#[path = "support/workflow_poll_failure_parity.rs"]
+mod poll_failure_parity;
+
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::Path;
