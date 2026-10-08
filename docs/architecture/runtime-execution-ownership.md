@@ -18,6 +18,7 @@
 - heartbeat 在访问连接前拒绝过期调用方快照，SQL 继续验证 durable owner/token/有效期。worker 每次成功续租采用返回的新快照，避免最初快照到期后错误取消仍有效的执行。
 - 同步 chat、live stream 和审批 continuation 共用生产 supervisor 的准入、取消与 completion barrier。关闭先拒绝新执行，再停止恢复扫描、取消 provider 并等待执行退出及租约释放；五秒内未结束时返回未完成并保留 task owner 和工具 ports，后续关闭可以重试。关闭后的 provider 注册继承取消状态，不能漏掉取消 fan-out。
 - 同步请求、live stream 和审批继续中的 provider 等待同时检查运行取消及租约丢失。取消覆盖请求发送、响应头、JSON body 和 idle SSE 等待；heartbeat 写失败不能让旧 owner 继续等待模型回复。
+- 同步模型请求保持 `stream:false`，收到成功的Responses SSE时与live调用共用事件读取owner；delta、completed usage/tool calls、失败、未完成EOF、大小限制和取消使用同一规则。同步调用不发布live delta，完成投影仍由原run lease提交；重叠相同请求复用当前RUNNING投影，成功后重放原终态，不再调用provider。
 - 租约丢失后先结束当前执行，禁止旧 owner 写入迟到成功、失败或取消终态。SQLite 持续校验 owner/fencing token，终态与工具副作用仍由原有生产写入 owner 提交。
 - live stream worker 在模型请求前读取当前 run；已不再 RUNNING 时复用最后保留事件并退出，不再次连接模型。预取消或 body 断连仍由原写入 owner 保存取消终态；已有终态的 run、session events 与 audit 保持，执行登记和租约随 worker 退出释放。
 - 缺少或未就绪的 chat runtime 由 `ProductionAdkPort` 保存无 run 的终态 error stream，先分配 stream ID 再交付 SSE retry；首次写失败不丢失错误，stream reconnect 可读取同一序列。记录只归该 port 的内存 owner，保留30分钟并在访问时清理，释放 port 时释放记录；body 按消费编码，不启动 worker、不创建 SQLite run。同步 chat 继续报告不可用。

@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 同步 Responses SSE 与成功并发的原生 final 消息
+
+- 冻结Go concurrent48原样Responses SSE事件使真实生产同步Chat落为FAILED而非COMPLETED；红receipt SHA `d97bc0c8cf197e2492809d2542cb1cfbf71e8430a9b2055c3776aa1e43c63a6f`，0 passed/1 failed。运行前diff及1032个Rust文件指纹/全文归档。首owner在provider处由channel保持，第二实际Chat完成后才释放，无40ms睡眠竞争；Go已有RUNNING请求返回当前投影，两次调用均成功且同run即原要求，不增加等待终态语义。
+- 同步成功响应为SSE时复用live的事件读取规则；固定stream:false请求保持，delta/completed usage/tool calls、未完成EOF、畸形事件、provider failed、大小限制与取消由同一reader处理。终态仍由原run lease/writer提交。生产控制验证provider恰好一次、同run、COMPLETED答复single answer，非空FinalMessageID链接唯一原生agent事件的同内容；重放原成功响应、typed message冲突保持完整run/audit/native events。
+- 初次单owner控制1 passed独立留receipt；不完整/malformed/response.failed三种流都保持FAILED而非partial成功，idle SSE body取消返回499并由原writer保存CANCELLED，关闭后run/audit/events保持。取消夹具使用未声明futures_util的E0433失败保留原diff、1033文件指纹/源码、exit101；改为现有tokio_stream，不增加依赖或放宽断言。
+- 8条冻结原函数及blob复核：helpers167/216、recovery41、disconnect55/110、routes301、identity17/48。concurrent48的双成功/同run/provider一次、唯一原生final消息、重放及typed冲突全部闭合，升级exact；原store原子首投证据继续保留。其余7条分类保持，当前1662 exact/2151 partial/638 boundary；provider取消不替代idle每请求预取消的零body断言。
+- 最终定向24 passed/0 failed，receipt `adk-sync-responses-production-owner-verified-2026-10-09.json` SHA `3ec1bd48bafe26b7bbda39d5d55608ffecf2a885f28d0da9f9c94df51920222c`。查看quick计划后2425 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4023 passed/0 failed/2 skipped，static和七类replay退出0，无LEAK。1033个Rust文件从最终定向到完整门禁冻结，2 skipped不计通过。
+- 三份receipt、两份gate/raw SHA、测试时tracked diff、8条Go原函数、21处reuse、anchor与diff核验，strict/context通过，unrecorded/stale0、既有unknown48。现场证据`.git/adk-sync-responses-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-sync-responses-recovery-20261009`。创建后准备失败终态、known-context、durable字段类型解码、旧请求语义重排及每请求预取消继续开放；历史LEAK未定位，整体active，继续下一批。
+
 ## 2026-10-09 canonical 请求身份与旧 raw 指纹重放
 
 - 两条真实HTTP生产红均在首请求成功后复现等价JSON返回409：缺runtime保留错误在同runtime配置恢复后不复用，以及已完成durable chat不复用。红receipt SHA `c789d2e2e47769c46881de152efd9e9029b8b8e3a0574f034bdf51dfc807b3ff`，0 passed/2 failed；运行前diff与1029个Rust文件指纹保存，红源码按原指纹归档。转义夹具20 passed/1 failed留证：尾部U+2028/U+2029被TrimSpace移除，改到字符串中间后保留全部转义断言；path-included测试引用composition模块的E0432编译失败另存原diff/源码，改为公开domain入口。

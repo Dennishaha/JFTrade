@@ -470,6 +470,12 @@ fn execute_model_cancellable(
             }
         };
         let status = response.status();
+        let is_event_stream = response.headers().get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value|value.to_str().ok())
+            .is_some_and(|value|value.to_ascii_lowercase().contains("text/event-stream"));
+        if status.is_success() && is_event_stream {
+            return stream_adapter::read_response_events(response,request.timeout,|_|Ok(()),&is_cancelled).await;
+        }
         let retry_after = response
             .headers()
             .get(reqwest::header::RETRY_AFTER)

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T20:17:07.117380+00:00",
+  "verifiedCommit": "51e1fbdc95449f4c63ee6e2e57119ce774a47a53",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-sync-responses-quick-20261009.log",
+  "rawOutputSha256": "4a7c4db4ef854916779a8ca1478b1c922ee2fa7bc852e5f2663847e5b60959ca",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2425,
+    "passed": 2425,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 108.825
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_adapters.rs": "be89227486e179face8ae406a03e9d3373543d7db9927ec52ef5a25da943fb59",
+    "crates/jftrade-engine/src/product_adk_model_stream.rs": "20a8aa0e4900d3854b6c029cc10605360894c3277774f1fc0e5ad1e7ff3c0a48",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "a92208f419a101020d31eb89ada7f83f19e2382d77178f5986c43c9518c95561",
+    "crates/jftrade-engine/src/product_adk_model_response_events.rs": "22d16154a6c79c3aae0e14a5303fde57f52a5a78a7f09581e3e6646b5c17397c",
+    "crates/jftrade-engine/src/product_adk_sync_responses_owner_tests.rs": "b36430d4ff500d1769d8ddfeb6244f14554b494c0419ef51b12584f9bcec06f8"
+  },
+  "rustSourceFingerprintSha256": "977708ff3dca4b447514b6afc2b57cf7841708fa96476d71b297289715d0586c",
+  "frozenRustFiles": 1033,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Synchronous successful Responses SSE now shares the live reader; fixed a real FAILED-versus-COMPLETED owner red. Two overlapping successful Chat responses reuse one run, one provider call and one native assistant answer linked by FinalMessageID; replay and typed conflict preserve rows. Incomplete/malformed/provider failed events and idle SSE cancellation verified. Eight frozen originals reviewed; concurrent48 exact closed. Duplicate RUNNING requests return their current projection as frozen Go does. Known context, post-creation preparation error terminal retention, durable typed payload decoding, legacy semantic reformatting and idle per-request pre-cancellation remain gaps; historical LEAKs unresolved. Whole goal active.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

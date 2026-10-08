@@ -1,10 +1,12 @@
 //! OpenAI Responses SSE adapter used by the production ADK chat runtime.
 
-use eventsource_stream::{EventStreamError, Eventsource};
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use std::time::Duration;
-use tokio_stream::StreamExt;
+
+#[path = "product_adk_model_response_events.rs"]
+mod response_events;
+pub(super) use response_events::read_response_events;
 
 use super::{
     MAX_RESPONSE_BYTES, ModelRequest, ModelResponse, extract_text, extract_tool_calls, model_input,
@@ -106,100 +108,7 @@ where
             });
         }
 
-        let mut stream = response.bytes_stream().eventsource();
-        let mut text = String::new();
-        let mut tool_calls = Vec::new();
-        let mut usage_metadata = None;
-        let mut completed = false;
-        let mut bytes_seen = 0usize;
-        loop {
-            if is_cancelled() {
-                return Err(client_disconnected());
-            }
-            let event = tokio::select! {
-                item = stream.next() => match item {
-                    Some(Ok(event)) => Some(event),
-                    Some(Err(err)) => return Err(match err {
-                        EventStreamError::Transport(error) => {
-                            model_request_error(error, request.timeout)
-                        }
-                        other => upstream_error(format!("decode model stream event: {other}")),
-                    }),
-                    None => None,
-                },
-                _ = tokio::time::sleep(Duration::from_millis(250)) => {
-                    if is_cancelled() {
-                        return Err(client_disconnected());
-                    }
-                    continue;
-                }
-            };
-            let Some(event) = event else { break };
-            bytes_seen = bytes_seen.saturating_add(event.data.len());
-            if bytes_seen > MAX_RESPONSE_BYTES {
-                return Err(upstream_error(
-                    "assistant model response exceeded size limit",
-                ));
-            }
-            let data = event.data.trim();
-            if data.is_empty() || data == "[DONE]" {
-                continue;
-            }
-            let value: Value = serde_json::from_str(data)
-                .map_err(|error| upstream_error(format!("decode model stream event: {error}")))?;
-            on_event(&value)?;
-            match value
-                .get("type")
-                .and_then(Value::as_str)
-                .unwrap_or_default()
-            {
-                "response.output_text.delta" => {
-                    if let Some(delta) = value.get("delta").and_then(Value::as_str) {
-                        text.push_str(delta);
-                    }
-                }
-                "response.completed" => {
-                    if let Some(response) = value.get("response") {
-                        usage_metadata = response
-                            .get("usage")
-                            .filter(|value| value.is_object())
-                            .cloned();
-                        let completed_text = extract_text(response);
-                        if !completed_text.trim().is_empty() {
-                            text = completed_text;
-                        }
-                        tool_calls = extract_tool_calls(response)?;
-                    }
-                    completed = true;
-                }
-                "response.failed" | "error" => {
-                    let message = value
-                        .pointer("/error/message")
-                        .or_else(|| value.pointer("/response/error/message"))
-                        .and_then(Value::as_str)
-                        .unwrap_or("assistant model stream failed");
-                    return Err(upstream_error(message));
-                }
-                _ => {}
-            }
-            if completed {
-                break;
-            }
-        }
-        if !completed {
-            return Err(upstream_error(
-                "assistant model stream ended before response.completed",
-            ));
-        }
-        let text = text.trim().to_owned();
-        if text.is_empty() && tool_calls.is_empty() {
-            return Err(upstream_error("assistant model returned an empty response"));
-        }
-        Ok(ModelResponse {
-            text,
-            tool_calls,
-            usage_metadata,
-        })
+        read_response_events(response, request.timeout, &mut on_event, &is_cancelled).await
     })
 }
 

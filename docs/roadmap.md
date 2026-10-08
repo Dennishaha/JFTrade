@@ -6,9 +6,10 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
-handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证；保留终态错误流在runtime配置恢复后继续复用，配置可用runtime的run创建前准备错误保留并可断连重放。已存在/已尝试创建durable run的失败保持原writer；durable预检的JSON语法及顶层形状解码失败优先于指纹冲突与缓存重放。新请求与保留流采用领域canonical身份，等价JSON复用原终态；旧raw指纹仅原body重放，不改写durable owner。identity17逐项断言闭合，当前1661 exact、2152 partial、638 boundary。继续durable字段类型解码、旧请求语义重排、创建后准备失败终态、成功并发执行、known-context及预取消边界。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证；保留终态错误流在runtime配置恢复后继续复用，配置可用runtime的run创建前准备错误保留并可断连重放。已存在/已尝试创建durable run的失败保持原writer；durable预检的JSON语法及顶层形状解码失败优先于指纹冲突与缓存重放。新请求与保留流采用领域canonical身份，等价JSON复用原终态；旧raw指纹仅原body重放，不改写durable owner。identity17与concurrent48逐项断言闭合：同步Responses SSE成功由原writer提交，两个重叠调用同run、provider一次及唯一原生final消息已验证。当前1662 exact、2151 partial、638 boundary。继续durable字段类型解码、旧请求语义重排、创建后准备失败终态、known-context及每请求预取消边界。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
 - [x] canonical批次定向38、quick2468 Rust/98 Pine/desktop11+48通过；现场完整Rust4020 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK。1031个Rust文件冻结，三份receipt、两份gate、8条Go原函数及20处reuse/anchor/diff复核；生产红、转义夹具与编译失败保留。identity17 exact+1，其余缺口保持，提交后继续成功并发owner。
+- [x] 同步Responses SSE生产红0/1修复；最终定向24、quick2425 Rust/98 Pine/desktop11+48通过，现场完整Rust4023 passed/0 failed/2 skipped、static/七类replay退出0，无LEAK。并发成功同run/provider一次/唯一原生final链接/replay/typed冲突及SSE失败/idle取消控制闭合，concurrent48 exact+1。1033文件冻结，三份receipt、两份gate、8条原函数及21处reuse/anchor/diff复核；编译夹具失败保留。继续创建后准备失败终态与每请求预取消。
 
 - [x] 冻结execution_claims54/108/167/265/343五条及blob SHA复核；稳定context key经生产timeout worker交付handler，真实两次tool loop证明key非空、包含run-wrapper、first/second output.key及完整output相同、只执行一次。54升级exact，其余状态及错误分类残余不变。
 - [x] 定向18 passed、quick2385 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3980 passed、0 failed、2 skipped，无LEAK，static/七类replay退出0。外置卷断开及launcher原30秒超时失败留证，未改源码或放宽deadline；launcher原样20次与prediction路由20次重复通过。receipt/reuse/anchor/context/diff及1020个Rust文件冻结指纹复核后独立提交。
