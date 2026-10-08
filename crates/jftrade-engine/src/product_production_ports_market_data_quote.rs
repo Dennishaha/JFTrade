@@ -298,7 +298,7 @@ impl ProductionMarketDataQuotePort {
         }
 
         if provider == MarketDataProvider::Futu {
-            let market_code = quote_market_code(&market).ok_or_else(|| {
+            let market_code = quote_market_code(&market.to_ascii_uppercase()).ok_or_else(|| {
                 MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),

@@ -612,6 +612,9 @@ mod market_data_news_search_read_tests;
 #[path = "product_market_data_quote_read_tests.rs"]
 mod market_data_quote_read_tests;
 
+#[path = "product_market_data_http_read_parity_tests.rs"]
+mod market_data_http_read_parity_tests;
+
 #[path = "product_market_data_prediction_read_tests.rs"]
 mod market_data_prediction_read_tests;
 

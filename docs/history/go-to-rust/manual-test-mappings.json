@@ -11159,9 +11159,9 @@
     },
     "internal/api/marketdata/routes_boundaries_test.go:63:TestCandlesAndDepthRoutesMapProviderFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping；crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code",
-      "conclusion": "部分覆盖：已修复并回归非 Futu helper candles 失败码（Go 要求 MARKET_CANDLES_FAILED，修复前 Rust 误报 OPEND_CANDLES_FAILED）；depth 的 provider 错误映射已由 microstructure port 测试逐项覆盖，并在 Futu provider failure 的每个分支中断言 num=25 已转发到 reader。Go 的 depth 通用失败码 MARKET_DEPTH_FAILED 在 Rust 无对应非 Futu depth 实现（非 Futu depth 返回 capability unsupported），故保留 partial。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata --test market_microstructure_quote_routes_preserve_provider_error_mapping --test test_non_futu_helper_candles_failure_uses_generic_market_code --output docs/history/go-to-rust/verification-receipts/api-marketdata-route-envelope-depth-2026-10-06.json",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_preserve_provider_error_mapping; crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code",
+      "conclusion": "partial：定向receipt执行实际非Futu helper candles失败回归，502 MARKET_CANDLES_FAILED；Futu microstructure失败矩阵证明depth错误分类及num=25转发。 原无descriptor非Futu depth请求要求502 MARKET_DEPTH_FAILED与provider.depthNum25；Rust非Futu depth仍拒绝为capability unsupported，没有同形generic depth owner，不扩大架构以取得exact。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11178,7 +11178,7 @@
             "goFile": "internal/api/marketdata/routes_boundaries_test.go",
             "goLine": 63,
             "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 928
+            "rustLine": 970
           }
         },
         {
@@ -11189,16 +11189,16 @@
             "goFile": "internal/api/marketdata/routes_boundaries_test.go",
             "goLine": 63,
             "rustFile": "crates/jftrade-engine/tests/market_data_production_compatibility.rs",
-            "rustLine": 1324
+            "rustLine": 1325
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust candles compatibility test preserves MARKET_CANDLES_FAILED for helper providers; microstructure tests cover depth provider mapping and num=25 forwarding on provider failures."
+          "定向receipt执行实际非Futu helper candles失败回归，502 MARKET_CANDLES_FAILED；Futu microstructure失败矩阵证明depth错误分类及num=25转发。"
         ],
         "uncovered": [
-          "No non-Futu depth implementation with Go MARKET_DEPTH_FAILED mapping."
+          "原无descriptor非Futu depth请求要求502 MARKET_DEPTH_FAILED与provider.depthNum25；Rust非Futu depth仍拒绝为capability unsupported，没有同形generic depth owner，不扩大架构以取得exact。"
         ],
         "source": "reviewed"
       },
@@ -11217,34 +11217,38 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code)"
+          "test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
         "testFilter": [
-          "market_data_quote_read_http_success_preserves_candle_envelope_headers_and_metadata",
+          "market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
+          "market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
+          "market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader",
+          "snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity",
+          "explicit_broker_selection_rejects_non_active_provider_before_reads",
           "market_microstructure_quote_routes_preserve_provider_error_mapping",
-          "test_non_futu_helper_candles_failure_uses_generic_market_code"
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "market_data_production_compatibility$test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "78f6cf1bd72e63e700fdaad5060770613571e1ea",
-        "verifiedAt": "2026-10-05T17:47:31Z",
-        "receiptDigest": "sha256:c83225dde16252fcc9c7dbb215cff667367930173a4155014a7874a5ae5a6833"
+        "verifiedCommit": "1ee75fbc734cce1358e845e70c42b9ab7bb46b0f",
+        "verifiedAt": "2026-10-07T23:44:01Z",
+        "receiptDigest": "sha256:1174b2d328082729c1b379964f1c55493b86501b90f05042b163d2c7a2cea861"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust candles compatibility test preserves MARKET_CANDLES_FAILED for helper providers; microstructure tests cover depth provider mapping and num=25 forwarding on provider failures."
+        "定向receipt执行实际非Futu helper candles失败回归，502 MARKET_CANDLES_FAILED；Futu microstructure失败矩阵证明depth错误分类及num=25转发。"
       ],
       "uncoveredAssertions": [
-        "No non-Futu depth implementation with Go MARKET_DEPTH_FAILED mapping."
+        "原无descriptor非Futu depth请求要求502 MARKET_DEPTH_FAILED与provider.depthNum25；Rust非Futu depth仍拒绝为capability unsupported，没有同形generic depth owner，不扩大架构以取得exact。"
       ],
       "boundaryReason": null
     },
@@ -11319,9 +11323,9 @@
     },
     "internal/api/marketdata/routes_boundaries_test.go:119:TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code（生产分支在 crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::read_candles）",
-      "conclusion": "partial：Go 的 providerFailureCode 依据显式 brokerId 或 active descriptor 在 OPEND_*_FAILED 与 MARKET_*_FAILED 之间选择。Rust 在 read_candles 内按 active provider 分支静态选择（helper 分支固定 MARKET_CANDLES_FAILED，Futu 分支固定 OPEND_*），由 test_non_futu_helper_candles_failure_uses_generic_market_code 覆盖非 Futu 路径；但“显式 brokerId=' FuTu ' 覆盖 active 非 Futu 描述符”这一优先级规则在 Rust 无对应入口（读取层不解析 brokerId），保留 partial 并列为边界差异。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(test_non_futu_helper_candles_failure_uses_generic_market_code)'",
+      "rust_entry": "crates/jftrade-engine/tests/market_data_production_compatibility.rs::test_non_futu_helper_candles_failure_uses_generic_market_code; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::explicit_broker_selection_rejects_non_active_provider_before_reads",
+      "conclusion": "partial：实际helper candles错误使用MARKET_CANDLES_FAILED，quote read已经解析brokerId并在显式futu与active yfinance不一致时先返回409且零helper请求；修正旧mapping误称Rust不解析brokerId的结论。 原providerFailureCode纯helper五行含显式空格/混合大小写FuTu、显式yfinance、active FuTu、active非Futu及descriptor unavailable；Rust采用active enum与owner fence，显式broker不能覆盖不同active provider，也没有descriptor失败的generic分类helper。完整五行及优先级差异保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_boundaries_test.go",
@@ -11342,23 +11346,17 @@
           }
         },
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs",
-          "test": "read_candles",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/marketdata/routes_boundaries_test.go",
-            "goLine": 119,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs",
-            "rustLine": 52
-          }
+          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
+          "test": "explicit_broker_selection_rejects_non_active_provider_before_reads",
+          "crate": "jftrade-engine"
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust read_candles selects MARKET_CANDLES_FAILED for helpers and OPEND_* for Futu; helper failure compatibility test locks the non-Futu branch."
+          "实际helper candles错误使用MARKET_CANDLES_FAILED，quote read已经解析brokerId并在显式futu与active yfinance不一致时先返回409且零helper请求；修正旧mapping误称Rust不解析brokerId的结论。"
         ],
         "uncovered": [
-          "No Rust brokerId parser/precedence allowing explicit whitespace/case-insensitive FuTu to override an active non-Futu descriptor."
+          "原providerFailureCode纯helper五行含显式空格/混合大小写FuTu、显式yfinance、active FuTu、active非Futu及descriptor unavailable；Rust采用active enum与owner fence，显式broker不能覆盖不同active provider，也没有descriptor失败的generic分类helper。完整五行及优先级差异保持partial。"
         ],
         "source": "reviewed"
       },
@@ -11369,37 +11367,46 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
         "testFilter": [
-          "test_non_futu_helper_candles_failure_uses_generic_market_code"
+          "market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
+          "market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
+          "market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader",
+          "snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity",
+          "explicit_broker_selection_rejects_non_active_provider_before_reads",
+          "market_microstructure_quote_routes_preserve_provider_error_mapping",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "market_data_production_compatibility$test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1ee75fbc734cce1358e845e70c42b9ab7bb46b0f",
+        "verifiedAt": "2026-10-07T23:44:01Z",
+        "receiptDigest": "sha256:1174b2d328082729c1b379964f1c55493b86501b90f05042b163d2c7a2cea861"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust read_candles selects MARKET_CANDLES_FAILED for helpers and OPEND_* for Futu; helper failure compatibility test locks the non-Futu branch."
+        "实际helper candles错误使用MARKET_CANDLES_FAILED，quote read已经解析brokerId并在显式futu与active yfinance不一致时先返回409且零helper请求；修正旧mapping误称Rust不解析brokerId的结论。"
       ],
       "uncoveredAssertions": [
-        "No Rust brokerId parser/precedence allowing explicit whitespace/case-insensitive FuTu to override an active non-Futu descriptor."
+        "原providerFailureCode纯helper五行含显式空格/混合大小写FuTu、显式yfinance、active FuTu、active非Futu及descriptor unavailable；Rust采用active enum与owner fence，显式broker不能覆盖不同active provider，也没有descriptor失败的generic分类helper。完整五行及优先级差异保持partial。"
       ],
       "boundaryReason": null
     },
@@ -12891,9 +12898,9 @@
     },
     "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback; crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::explicit_broker_selection_rejects_non_active_provider_before_reads; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::explicit_active_broker_selection_reaches_its_provider_owner",
-      "conclusion": "partial：先红后修补齐了 Rust quote read owner 的显式 brokerId fail-closed 保护：securities/snapshots/candles/depth 在 brokerId=futu 而 active provider=yfinance 时均于 helper/OpenD 读取前返回 409 MARKET_DATA_CAPABILITY_UNSUPPORTED，且 helper 请求数保持 0；yahoo-finance 作为 active yfinance alias 仍可到达其 provider。Go 逐路 broker reader 调用序列、alpha reader 注入和无 reader 的独立 broker registry 在 Rust 架构中没有同形对象，继续保留 partial，不伪装为 exact。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(explicit_active_broker_selection_reaches_its_provider_owner) or test(authoritative_snapshot_keeps_missing_quote_fields_null) or test(legacy_tick_without_snapshot_keeps_zero_quote_fields_available) or test(futu_snapshot_route_projects_cached_extended_quote_contract)'",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs::market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::explicit_broker_selection_rejects_non_active_provider_before_reads",
+      "conclusion": "partial：原四条小写us/aapl、brokerId=alpha与refresh=true/period5m/limit20/num12通过真实HTTP进入production quote owner，均409 MARKET_DATA_CAPABILITY_UNSUPPORTED且已安装snapshot reader请求数0。 既有active yfinance/显式futu回归在security/snapshot/candles/depth读取前拒绝且helper请求数0，定向receipt实际执行。 原可注入alpha broker reader应四次200并产生security/snapshot/candles/depth精确调用序列；Rust仍只服务active provider，不能用拒绝未知broker替代成功分支，独立broker registry/nil reader seam仍无对应owner。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -12903,25 +12910,14 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-          "test": "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
+          "file": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs",
+          "test": "market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/marketdata/routes_test.go",
             "goLine": 147,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-            "rustLine": 644
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-          "test": "news_route_serves_an_explicit_broker_id_for_the_active_provider",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/marketdata/routes_test.go",
-            "goLine": 147,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs",
-            "rustLine": 150
+            "rustFile": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs",
+            "rustLine": 370
           }
         },
         {
@@ -12932,27 +12928,17 @@
             "goFile": "internal/api/marketdata/routes_test.go",
             "goLine": 147,
             "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 2087
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "explicit_active_broker_selection_reaches_its_provider_owner",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/marketdata/routes_test.go",
-            "goLine": 147,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 2126
+            "rustLine": 2130
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust quote/news owners reject explicit non-active broker before reads and reach the active provider for a matching broker."
+          "原四条小写us/aapl、brokerId=alpha与refresh=true/period5m/limit20/num12通过真实HTTP进入production quote owner，均409 MARKET_DATA_CAPABILITY_UNSUPPORTED且已安装snapshot reader请求数0。",
+          "既有active yfinance/显式futu回归在security/snapshot/candles/depth读取前拒绝且helper请求数0，定向receipt实际执行。"
         ],
         "uncovered": [
-          "No Rust broker-reader injection, per-route reader call sequence, or independent broker registry object; those Go architecture seams have no owner."
+          "原可注入alpha broker reader应四次200并产生security/snapshot/candles/depth精确调用序列；Rust仍只服务active provider，不能用拒绝未知broker替代成功分支，独立broker registry/nil reader seam仍无对应owner。"
         ],
         "source": "reviewed"
       },
@@ -12963,23 +12949,34 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
         "testFilter": [
-          "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback"
+          "market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
+          "market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
+          "market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader",
+          "snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity",
+          "explicit_broker_selection_rejects_non_active_provider_before_reads",
+          "market_microstructure_quote_routes_preserve_provider_error_mapping",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "market_data_production_compatibility$test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1ee75fbc734cce1358e845e70c42b9ab7bb46b0f",
+        "verifiedAt": "2026-10-07T23:44:01Z",
+        "receiptDigest": "sha256:1174b2d328082729c1b379964f1c55493b86501b90f05042b163d2c7a2cea861"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -12988,10 +12985,11 @@
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust quote/news owners reject explicit non-active broker before reads and reach the active provider for a matching broker."
+        "原四条小写us/aapl、brokerId=alpha与refresh=true/period5m/limit20/num12通过真实HTTP进入production quote owner，均409 MARKET_DATA_CAPABILITY_UNSUPPORTED且已安装snapshot reader请求数0。",
+        "既有active yfinance/显式futu回归在security/snapshot/candles/depth读取前拒绝且helper请求数0，定向receipt实际执行。"
       ],
       "uncoveredAssertions": [
-        "No Rust broker-reader injection, per-route reader call sequence, or independent broker registry object; those Go architecture seams have no owner."
+        "原可注入alpha broker reader应四次200并产生security/snapshot/candles/depth精确调用序列；Rust仍只服务active provider，不能用拒绝未知broker替代成功分支，独立broker registry/nil reader seam仍无对应owner。"
       ],
       "boundaryReason": null
     },
@@ -13700,11 +13698,11 @@
       "boundaryReason": null
     },
     "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_reject_invalid_queries_before_reader_call",
-      "conclusion": "部分覆盖：Go 这条复合测试串联 provider、markets、security、snapshot、subscription+heartbeat、search、normalize 七段成功契约。Rust 对应断言分散在 market_data_provider_read / production_ports_market_data_catalog / market_data_quote_read / subscription_mutation / production_assembly 等专属测试，其中 security 转发与 snapshot fromCache=false 已由 quote-read 测试覆盖，markets defaultMarket 与 search query 回显由 catalog 测试覆盖；但尚无单条 Rust 测试按 Go 顺序同时回放全部七段，故保留 partial，不标记 function_exact。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs::market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
+      "conclusion": "function_exact：同一真实HTTP监听器按原顺序执行provider、markets、securities/us/aapl、snapshots/us/aapl?refresh=true、chart-main/US.AAPL acquire及heartbeat、US/nvda search、原小写us/aapl normalize，八个HTTP请求均200。 生产descriptor为futu-opend且orderBookDepth=true，markets defaultMarket=HK；记录后继续调用真实quote/actions owner，security原小写path完整保留，数值市场编码11与原aapl进入实际snapshot reader，snapshot reader收到US.AAPL且request/meta身份一致、fromCache=false。 heartbeat totalActiveSubscriptions=1与真实router logical_count=1一致；search回显nvda并实际调用search reader一次，normalize owner收到原us/aapl JSON并真实归一为US.AAPL。fixture与原服务一致没有physical reconciler，quote read不挂lease gate，subscription demand由单一router持有；独立回归直接验证有router时缺lease仍409。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
         "line": 459,
@@ -13713,24 +13711,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "market_microstructure_quote_routes_reject_invalid_queries_before_reader_call",
+          "file": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs",
+          "test": "market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/marketdata/routes_test.go",
             "goLine": 459,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 866
+            "rustFile": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs",
+            "rustLine": 116
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust dedicated tests cover provider, catalog markets/search, security, snapshot cache flag, subscription, heartbeat, and normalize contracts."
+          "同一真实HTTP监听器按原顺序执行provider、markets、securities/us/aapl、snapshots/us/aapl?refresh=true、chart-main/US.AAPL acquire及heartbeat、US/nvda search、原小写us/aapl normalize，八个HTTP请求均200。",
+          "生产descriptor为futu-opend且orderBookDepth=true，markets defaultMarket=HK；记录后继续调用真实quote/actions owner，security原小写path完整保留，数值市场编码11与原aapl进入实际snapshot reader，snapshot reader收到US.AAPL且request/meta身份一致、fromCache=false。",
+          "heartbeat totalActiveSubscriptions=1与真实router logical_count=1一致；search回显nvda并实际调用search reader一次，normalize owner收到原us/aapl JSON并真实归一为US.AAPL。fixture与原服务一致没有physical reconciler，quote read不挂lease gate，subscription demand由单一router持有；独立回归直接验证有router时缺lease仍409。"
         ],
-        "uncovered": [
-          "No single executable Rust test replays all seven Go segments in sequence, so cross-route ordering/integration remains partial."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -13740,45 +13738,54 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
         "testFilter": [
-          "market_microstructure_quote_routes_reject_invalid_queries_before_reader_call"
+          "market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
+          "market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
+          "market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader",
+          "snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity",
+          "explicit_broker_selection_rejects_non_active_provider_before_reads",
+          "market_microstructure_quote_routes_preserve_provider_error_mapping",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "market_data_production_compatibility$test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1ee75fbc734cce1358e845e70c42b9ab7bb46b0f",
+        "verifiedAt": "2026-10-07T23:44:01Z",
+        "receiptDigest": "sha256:1174b2d328082729c1b379964f1c55493b86501b90f05042b163d2c7a2cea861"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust dedicated tests cover provider, catalog markets/search, security, snapshot cache flag, subscription, heartbeat, and normalize contracts."
+        "同一真实HTTP监听器按原顺序执行provider、markets、securities/us/aapl、snapshots/us/aapl?refresh=true、chart-main/US.AAPL acquire及heartbeat、US/nvda search、原小写us/aapl normalize，八个HTTP请求均200。",
+        "生产descriptor为futu-opend且orderBookDepth=true，markets defaultMarket=HK；记录后继续调用真实quote/actions owner，security原小写path完整保留，数值市场编码11与原aapl进入实际snapshot reader，snapshot reader收到US.AAPL且request/meta身份一致、fromCache=false。",
+        "heartbeat totalActiveSubscriptions=1与真实router logical_count=1一致；search回显nvda并实际调用search reader一次，normalize owner收到原us/aapl JSON并真实归一为US.AAPL。fixture与原服务一致没有physical reconciler，quote read不挂lease gate，subscription demand由单一router持有；独立回归直接验证有router时缺lease仍409。"
       ],
-      "uncoveredAssertions": [
-        "No single executable Rust test replays all seven Go segments in sequence, so cross-route ordering/integration remains partial."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/marketdata/routes_test.go:563:TestReadRoutesMapProviderAndRequestFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::read_routes_map_provider_and_request_failures",
-      "conclusion": "部分覆盖（P2 错误分类差异）：Go 用同一失败 provider 串起 provider 502、markets 500 MARKET_DATA_FAILED、security 502、snapshot 502、heartbeat 400 与 normalize 两个 400。Rust 在同一条回归里覆盖 heartbeat 非法 JSON 400 BAD_REQUEST、normalize 非法 JSON 400 BAD_REQUEST 与非法 market 400 MARKET_INSTRUMENT_INVALID，并由同批测试/fixture 分别冻结 provider 502（provider-failed fixture）、markets 500 MARKET_DATA_FAILED（markets_route_fails_with_market_data_failed_when_active_provider_is_unavailable）与 security 502 MARKET_SECURITY_DETAILS_FAILED（securities-provider-failure fixture）。真实差异：Go 的 snapshot provider 调用失败走默认映射 502，而 Rust 的 Futu 快照读取 owner 不暴露同步 provider 失败路径——无缓存且 trade runtime 无回退时返回 Unavailable（API 503 MARKET_DATA_QUOTE_READ_UNAVAILABLE）；helper provider 的 snapshot 失败才是 502 MARKET_SNAPSHOT_FAILED。复现条件：active provider=Futu、无 router 缓存且无 trade runtime 回退时读取 GET /api/v1/market-data/snapshots/US/AAPL。预期（Go）502；Rust 当前 503。列为 P2 待定边界：需要确认 Futu 快照是否应保留 503（缓存不可用语义）还是补齐 502 provider 失败分类。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test read_routes_map_provider_and_request_failures --output docs/history/go-to-rust/verification-receipts/marketdata-route-failure-boundary-2026-09-30.json",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs::market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
+      "conclusion": "partial：真实HTTP下原heartbeat和normalize畸形JSON均400 BAD_REQUEST，normalize production owner调用数0且router logical demand不变。 无router缓存/无trade snapshot runtime的Futu读取实际503 MARKET_DATA_QUOTE_READ_UNAVAILABLE；原normalize us/bad在当前本地正常归一为US.BAD并返回200，这两项差异被直接断言。 原同一失败provider的descriptor502、markets500、security502整表未由该HTTP fixture复现；已有分散错误用例不替代原完整失败序列。 原snapshot provider失败502与当前Futu无快照源503不同；原provider.normalizeErr令合法us/bad返回400，Rust本地normalize不具有可注入provider拒绝seam，实际200，继续保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/marketdata/routes_test.go",
@@ -13788,23 +13795,25 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "read_routes_map_provider_and_request_failures",
+          "file": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs",
+          "test": "market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/marketdata/routes_test.go",
             "goLine": 563,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 1410
+            "rustFile": "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs",
+            "rustLine": 408
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust fixtures/tests cover provider 502, markets MARKET_DATA_FAILED 500, security 502, heartbeat/normalize 400, and invalid market 400."
+          "真实HTTP下原heartbeat和normalize畸形JSON均400 BAD_REQUEST，normalize production owner调用数0且router logical demand不变。",
+          "无router缓存/无trade snapshot runtime的Futu读取实际503 MARKET_DATA_QUOTE_READ_UNAVAILABLE；原normalize us/bad在当前本地正常归一为US.BAD并返回200，这两项差异被直接断言。"
         ],
         "uncovered": [
-          "Active Futu snapshot failure currently maps to 503 MARKET_DATA_QUOTE_READ_UNAVAILABLE while Go expects 502 provider failure; helper snapshots map 502, leaving a documented P2 classification boundary."
+          "原同一失败provider的descriptor502、markets500、security502整表未由该HTTP fixture复现；已有分散错误用例不替代原完整失败序列。",
+          "原snapshot provider失败502与当前Futu无快照源503不同；原provider.normalizeErr令合法us/bad返回400，Rust本地normalize不具有可注入provider拒绝seam，实际200，继续保持partial。"
         ],
         "source": "reviewed"
       },
@@ -13815,37 +13824,48 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity) or test(snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity) or test(market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader) or test(market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries) or test(market_microstructure_quote_routes_preserve_provider_error_mapping) or test(test_non_futu_helper_candles_failure_uses_generic_market_code) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(snapshot_route_serves_a_fresh_cache_hit_without_provider_access) or test(snapshot_route_queries_the_provider_once_on_cache_miss)"
         ],
         "testFilter": [
-          "read_routes_map_provider_and_request_failures"
+          "market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries",
+          "market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity",
+          "market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader",
+          "snapshot_http_case_aliases_share_cache_and_refresh_uses_canonical_provider_identity",
+          "explicit_broker_selection_rejects_non_active_provider_before_reads",
+          "market_microstructure_quote_routes_preserve_provider_error_mapping",
+          "snapshot_route_queries_the_provider_once_on_cache_miss",
+          "snapshot_route_serves_a_fresh_cache_hit_without_provider_access",
+          "market_data_production_compatibility$test_non_futu_helper_candles_failure_uses_generic_market_code"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1ee75fbc734cce1358e845e70c42b9ab7bb46b0f",
+        "verifiedAt": "2026-10-07T23:44:01Z",
+        "receiptDigest": "sha256:1174b2d328082729c1b379964f1c55493b86501b90f05042b163d2c7a2cea861"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust fixtures/tests cover provider 502, markets MARKET_DATA_FAILED 500, security 502, heartbeat/normalize 400, and invalid market 400."
+        "真实HTTP下原heartbeat和normalize畸形JSON均400 BAD_REQUEST，normalize production owner调用数0且router logical demand不变。",
+        "无router缓存/无trade snapshot runtime的Futu读取实际503 MARKET_DATA_QUOTE_READ_UNAVAILABLE；原normalize us/bad在当前本地正常归一为US.BAD并返回200，这两项差异被直接断言。"
       ],
       "uncoveredAssertions": [
-        "Active Futu snapshot failure currently maps to 503 MARKET_DATA_QUOTE_READ_UNAVAILABLE while Go expects 502 provider failure; helper snapshots map 502, leaving a documented P2 classification boundary."
+        "原同一失败provider的descriptor502、markets500、security502整表未由该HTTP fixture复现；已有分散错误用例不替代原完整失败序列。",
+        "原snapshot provider失败502与当前Futu无快照源503不同；原provider.normalizeErr令合法us/bad返回400，Rust本地normalize不具有可注入provider拒绝seam，实际200，继续保持partial。"
       ],
       "boundaryReason": null
     },
@@ -342166,14 +342186,6 @@
       "reviewStatus": "reviewed",
       "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
     },
-    "crates/jftrade-engine/src/product_production_ports_market_data_quote_reads.rs::read_candles": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/marketdata/routes_boundaries_test.go:119:TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_rejects_malformed_refresh_before_provider_access": {
       "referenceCount": 3,
       "referenceKeys": [
@@ -342379,9 +342391,8 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
-        "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback",
         "internal/app/apiserver/marketdataapp/runtime_news_forwarding_test.go:89:TestRuntimeNewsAndCorporateActionsRejectProvidersWithoutCapability",
         "internal/integration/akshare/client_news_actions_test.go:121:TestClientNewsMapsUnsupportedMarketToCapabilityError",
         "internal/marketdata/news_facade_test.go:42:TestServiceNewsAndCorporateActionsRejectProvidersWithoutCapability",
@@ -342394,29 +342405,22 @@
       "reviewNote": "2026-09-29 API forwarding-wire review: all 10 referenceKeys were compared individually; 2 function_exact reference(s) retain their provider/route assertions and all remaining partial or boundary rows preserve their capability, conversion, collector, or transport-shape differences. Shared owner release does not upgrade non-exact rows."
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_news_tests.rs::news_route_serves_an_explicit_broker_id_for_the_active_provider": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback",
         "internal/productfeatures/provider_facade_interception_test.go:180:TestEmbeddedProviderServesNewsForExplicitBrokerID"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::explicit_broker_selection_rejects_non_active_provider_before_reads": {
-      "referenceCount": 1,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback"
+        "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback",
+        "internal/api/marketdata/routes_boundaries_test.go:119:TestProviderFailureCodesPreserveFutuCompatibilityOnlyForFutu"
       ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::explicit_active_broker_selection_reaches_its_provider_owner": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
+      "allowed": false,
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-08: 两条partial引用只共享active yfinance/显式futu的读取前409和零helper调用断言；原147的alpha reader成功序列与原119的五行failure-code优先级表均未闭合，禁止由此reuse升级任一整条exact。"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_subscription_tests.rs::consumer_only_release_keeps_other_consumer_entry": {
       "referenceCount": 2,
@@ -342531,22 +342535,6 @@
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
-    },
-    "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_microstructure_quote_routes_reject_invalid_queries_before_reader_call": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::read_routes_map_provider_and_request_failures": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/marketdata/routes_test.go:563:TestReadRoutesMapProviderAndRequestFailures"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_market_data_catalog_tests.rs::instrument_search_route_returns_subset_resolution_contract": {
       "referenceCount": 11,
@@ -364995,6 +364983,30 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/context_cache_test.go:116:TestProviderPayloadUsesOnlyCurrentContextRevisionHandoff"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs::market_data_http_unknown_broker_rejects_all_four_reads_without_touching_active_reader": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/marketdata/routes_test.go:147:TestExplicitBrokerRoutesUseBrokerReaderAndNeverLegacyFallback"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs::market_data_http_malformed_mutations_and_unavailable_snapshot_keep_owner_error_boundaries": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/marketdata/routes_test.go:563:TestReadRoutesMapProviderAndRequestFailures"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_http_read_parity_tests.rs::market_data_http_success_sequence_preserves_raw_security_and_normalizes_snapshot_identity": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize"
       ],
       "reviewStatus": "single"
     },

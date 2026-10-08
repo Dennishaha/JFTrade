@@ -1,5 +1,16 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 MarketData HTTP 小写市场与 snapshot 身份
+
+- 逐项复核原routes459/563/147与boundaries63/119五条，净 **+1 exact / -1 partial / boundary 0**，当前 **1643 / 2168 / 640**。原459通过同一真实HTTP监听器按原顺序执行provider、markets、小写security、强制snapshot、chart-main/US.AAPL acquire与heartbeat、US/nvda search、原小写normalize，八请求均200；所有原descriptor/defaultMarket/raw security/normalized snapshot/fromCache/subscription/search/raw normalize断言均直接闭合。fixture无physical reconciler与原NewService一致，subscription由真实router持有；记录quote/actions请求后继续调用真实production owner，没有成功DTO替身。
+- 真实生产缺陷：红测 **2 passed / 2 failed**，原成功序列实际状态为`200,200,400,503,200,200,200,200`，security拒绝`invalid market: us`，snapshot跳过OpenD并报`no cached snapshot available for us.aapl`。Futu securities只在协议市场编码转换时接受大小写，仍保留原symbol输入；snapshot在lease/cache/provider/response统一使用大写market与symbol。公开契约结构、schema、锁文件、生成物、冻结fixture和唯一owner均不变。
+- 红receipt `verification-receipts/market-data-http-case-identity-original-2026-10-08.json`保留原字节，SHA-256 `1d11b7c8f8521d0afc04e44928d217f9179a0639ecf1a17fa843485cd507aa08`；源码与tracked diff保存于`/tmp/jftrade-market-data-http-case-identity-red-source`。当前绿色 `verification-receipts/market-data-http-case-identity-owner-verified-2026-10-08.json`：**9 passed / 0 failed / 0 ignored / 2241 filtered/skipped**，SHA-256 `1174b2d328082729c1b379964f1c55493b86501b90f05042b163d2c7a2cea861`，四份Rust字节指纹与diff保存于`/tmp/jftrade-market-data-http-case-identity-verified-source`。
+- 独立HTTP回归验证有router但无lease仍409且零provider读；有lease的小写refresh只向实际reader请求US.AAPL，两种大小写路径共享新鲜US.AAPL缓存并零额外读取，refresh再次调用reader且返回实时101.5而非cache99。原alpha四HTTP请求均409且已装reader调用数0；非法heartbeat/normalize JSON均400且actions owner零调用、router demand不变。
+- 四条保留partial：原147可注入alpha reader的四次200及精确调用序列没有同形owner；原563同失败provider整表未复现，Futu无快照源实际503与原502不同，合法us/bad本地normalize实际200/US.BAD与原provider注入失败400不同。原63无descriptor非Futu depth的502 MARKET_DEPTH_FAILED缺owner；原119纯helper五行优先级与active enum/fence不同，纠正旧“不解析brokerId”结论，不允许显式broker覆盖active provider。
+- 初次ordinary/strict/anchor因新增第二partial引用仍保留single reuse元数据被拒绝，诊断`/tmp/jftrade-market-data-http-{ordinary,strict,anchor}.log`保留；逐引用审核仅共享409/零helper调用后改为reviewed且allowed=false，禁止由此扩大exact批准。普通/strict及anchor复核通过，现场quick与完整Rust尚待执行，定向receipt不代表完整门禁通过。
+- 本批现场quick明确退出0，日志`/tmp/jftrade-market-data-http-quick.log`：受影响nextest **2280 passed / 0 failed / 0 skipped**，fmt、Clippy、七类兼容回放、Pine worker **98 passed**及desktop脚本 **48 passed**。现场完整`pnpm run check:rust`明确退出0，日志`/tmp/jftrade-market-data-http-rust.log`；workspace结果及最终复核见下条，不使用上批receipt代替当前门禁。
+- 完整workspace **3848 passed / 0 failed / 2 skipped**，无LEAK；跳过项不计已执行通过。最终ordinary/strict、AI context及diff均通过，anchor **2131 unique / 2083 recorded / 0 unrecorded / 0 stale / 48 unknown**。四份Rust指纹逐字节匹配owner-verified，红绿receipt SHA保持原值；复核仅五条mapping与十个必要reuse变化。下一批进入Assistant durable session/schema/projection五条，V1拒绝与事件保持专项必须使用真实production store，缺ADK service的nil/close和原sentinel同一性差异继续保留partial；整体goal仍active。
+
 ## 2026-10-08 Assistant Provider 稳定前缀与 handoff revision 隔离
 
 - 逐项复核context_cache61/116、session_context_conflict11、session_context_projection15/60五条，净 **+1 exact / -1 partial / boundary 0**，当前 **1642 / 2169 / 640**。原61的两轮实际Responses请求恰两次、system首项逐字稳定/原instruction保留、tools全值一致、历史user全值不改/最新user末项、input最少长度及五个内部marker全部不泄漏，完整断言才升级；工具排序原187是另一条已exact，不借来充当61断言。

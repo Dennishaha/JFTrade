@@ -17,6 +17,10 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
+        // Snapshot cache keys and provider queries share the canonical identity
+        // regardless of the route segments' casing.
+        let market = market.to_ascii_uppercase();
+        let symbol = symbol.to_ascii_uppercase();
         let query_map =
             QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
