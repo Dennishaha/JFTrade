@@ -22797,9 +22797,9 @@
     },
     "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs::map_trade_error; crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations",
-      "conclusion": "部分覆盖：Go executionCommandError 九项映射包含请求/风险（400/409）、账户/市场/订单参数错误→400 BAD_REQUEST、超时→504 BROKER_TIMEOUT、限流→429 BROKER_RATE_LIMITED、未连接→502 BROKER_NOT_CONNECTED、未知券商/普通错误→502 BROKER_COMMAND_FAILED。Rust 现已在 execution_order_helpers::map_trade_error 对 TradeSessionError::Response、Session、Coordinator、RateLimited 分支做同等状态/码细分，新增回归覆盖账户缺失、未连接、命令失败、超时、限流和市场不支持；请求/风险错误仍由上游 typed validation/risk owner 负责，保留 partial。owner：crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs。批229高风险复核：Rust 关联测试纳入本批门禁并通过；保持 partial，Go 与 Rust owner、路由形状或逐分支断言差异继续按本条缺口记录。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(recovered_terminal_stream_frame_carries_the_replay_marker) or test(auxiliary_provider_failure_skips_only_the_failing_subscription_family) or test(news_actions_helper_request_rejects_a_missing_instrument_uri) or test(embedded_capability_errors_keep_the_broker_code_and_lifecycle_sentinels) or test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(screen_query_rejects_wrong_catalog_and_schema_versions) or test(route_and_page_validation_precede_provider_calls) or test(futu_screen_capability_errors_use_the_broker_code) or test(research_screen_fixture_replays_go_wire_for_the_post_route) or test(execution_write_fixture_replays_all_seven_go_owned_mutations)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions; crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects",
+      "conclusion": "partial：六类上游TradeSessionError通过真实HTTP与生产ExecutionPort分别得到400 BAD_REQUEST、504 BROKER_TIMEOUT、429 BROKER_RATE_LIMITED、502 BROKER_NOT_CONNECTED和两格502 BROKER_COMMAND_FAILED；实际writer入参为SIMULATE/42/HK/00700/BUY/LIMIT/100/320.5，每次失败持久化UNKNOWN与恰一条submission_failed事件。重复同clientOrderId返回原UNKNOWN且不再调用writer、不改订单/事件。 真实原缺账户请求400 BAD_REQUEST且零订单/交易副作用。 Go原风险两格要求409 PRE_TRADE_RISK_REJECTED或PRE_TRADE_APPROVAL_REQUIRED；native数值账户REAL请求实测403 REAL_TRADING_DISABLED，原无accountId请求先400。native没有同形审批Required typed输入分支。Decode响应作为普通失败代表，不宣称Rust存在Go任意error同型入口。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/execution_test.go",
@@ -22809,45 +22809,35 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs",
-          "test": "map_trade_error",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+          "test": "execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/execution_test.go",
             "goLine": 19,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs",
-            "rustLine": 551
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+            "rustLine": 86
           }
         },
         {
-          "file": "crates/jftrade-engine/tests/execution_write_compatibility.rs",
-          "test": "execution_write_fixture_replays_all_seven_go_owned_mutations",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+          "test": "execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/execution_test.go",
             "goLine": 19,
-            "rustFile": "crates/jftrade-engine/tests/execution_write_compatibility.rs",
-            "rustLine": 133
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-          "test": "execution_trade_errors_preserve_go_request_connectivity_and_command_codes",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/trading/execution_test.go",
-            "goLine": 19,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs",
-            "rustLine": 18
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+            "rustLine": 86
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust map_trade_error tests cover account missing, not connected, command failure, timeout, rate limit, and unsupported market mappings; typed validation/risk owners cover request/risk errors."
+          "六类上游TradeSessionError通过真实HTTP与生产ExecutionPort分别得到400 BAD_REQUEST、504 BROKER_TIMEOUT、429 BROKER_RATE_LIMITED、502 BROKER_NOT_CONNECTED和两格502 BROKER_COMMAND_FAILED；实际writer入参为SIMULATE/42/HK/00700/BUY/LIMIT/100/320.5，每次失败持久化UNKNOWN与恰一条submission_failed事件。重复同clientOrderId返回原UNKNOWN且不再调用writer、不改订单/事件。",
+          "真实原缺账户请求400 BAD_REQUEST且零订单/交易副作用。"
         ],
         "uncovered": [
-          "No single Rust nine-branch executionCommandError matrix or identical request/risk owner boundary."
+          "Go原风险两格要求409 PRE_TRADE_RISK_REJECTED或PRE_TRADE_APPROVAL_REQUIRED；native数值账户REAL请求实测403 REAL_TRADING_DISABLED，原无accountId请求先400。native没有同形审批Required typed输入分支。Decode响应作为普通失败代表，不宣称Rust存在Go任意error同型入口。"
         ],
         "source": "reviewed"
       },
@@ -22858,44 +22848,51 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
         ],
         "testFilter": [
-          "execution_write_fixture_replays_all_seven_go_owned_mutations"
+          "execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions",
+          "execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+        "verifiedAt": "2026-10-08T06:18:35Z",
+        "receiptDigest": "sha256:754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust map_trade_error tests cover account missing, not connected, command failure, timeout, rate limit, and unsupported market mappings; typed validation/risk owners cover request/risk errors."
+        "六类上游TradeSessionError通过真实HTTP与生产ExecutionPort分别得到400 BAD_REQUEST、504 BROKER_TIMEOUT、429 BROKER_RATE_LIMITED、502 BROKER_NOT_CONNECTED和两格502 BROKER_COMMAND_FAILED；实际writer入参为SIMULATE/42/HK/00700/BUY/LIMIT/100/320.5，每次失败持久化UNKNOWN与恰一条submission_failed事件。重复同clientOrderId返回原UNKNOWN且不再调用writer、不改订单/事件。",
+        "真实原缺账户请求400 BAD_REQUEST且零订单/交易副作用。"
       ],
       "uncoveredAssertions": [
-        "No single Rust nine-branch executionCommandError matrix or identical request/risk owner boundary."
+        "Go原风险两格要求409 PRE_TRADE_RISK_REJECTED或PRE_TRADE_APPROVAL_REQUIRED；native数值账户REAL请求实测403 REAL_TRADING_DISABLED，原无accountId请求先400。native没有同形审批Required typed输入分支。Decode响应作为普通失败代表，不宣称Rust存在Go任意error同型入口。"
       ],
       "boundaryReason": null
     },
     "internal/api/trading/execution_test.go:47:TestHandleExecutionPlaceReturnsRiskRejectionEnvelope": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations; crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::real_order_rejects_when_kill_switch_active",
-      "conclusion": "function_exact：Go 断言 REAL 订单被 pre-trade 风控拒绝→409 PRE_TRADE_RISK_REJECTED 且 placeOrder 不被调用。Rust 语料 case order-place-risk-rejected 断言 409 + PRE_TRADE_RISK_REJECTED 且 portCall=false（无下单端口调用），风控协调器用例断言 kill switch 激活时 REAL 订单被拒且不触达端口。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --locked -E 'test(execution_write_fixture_replays_all_seven_go_owned_mutations) | test(real_order_rejects_when_kill_switch_active)'",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects",
+      "conclusion": "partial：原REAL/US/AAPL/BUY/LIMIT/1/100无accountId JSON实际HTTP400 BAD_REQUEST/accountId is required；只补native数字账户42后403 REAL_TRADING_DISABLED，真实writer和持久化订单均零副作用。 Go原同形请求要求409 PRE_TRADE_RISK_REJECTED；现有production owner不等价。旧exact的compatibility FixturePort直接从expected envelope构造错误，不能证明生产风控；其order-place-risk-rejected实际portCall=true，旧结论写false不准确。旧kill-switch用例403 REAL_TRADE_KILL_SWITCH_ACTIVE也不是原REAL disabled输入。纠正exact→partial，未改公开错误契约。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/execution_test.go",
         "line": 47,
@@ -22904,33 +22901,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/tests/execution_write_compatibility.rs",
-          "test": "execution_write_fixture_replays_all_seven_go_owned_mutations",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+          "test": "execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/execution_test.go",
             "goLine": 47,
-            "rustFile": "crates/jftrade-engine/tests/execution_write_compatibility.rs",
-            "rustLine": 133
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
-          "test": "real_order_rejects_when_kill_switch_active",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/api/trading/execution_test.go",
-            "goLine": 47,
-            "rustFile": "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs",
-            "rustLine": 73
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+            "rustLine": 204
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 REAL 订单被 pre-trade 风控拒绝→409 PRE_TRADE_RISK_REJECTED 且 placeOrder 不被调用。Rust 语料 case order-place-risk-rejected 断言 409 + PRE_TRADE_RISK_REJECTED 且 portCall=false（无下单端口调用），风控协调器用例断言 kill switch 激活时 REAL 订单被拒且不触达端口。"
+          "原REAL/US/AAPL/BUY/LIMIT/1/100无accountId JSON实际HTTP400 BAD_REQUEST/accountId is required；只补native数字账户42后403 REAL_TRADING_DISABLED，真实writer和持久化订单均零副作用。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "Go原同形请求要求409 PRE_TRADE_RISK_REJECTED；现有production owner不等价。旧exact的compatibility FixturePort直接从expected envelope构造错误，不能证明生产风控；其order-place-risk-rejected实际portCall=true，旧结论写false不准确。旧kill-switch用例403 REAL_TRADE_KILL_SWITCH_ACTIVE也不是原REAL disabled输入。纠正exact→partial，未改公开错误契约。"
+        ],
         "source": "reviewed"
       },
       "verification": {
@@ -22940,47 +22928,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
         ],
         "testFilter": [
-          "execution_write_fixture_replays_all_seven_go_owned_mutations",
-          "execution_sqlite_test_cutover_replays_transport_and_restart",
-          "execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures",
-          "real_order_rejects_when_kill_switch_active",
-          "single_equity_rejects_event_only_fields",
-          "execution_read_routes_match_group_fixture_in_cutover_only",
-          "execution_write_product_replays_browser_boundary_failure_recovery_and_restart",
-          "us_limit_route_orders_keep_price_session_and_explicit_market_code",
-          "test_futu_security_from_symbol_uses_market_parser",
-          "normalize_submit_order_price_rounds_us_prices_to_their_tick",
-          "place_order_rounds_us_prices_to_the_venue_tick_before_encoding",
-          "place_order_encodes_packet_conn_id_and_projects_server_order_identity"
+          "execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+        "verifiedAt": "2026-10-08T06:18:35Z",
+        "receiptDigest": "sha256:754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 REAL 订单被 pre-trade 风控拒绝→409 PRE_TRADE_RISK_REJECTED 且 placeOrder 不被调用。Rust 语料 case order-place-risk-rejected 断言 409 + PRE_TRADE_RISK_REJECTED 且 portCall=false（无下单端口调用），风控协调器用例断言 kill switch 激活时 REAL 订单被拒且不触达端口。"
+        "原REAL/US/AAPL/BUY/LIMIT/1/100无accountId JSON实际HTTP400 BAD_REQUEST/accountId is required；只补native数字账户42后403 REAL_TRADING_DISABLED，真实writer和持久化订单均零副作用。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "Go原同形请求要求409 PRE_TRADE_RISK_REJECTED；现有production owner不等价。旧exact的compatibility FixturePort直接从expected envelope构造错误，不能证明生产风控；其order-place-risk-rejected实际portCall=true，旧结论写false不准确。旧kill-switch用例403 REAL_TRADE_KILL_SWITCH_ACTIVE也不是原REAL disabled输入。纠正exact→partial，未改公开错误契约。"
+      ],
       "boundaryReason": null
     },
     "internal/api/trading/execution_test.go:79:TestHandleExecutionPlaceRejectsEquityAmountModeSpoof": {
@@ -23574,8 +23556,8 @@
     "internal/api/trading/execution_validation_contracts_test.go:161:TestExecutionOrdersRouteSwitchesBetweenActiveAndHistorySync": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_mcp_server_tests.rs::account_orders_forwards_scope_account_environment_and_market_filters",
-      "conclusion": "partial：Go 断言 scope=active 只取当前订单（current/history=1/0）、默认 2/1。Rust 该用例断言 account.orders 转发 activeOnly/scope/account/environment/market 过滤维度；缺口为 current/history 拉取计数语义（属 Go order-updates worker），owner = 交易订单同步 worker。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：既有account.orders owner重新执行，断言ACTIVE/REAL/8240/US及默认CURRENT/REAL查询参数转发和activeOnly/count/order ID。 Go原HTTP scope=active必须current/history调用1/0，2秒后的默认请求2/1；Rust该用例是MCP读取投影，未同步调用Go order-updates worker计数语义，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/execution_validation_contracts_test.go",
@@ -23598,10 +23580,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust account.orders test forwards activeOnly/scope/account/environment/market filters."
+          "既有account.orders owner重新执行，断言ACTIVE/REAL/8240/US及默认CURRENT/REAL查询参数转发和activeOnly/count/order ID。"
         ],
         "uncovered": [
-          "No Rust current/history pull-count semantics owned by the Go order-updates worker."
+          "Go原HTTP scope=active必须current/history调用1/0，2秒后的默认请求2/1；Rust该用例是MCP读取投影，未同步调用Go order-updates worker计数语义，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -23612,37 +23594,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
         ],
         "testFilter": [
           "account_orders_forwards_scope_account_environment_and_market_filters"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+        "verifiedAt": "2026-10-08T06:18:35Z",
+        "receiptDigest": "sha256:754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust account.orders test forwards activeOnly/scope/account/environment/market filters."
+        "既有account.orders owner重新执行，断言ACTIVE/REAL/8240/US及默认CURRENT/REAL查询参数转发和activeOnly/count/order ID。"
       ],
       "uncoveredAssertions": [
-        "No Rust current/history pull-count semantics owned by the Go order-updates worker."
+        "Go原HTTP scope=active必须current/history调用1/0，2秒后的默认请求2/1；Rust该用例是MCP读取投影，未同步调用Go order-updates worker计数语义，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -23821,11 +23806,11 @@
       "boundaryReason": null
     },
     "internal/api/trading/openapi_route_alignment_test.go:14:TestTradingOpenAPIDocumentationRoutesMatchGinRegistration": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_assembly_tests.rs::every_declared_capability_resolves_to_an_executable_production_adapter",
-      "conclusion": "partial：Go 用 gin 注册表断言“OpenAPI 文档路由标识 ↔ 注册路由”一一对应且无重复标识。Rust 无 gin 注册表：契约源为 contracts/openapi/openapi.json 与 product_production_route_manifest.json（routeDigest），不变量由 product_production_route_registry_tests.rs（canonical 模板解析到 dispatch）与兼容性检查 check-api-transport.mjs（278 operations/18 route groups）承担；缺口：逐路由标识与文档路径的集合等式未单列断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_route_tests.rs::trading_documented_operations_match_production_registration_and_resolve",
+      "conclusion": "function_exact：实际production_ports与ProductionRouteRegistry::bind逐条核对所有交易注册项和OpenAPI方法/模板集合等式，所有identity非空且无重复，每个具体路径resolve到原dispatch target；另保留Go原22条method/path逐项断言。Rust现有注册identity为method+path模板，Go没有断言stub ID的具体字符串；未新增operationId或修改契约源。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/trading/openapi_route_alignment_test.go",
         "line": 14,
@@ -23834,24 +23819,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-          "test": "every_declared_capability_resolves_to_an_executable_production_adapter",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_route_tests.rs",
+          "test": "trading_documented_operations_match_production_registration_and_resolve",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/openapi_route_alignment_test.go",
             "goLine": 14,
-            "rustFile": "crates/jftrade-engine/src/product_production_assembly_tests.rs",
-            "rustLine": 1922
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_route_tests.rs",
+            "rustLine": 15
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust route registry tests resolve canonical templates to dispatch; OpenAPI/route-manifest and check-api-transport cover 278 operations and 18 route groups."
+          "实际production_ports与ProductionRouteRegistry::bind逐条核对所有交易注册项和OpenAPI方法/模板集合等式，所有identity非空且无重复，每个具体路径resolve到原dispatch target；另保留Go原22条method/path逐项断言。Rust现有注册identity为method+path模板，Go没有断言stub ID的具体字符串；未新增operationId或修改契约源。"
         ],
-        "uncovered": [
-          "No separately asserted set equality between every OpenAPI route identifier and registered route, or duplicate identifier table."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -23861,38 +23844,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
         ],
         "testFilter": [
-          "every_declared_capability_resolves_to_an_executable_production_adapter"
+          "trading_documented_operations_match_production_registration_and_resolve"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+        "verifiedAt": "2026-10-08T06:18:35Z",
+        "receiptDigest": "sha256:754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust route registry tests resolve canonical templates to dispatch; OpenAPI/route-manifest and check-api-transport cover 278 operations and 18 route groups."
+        "实际production_ports与ProductionRouteRegistry::bind逐条核对所有交易注册项和OpenAPI方法/模板集合等式，所有identity非空且无重复，每个具体路径resolve到原dispatch target；另保留Go原22条method/path逐项断言。Rust现有注册identity为method+path模板，Go没有断言stub ID的具体字符串；未新增operationId或修改契约源。"
       ],
-      "uncoveredAssertions": [
-        "No separately asserted set equality between every OpenAPI route identifier and registered route, or duplicate identifier table."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/trading/routes_broker_contracts_test.go:143:TestPortfolioRoutesUseBrokerSnapshotsAndMissingBrokerSemantics": {
@@ -23977,9 +23959,9 @@
     },
     "internal/api/trading/routes_broker_contracts_test.go:214:TestBrokerWriteRoutesMapBodyBrokerAndOperationOutcomes": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_brokers_write_product_tests.rs::brokers_write_sqlite_test_cutover_replays_transport_and_restart",
-      "conclusion": "partial：Go 断言写路由体校验 400、错误 broker/不支持资源 404、cancel 语义与 unlock 成功信封。Rust 用例断言 brokers 写路由（futu orders）在 sqlite cutover 下的传输与重启回放；缺口：错误 broker/不支持资源的 404 与 unlock 成功信封无路由级断言，owner = brokers 写路由。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock",
+      "conclusion": "partial：原三种malformed写体真实HTTP400、ib写单404、POST funds404；非法体和缺单没有下单/撤单/unlock或账本写入。原成功cancel item orderId=7/brokerOrderId=ok/symbol=US.AAPL经真实持久化身份解析200，实际modify order7/operation2/US/42，保存CANCEL_SUBMITTED；原unlock=true/passwordMd5=abc通过真实writer返回200 ok=true且不增加订单事件。 原fail字符串cancel由Go直接callback返回502 CANCEL_FAILED；native要求先存在持久化订单，原同形请求在空账本404 EXECUTION_ORDER_NOT_FOUND，保持partial。native按numeric order7解析，不宣称提供Go任意字符串brokerOrderId的原callback DTO。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/routes_broker_contracts_test.go",
@@ -23989,23 +23971,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_brokers_write_product_tests.rs",
-          "test": "brokers_write_sqlite_test_cutover_replays_transport_and_restart",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+          "test": "broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/trading/routes_broker_contracts_test.go",
             "goLine": 214,
-            "rustFile": "crates/jftrade-engine/src/product_brokers_write_product_tests.rs",
-            "rustLine": 426
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+            "rustLine": 262
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust broker-write SQLite cutover replays transport and restart behavior for Futu orders."
+          "原三种malformed写体真实HTTP400、ib写单404、POST funds404；非法体和缺单没有下单/撤单/unlock或账本写入。原成功cancel item orderId=7/brokerOrderId=ok/symbol=US.AAPL经真实持久化身份解析200，实际modify order7/operation2/US/42，保存CANCEL_SUBMITTED；原unlock=true/passwordMd5=abc通过真实writer返回200 ok=true且不增加订单事件。"
         ],
         "uncovered": [
-          "No route-level wrong-broker/unsupported-resource 404 matrix or unlock success envelope assertion."
+          "原fail字符串cancel由Go直接callback返回502 CANCEL_FAILED；native要求先存在持久化订单，原同形请求在空账本404 EXECUTION_ORDER_NOT_FOUND，保持partial。native按numeric order7解析，不宣称提供Go任意字符串brokerOrderId的原callback DTO。"
         ],
         "source": "reviewed"
       },
@@ -24016,37 +23998,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
         ],
         "testFilter": [
-          "brokers_write_sqlite_test_cutover_replays_transport_and_restart"
+          "broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+        "verifiedAt": "2026-10-08T06:18:35Z",
+        "receiptDigest": "sha256:754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "retain_reviewed_boundary_or_partial_and_reaudit",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
         "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust broker-write SQLite cutover replays transport and restart behavior for Futu orders."
+        "原三种malformed写体真实HTTP400、ib写单404、POST funds404；非法体和缺单没有下单/撤单/unlock或账本写入。原成功cancel item orderId=7/brokerOrderId=ok/symbol=US.AAPL经真实持久化身份解析200，实际modify order7/operation2/US/42，保存CANCEL_SUBMITTED；原unlock=true/passwordMd5=abc通过真实writer返回200 ok=true且不增加订单事件。"
       ],
       "uncoveredAssertions": [
-        "No route-level wrong-broker/unsupported-resource 404 matrix or unlock success envelope assertion."
+        "原fail字符串cancel由Go直接callback返回502 CANCEL_FAILED；native要求先存在持久化订单，原同形请求在空账本404 EXECUTION_ORDER_NOT_FOUND，保持partial。native按numeric order7解析，不宣称提供Go任意字符串brokerOrderId的原callback DTO。"
       ],
       "boundaryReason": null
     },
@@ -24208,8 +24193,8 @@
     "internal/api/trading/routes_helper_boundaries_test.go:17:TestTradingRouteHelpersWriteHTTPBoundaryErrors": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_trading_read_http_parity_tests.rs::production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries",
-      "conclusion": "partial：真实production HTTP缺broker及unknown broker404，native accountId=bad400且零reader数据调用；正常funds带Page=bad仍200并实际一次reader调用，随后native disconnected reader503 BROKER_READ_UNAVAILABLE且第二次调用直接观察。 Go直接helper的通用Page整型绑定400与native broker未声明Page的200不同；Go generic backend error500 BROKER_READ_FAILED与typed disconnected native503不同。snapshot429/Retry-After1或2、risk409两个码及无params独立handler seam未在本批HTTP矩阵闭合。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries --output docs/history/go-to-rust/verification-receipts/trading-read-http-missing-cost-verified-2026-10-07.json",
+      "conclusion": "partial：既有真实HTTP owner重新执行：缺broker/unknown broker404，坏数值账户400且零reader数据调用；Page=bad仍200且实际一次reader调用，disconnected第二次调用503 BROKER_READ_UNAVAILABLE。 Go通用Page整型绑定400与native未声明Page时200不同；generic backend error500 BROKER_READ_FAILED与typed disconnected503不同；snapshot429/Retry-After1或2、risk409及独立无params helper seam仍未闭合。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/trading/routes_helper_boundaries_test.go",
@@ -24232,10 +24217,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "真实production HTTP缺broker及unknown broker404，native accountId=bad400且零reader数据调用；正常funds带Page=bad仍200并实际一次reader调用，随后native disconnected reader503 BROKER_READ_UNAVAILABLE且第二次调用直接观察。"
+          "既有真实HTTP owner重新执行：缺broker/unknown broker404，坏数值账户400且零reader数据调用；Page=bad仍200且实际一次reader调用，disconnected第二次调用503 BROKER_READ_UNAVAILABLE。"
         ],
         "uncovered": [
-          "Go直接helper的通用Page整型绑定400与native broker未声明Page的200不同；Go generic backend error500 BROKER_READ_FAILED与typed disconnected native503不同。snapshot429/Retry-After1或2、risk409两个码及无params独立handler seam未在本批HTTP矩阵闭合。"
+          "Go通用Page整型绑定400与native未声明Page时200不同；generic backend error500 BROKER_READ_FAILED与typed disconnected503不同；snapshot429/Retry-After1或2、risk409及独立无params helper seam仍未闭合。"
         ],
         "source": "reviewed"
       },
@@ -24254,7 +24239,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_http_execution_detail_preserves_partial_fill_receipt_after_restart) or test(production_http_execution_filter_uses_live_default_environment_and_explicit_override) or test(production_http_broker_queries_validate_and_forward_native_account_fee_and_margin_inputs) or test(production_http_portfolio_projects_native_cash_positions_and_rejects_unknown_broker) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries) or test(position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback)"
+          "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
         ],
         "testFilter": [
           "production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries"
@@ -24263,21 +24248,23 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "6171a970c5eb64417f20f1f3b40d763ff56bd736",
-        "verifiedAt": "2026-10-07T10:24:20Z",
-        "receiptDigest": "sha256:290dbd8d1cdcb72e183a078b2757a97d01388a82452be45c0ad9d3163e060ca4"
+        "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+        "verifiedAt": "2026-10-08T06:18:35Z",
+        "receiptDigest": "sha256:754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "preserve_partial_and_track_residual",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "真实production HTTP缺broker及unknown broker404，native accountId=bad400且零reader数据调用；正常funds带Page=bad仍200并实际一次reader调用，随后native disconnected reader503 BROKER_READ_UNAVAILABLE且第二次调用直接观察。"
+        "既有真实HTTP owner重新执行：缺broker/unknown broker404，坏数值账户400且零reader数据调用；Page=bad仍200且实际一次reader调用，disconnected第二次调用503 BROKER_READ_UNAVAILABLE。"
       ],
       "uncoveredAssertions": [
-        "Go直接helper的通用Page整型绑定400与native broker未声明Page的200不同；Go generic backend error500 BROKER_READ_FAILED与typed disconnected native503不同。snapshot429/Retry-After1或2、risk409两个码及无params独立handler seam未在本批HTTP矩阵闭合。"
+        "Go通用Page整型绑定400与native未声明Page时200不同；generic backend error500 BROKER_READ_FAILED与typed disconnected503不同；snapshot429/Retry-After1或2、risk409及独立无params helper seam仍未闭合。"
       ],
       "boundaryReason": null
     },
@@ -340648,6 +340635,43 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/routes_broker_contracts_test.go:214:TestBrokerWriteRoutesMapBodyBrokerAndOperationOutcomes"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原断言复核；REAL风险测试在Go19/47分别只支持原输入拒绝与具体native反例，不作为409风险exact。路由test单独覆盖注册与文档集合，券商test不扩大失败callback结论。"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures",
+        "internal/api/trading/execution_test.go:47:TestHandleExecutionPlaceReturnsRiskRejectionEnvelope"
+      ],
+      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原断言复核；REAL风险测试在Go19/47分别只支持原输入拒绝与具体native反例，不作为409风险exact。路由test单独覆盖注册与文档集合，券商test不扩大失败callback结论。"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原断言复核；REAL风险测试在Go19/47分别只支持原输入拒绝与具体native反例，不作为409风险exact。路由test单独覆盖注册与文档集合，券商test不扩大失败callback结论。"
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_http_route_tests.rs::trading_documented_operations_match_production_registration_and_resolve": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/trading/openapi_route_alignment_test.go:14:TestTradingOpenAPIDocumentationRoutesMatchGinRegistration"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原断言复核；REAL风险测试在Go19/47分别只支持原输入拒绝与具体native反例，不作为409风险exact。路由test单独覆盖注册与文档集合，券商test不扩大失败callback结论。"
+    },
     "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -343447,12 +343471,10 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/tests/execution_write_compatibility.rs::execution_write_fixture_replays_all_seven_go_owned_mutations": {
-      "referenceCount": 8,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/api/trading/execution_products_test.go:18:TestExecutionProductRoutesBuyingPowerComboLifecycle",
         "internal/api/trading/execution_products_test.go:73:TestExecutionProductRoutesValidationAndServiceErrors",
-        "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures",
-        "internal/api/trading/execution_test.go:47:TestHandleExecutionPlaceReturnsRiskRejectionEnvelope",
         "internal/api/trading/execution_test.go:79:TestHandleExecutionPlaceRejectsEquityAmountModeSpoof",
         "internal/api/trading/execution_test.go:148:TestHandleExecutionCancelReturnsMappedEnvelope",
         "internal/api/trading/execution_test.go:205:TestExecutionPlacePreviewAndEventsRoutes",
@@ -343460,7 +343482,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact."
+      "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact. 2026-10-08仅移除本批交易API引用，其他assertion范围与原reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_execution_write_product_tests.rs::execution_error_envelopes_keep_request_errors_distinct_from_upstream_failures": {
       "referenceCount": 4,
@@ -343475,30 +343497,27 @@
       "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact."
     },
     "crates/jftrade-engine/src/product_production_ports_execution_order_helpers.rs::map_trade_error": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批交易API引用，其他assertion范围与原reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_preview_tests.rs::execution_trade_errors_preserve_go_request_connectivity_and_command_codes": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/trading/execution_test.go:19:TestExecutionCommandErrorMapsRequestAndBrokerFailures"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批交易API引用，其他assertion范围与原reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_execution_risk_coordinator_tests.rs::real_order_rejects_when_kill_switch_active": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/trading/execution_test.go:47:TestHandleExecutionPlaceReturnsRiskRejectionEnvelope",
         "internal/app/apiserver/servercore/server_runtime_side_effects_test.go:47:TestServerRuntimeRiskControlsDelegateToControlPlane"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact."
+      "reviewStatus": "single",
+      "reviewNote": "2026-09-29 execution API batch: shared Rust owner reviewed against each referenced Go assertion; partial references remain partial and do not inherit function_exact. 2026-10-08仅移除本批交易API引用，其他assertion范围与原reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::single_equity_rejects_event_only_fields": {
       "referenceCount": 3,
@@ -343577,15 +343596,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::every_declared_capability_resolves_to_an_executable_production_adapter": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/api/trading/openapi_route_alignment_test.go:14:TestTradingOpenAPIDocumentationRoutesMatchGinRegistration",
         "internal/app/apiserver/servercore/openapi_route_registration_test.go:85:TestCapabilityCatalogAPISurfacesAreRegistered",
         "pkg/futu/adapter_option_fix_test.go:31:TestFutuDeclaredCapabilitiesHaveExecutableAdapterInterfaces"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API servercore owner review: data-management, live volume, notification, capability, strategy-runtime, health and security assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
+      "reviewNote": "2026-09-30 API servercore owner review: data-management, live volume, notification, capability, strategy-runtime, health and security assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog. 2026-10-08仅移除本批交易API引用，其他assertion范围与原reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::position_projection_prefers_diluted_cost_and_account_pnl_with_legacy_fallback": {
       "referenceCount": 7,
@@ -343603,12 +343621,11 @@
       "reviewNote": "2026-10-07：本批五条分别转到真实HTTP owner，仅移除旧引用，保留此前allowed及其它条目审核范围；三条native形状/故障残余明确保持partial。"
     },
     "crates/jftrade-engine/src/product_brokers_write_product_tests.rs::brokers_write_sqlite_test_cutover_replays_transport_and_restart": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/trading/routes_broker_contracts_test.go:214:TestBrokerWriteRoutesMapBodyBrokerAndOperationOutcomes"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批交易API引用，其他assertion范围与原reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_brokers_tests.rs::broker_read_routes_fail_closed_when_snapshot_port_is_unavailable": {
       "referenceCount": 1,

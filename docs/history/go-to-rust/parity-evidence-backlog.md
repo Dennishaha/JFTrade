@@ -1,5 +1,18 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 交易 API 生产 HTTP 错误与写入
+
+- 逐项复核execution19、validation161、OpenAPI alignment14、broker contracts214、helper17五条partial，并复核关联旧exact execution47。四个新测试实际走ProductionExecutionPort/持久化owner与HTTP，未用预设ExecutionWritePort错误代替上游调用；生产实现、公开契约、schema、依赖和冻结fixture未改。
+- 六类实际上游错误映射覆盖账户缺失400、超时504、限流429、未连接502、命令失败与Decode普通失败502；逐条检查SIMULATE/42/HK/00700/BUY/LIMIT/100/320.5入参，失败存UNKNOWN及单一submission_failed事件。同clientOrderId再次HTTP返回原UNKNOWN，writer计数及订单/事件不变。原九格的风险/审批入口仍缺，保留partial。
+- 原三种malformed broker写体400、wrong ib404与POST funds404已直接断言且零副作用。原fail字符串cancel在native空账本404 EXECUTION_ORDER_NOT_FOUND，与Go callback的502 CANCEL_FAILED不同；原成功orderId7/brokerOrderIdok/symbolUS.AAPL经持久化解析200、实际modify order7/US/42/operation2并保存CANCEL_SUBMITTED。原unlock true/passwordMd5 abc经真实writer200 ok=true且不增加订单事件，整条仍partial。
+- 实际production registry与OpenAPI交易方法/模板集合相等，非空identity无重复，每个具体路径resolve正确dispatch；保留原22条路由逐项断言。Rust以现有method+path作为identity，Go未断言stub ID具体文案，不新增operationId。此条partial→exact。
+- 旧execution47 exact证据不足：原无accountId的REAL JSON实测400 BAD_REQUEST，numeric42补充输入实测403 REAL_TRADING_DISABLED，均无交易/订单副作用。原Go要求409 PRE_TRADE_RISK_REJECTED。旧FixturePort从expected envelope直接合成错误，风险case实际portCall=true，旧mapping写false；kill-switch403用例也不是原REAL disabled输入。纠正exact→partial，不改公开错误语义。净 **exact 0 / partial 0 / boundary 0**，当前 **1659 / 2154 / 638**；实际有一条升级和一条纠正，不用净数量掩盖差异。
+- validation161仍缺原current/history 1/0→2/1调用语义；helper17原通用Page400与native Page=bad200、generic500与native disconnected503等差异仍保留。本批只更新六条mapping和十处必要reuse，未刷新report。
+- 首定向`trading-api-http-owner-first-2026-10-08.json` **4 passed / 0 failed / 0 ignored / 2301 filtered/skipped**，SHA `7172765bc8ec877f03593ada48940cdeb7e581f034e871babb45a43aef45246d`；补跑原两条owner后`trading-api-http-owner-reviewed-2026-10-08.json` **6 passed / 0 failed / 0 ignored / 2299 filtered/skipped**，SHA `754ab1300c1e562f517484985ea4460544987f3bdb403a78ee9829ca479a868f`。新测试首次即绿，不虚构生产红测。源码快照在`/tmp/jftrade-trading-api-http-first-source`；定向通过不替代quick及现场完整Rust，整体goal保持active。
+- ordinary/strict、anchor、AI-context和diff已通过；anchor **2159 unique / 2111 recorded / 0 unrecorded / 0 stale / 48 unknown**，九份Rust指纹保持一致，确认六条mapping/十处reuse。现场quick明确退出0：**2335 passed / 0 failed / 0 skipped**、fmt、Clippy、七类replay及Pine **98 passed**，日志`/tmp/jftrade-trading-api-http-quick.log`。现场完整Rust已启动，日志`/tmp/jftrade-trading-api-http-rust.log`；完成前不记通过，Rust源码冻结，下一批Web会话风险仅在临时目录准备。
+
+- 现场完整Rust明确退出0：workspace **3920 passed / 0 failed / 2 skipped**，static和七类compatibility replay均通过，无LEAK，日志`/tmp/jftrade-trading-api-http-rust.log`。收口时九份Rust指纹与两份receipt SHA仍一致，mapping/reuse差异仍严格为六条/十处。完整门禁只适用于当前交易API源码，下一批认证修改另行验证；整体goal保持active。
+
 ## 2026-10-08 交易费用否定写入与持久化排序
 
 - 逐项复核冻结Go broker_ledger65、ledger_lifecycle73、ledger12、execution_composition153、submission_safety13五条partial。原65空费用/未知订单不产生事件和变更、原12过滤/三层降序/缺单断言闭合，净 **+2 exact / -2 partial / boundary 0**，当前 **1659 / 2154 / 638**。只更新五条mapping及八处必要reuse，不批量刷新报告。

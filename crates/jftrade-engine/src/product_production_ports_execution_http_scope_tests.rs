@@ -6,6 +6,9 @@ use jftrade_store_settings_file::SettingsFileStore;
 use jftrade_store_sqlite::{ExecutionOrderStore, StoredExecutionOrder, StoredExecutionOrderEvent};
 use serde_json::json;
 
+#[path = "product_production_ports_execution_http_route_tests.rs"]
+mod execution_http_route_tests;
+
 fn seeded_order(environment: &str, market: &str, symbol: &str) -> StoredExecutionOrder {
     let simulate = environment == "SIMULATE";
     StoredExecutionOrder {

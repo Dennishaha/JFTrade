@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions) or test(execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects) or test(broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock) or test(trading_documented_operations_match_production_registration_and_resolve) or test(account_orders_forwards_scope_account_environment_and_market_filters) or test(production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T06:18:35Z",
+  "sourceState": {
+    "verifiedCommit": "94f9b51ada88d3a612e807cbbe1ed1cc72bd3753",
+    "trackedDiffSha256": "366b69f02517b453f738771b6d32116f9d71141789cdf203ade966bc5069a105",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs",
+        "sha256": "2e4223c59df0845994a9043abdb7ac377ff25bb532998de9b36a982e03f05468"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_execution_http_route_tests.rs",
+        "sha256": "27c148d9f5301709043c4fb7199c3be3ab4cd22e75ff97357ed26c50b773c707"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-api-http-owner-first-2026-10-08.json",
+        "sha256": "7172765bc8ec877f03593ada48940cdeb7e581f034e871babb45a43aef45246d"
+      }
+    ]
+  },
+  "rawOutputSha256": "1686258d1bc6e972abe171956b8101b347f12b6fdca79e8181d77ab491c78a31",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::account_orders_forwards_scope_account_environment_and_market_filters",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_http_scope_tests::execution_http_route_tests::trading_documented_operations_match_production_registration_and_resolve",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_error_tests::broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_error_tests::execution_http_real_risk_rejection_keeps_native_admission_and_zero_side_effects",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_error_tests::execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions",
+    "jftrade-engine::jftrade_engine$product::tests::trading_read_http_parity_tests::production_http_broker_missing_identifiers_and_native_read_failure_preserve_owner_boundaries"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1881,
+      "exec_time": 20.354316333,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
