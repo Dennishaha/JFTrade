@@ -27,7 +27,8 @@ impl ProductionToolCatalog {
     pub(crate) fn requires_idempotency_key(&self, name: &str) -> bool {
         self.values().into_iter().any(|tool| {
             tool.get("id").and_then(Value::as_str) == Some(name)
-                && tool.get("idempotencyMode").and_then(Value::as_str) == Some("keyed")
+                && tool.get("idempotencyMode").and_then(Value::as_str)
+                    .is_some_and(|mode| mode.trim().eq_ignore_ascii_case("keyed"))
         })
     }
 

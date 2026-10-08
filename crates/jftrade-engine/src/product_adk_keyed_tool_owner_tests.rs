@@ -33,13 +33,17 @@ impl AdkToolExecutor for KeyedTool {
 }
 
 fn keyed_fixture(consume_key: bool) -> (ToolFixture, ChatExecution) {
+    keyed_fixture_with_mode(consume_key, "keyed")
+}
+
+fn keyed_fixture_with_mode(consume_key: bool, mode: &str) -> (ToolFixture, ChatExecution) {
     let calls = Arc::new(AtomicUsize::new(0));
     let mut fixture =
         ToolFixture::with_executor(calls.clone(), Arc::new(KeyedTool { calls, consume_key }));
     fixture.runtime.tool_catalog = Arc::new(
         crate::product::product_production_ports::ProductionToolCatalog::from_tool_rows(vec![
             json!({"id":"test.key_ignored", "permission":"write_internal",
-                "idempotencyMode":"keyed", "allowedModes":["all"]}),
+                "idempotencyMode":mode, "allowedModes":["all"]}),
         ]),
     );
     create_running_run(
@@ -55,6 +59,74 @@ fn keyed_fixture(consume_key: bool) -> (ToolFixture, ChatExecution) {
         .upsert_session("jftrade", "local", "session-run-key-ignored", "{}")
         .unwrap();
     (fixture, chat_for("run-key-ignored"))
+}
+
+// Supplementary normalization branch of frozen Go NormalizeToolIdempotencyMode;
+// the canonical keyed original remains partial for its typed tool.Run returns.
+#[test]
+fn production_normalized_keyed_mode_enforces_consumption_and_replays_the_original_outcome() {
+    for mode in [" KEYED ", "\tKeYeD\n"] {
+        for consume_key in [false, true] {
+            let (fixture, mut chat) = keyed_fixture_with_mode(consume_key, mode);
+            let lease =
+                RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "key-owner").unwrap();
+            let provider = Provider::new();
+            chat.request.endpoint = provider.endpoint.parse().unwrap();
+            fixture
+                .runtime
+                .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+            let invocation = fixture
+                .store
+                .get_tool_invocation(&chat.run_id, "function-call-test")
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                invocation.status,
+                if consume_key { "COMPLETED" } else { "UNKNOWN" },
+                "mode {mode:?}, consumes key {consume_key}"
+            );
+            let output = fixture.restore_tool_checkpoint(&chat, &lease);
+            if consume_key {
+                assert_eq!(output["key"], "run-key-ignored:function-call-test");
+            } else {
+                assert_eq!(output["error"]["code"], "SUBMISSION_UNKNOWN");
+                assert!(
+                    output["error"]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("did not consume")
+                );
+            }
+            let events = fixture.sessions.list_events(&chat.session_id).unwrap();
+            let replay_provider = Provider::new();
+            chat.request.endpoint = replay_provider.endpoint.parse().unwrap();
+            fixture
+                .runtime
+                .run_tool_loop(chat.clone(), Arc::new(AtomicBool::new(false)), &lease);
+            let run = fixture.store.get_run(&chat.run_id).unwrap().unwrap();
+            let payload: Value = serde_json::from_str(&run.payload_json).unwrap();
+            assert_eq!(run.status, "COMPLETED");
+            assert_eq!(payload["toolResults"][0]["output"], output);
+            assert_eq!(
+                payload["toolCalls"][0]["status"],
+                if consume_key { "SUCCEEDED" } else { "FAILED" }
+            );
+            assert_eq!(payload["degraded"], !consume_key);
+            assert_eq!(fixture.calls.load(Ordering::Acquire), 1);
+            assert_eq!(
+                fixture
+                    .store
+                    .get_tool_invocation(&chat.run_id, "function-call-test")
+                    .unwrap()
+                    .unwrap(),
+                invocation
+            );
+            assert_eq!(
+                fixture.sessions.list_events(&chat.session_id).unwrap(),
+                events
+            );
+        }
+    }
 }
 
 fn restore_keyed_checkpoint(fixture: &ToolFixture, chat: &ChatExecution, lease: &RunLeaseGuard) {

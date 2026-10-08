@@ -88418,7 +88418,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 54,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 195
+            "rustLine": 267
           }
         },
         {
@@ -88445,7 +88445,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88470,8 +88470,8 @@
           "production_keyed_handler_consuming_the_key_completes_and_replays_without_execution",
           "production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88555,7 +88555,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88579,8 +88579,8 @@
           "production_checkpoint_replay_journal_failure_rolls_back_the_projection",
           "production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88637,7 +88637,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 167,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 245
+            "rustLine": 317
           }
         },
         {
@@ -88677,7 +88677,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88702,8 +88702,8 @@
           "production_tool_claim_preserves_precancellation_and_allows_its_current_owner",
           "production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88742,7 +88742,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 214,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 82
+            "rustLine": 154
           }
         },
         {
@@ -88753,7 +88753,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 214,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 138
+            "rustLine": 210
           }
         },
         {
@@ -88764,7 +88764,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 214,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 244
+            "rustLine": 316
           }
         },
         {
@@ -88775,7 +88775,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 214,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 330
+            "rustLine": 402
           }
         }
       ],
@@ -88793,7 +88793,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88817,8 +88817,8 @@
           "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
           "production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88873,7 +88873,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88894,8 +88894,8 @@
         "testFilter": [
           "production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -88957,7 +88957,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88979,8 +88979,8 @@
           "production_heartbeat_keeps_its_owner_live_beyond_the_initial_snapshot_expiry",
           "production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -89037,7 +89037,7 @@
             "goFile": "internal/assistant/engine/execution_claims_test.go",
             "goLine": 343,
             "rustFile": "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs",
-            "rustLine": 246
+            "rustLine": 318
           }
         }
       ],
@@ -89055,7 +89055,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T17:00:10.699494+00:00",
+        "verifiedAt": "2026-10-08T17:19:41.031424+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -89078,8 +89078,8 @@
           "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
           "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration"
         ],
-        "verifiedCommit": "c68e4e0a735d460b501272b521e8ff44a1546dee",
-        "receiptDigest": "sha256:cd6ce723b254e21132311d84e5b471a7b1f8dfb18d2b099e6e14e85aaa69d0d2"
+        "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+        "receiptDigest": "sha256:36d9f663c722726011e19d07a0f4ac811d04cb75e38b6fb459331dd343e642f9"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -366206,7 +366206,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement": {
       "referenceCount": 1,
@@ -366215,7 +366215,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run": {
       "referenceCount": 1,
@@ -366224,7 +366224,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution": {
       "referenceCount": 1,
@@ -366233,7 +366233,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write": {
       "referenceCount": 1,
@@ -366242,7 +366242,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_near_expiry_caller_snapshot_uses_the_full_requested_ttl": {
       "referenceCount": 1,
@@ -366270,7 +366270,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_snapshot_at_the_expiry_boundary_preserves_the_live_durable_row": {
       "referenceCount": 1,
@@ -366297,7 +366297,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution": {
       "referenceCount": 1,
@@ -366306,7 +366306,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_journal_failure_rolls_back_the_projection": {
       "referenceCount": 1,
@@ -366315,7 +366315,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover": {
       "referenceCount": 2,
@@ -366325,7 +366325,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key": {
       "referenceCount": 1,
@@ -366334,7 +366334,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt": {
       "referenceCount": 1,
@@ -366343,7 +366343,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution": {
       "referenceCount": 1,
@@ -366352,7 +366352,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption": {
       "referenceCount": 1,
@@ -366361,7 +366361,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger": {
       "referenceCount": 1,
@@ -366370,7 +366370,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration": {
       "referenceCount": 3,
@@ -366381,7 +366381,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost": {
       "referenceCount": 1,
@@ -366390,7 +366390,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_tool_claim_preserves_precancellation_and_allows_its_current_owner": {
       "referenceCount": 1,
@@ -366399,7 +366399,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_run_lease_snapshot_tests.rs::production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry": {
       "referenceCount": 1,
@@ -366408,7 +366408,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_completion_owner_tests.rs::production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger": {
       "referenceCount": 2,
@@ -366418,7 +366418,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen runner_tools production branch proves fail-closed execution error must be indeterminate. Real Rust tool loop now persists UNKNOWN/SUBMISSION_UNKNOWN, rejects late success, replays the same output/events without duplicate execution; structured rejection stays COMPLETED/FAILED. Typed full Go tool.Run caller returns and empty indeterminate output representation remain partial."
+      "reviewNote": "2026-10-09: seven frozen execution_claims originals and blob SHA rechecked without status upgrades. Supplementary frozen NormalizeToolIdempotencyMode branch exposed padded/mixed-case keyed mode bypassing handler consumption. Real production loop now preserves UNKNOWN/SUBMISSION_UNKNOWN for ignored keys, COMPLETED for consumed keys, unchanged output/ledger/events and one execution on replay. Canonical typed Go tool.Run returns and empty UNKNOWN output remain partial."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_malformed_chat_stops_after_the_first_retry_write_failure": {
       "referenceCount": 1,

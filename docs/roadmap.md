@@ -28,6 +28,8 @@ handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证�
 - [x] 七条原测试及Go生产错误分支复核，分类不变。最终quick2398 Rust/98 Pine与desktop Node11+48通过；现场完整Rust重跑3993 passed/0 failed/2 skipped，无LEAK，static/七类replay退出0；1023个Rust文件冻结。初次行为红、quick68 passed/1 failed、首次完整3993 passed含1 LEAK均留证；LEAK原样20次未复现，未声称修复。
 - [ ] 缺runtime后台终态、request-context预取消、UNKNOWN返回与已明确的策略panic/停止态边界继续推进；完整运行的未复现LEAK风险仍保留。GitHub登录已可用，提交复核后同步当前分支。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
+- [x] keyed 模式去除空白和忽略大小写后仍要求 handler 消费 key；真实 loop 红测确认原 COMPLETED 错判，修复 catalog 后定向78通过。两种规范化变体的消费/未消费控制及二次恢复保持原 output/ledger/events、执行次数1。
+- [x] keyed 规范化批次 quick2399 Rust/98 Pine/desktop Node11+48与现场完整Rust3994 passed/0 failed/2 skipped通过，无LEAK，static/七类replay退出0；1023个Rust文件冻结。七条原测试分类保持，完整 typed tool.Run 返回和空 UNKNOWN 输出缺口不由规范化控制推断闭合。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner
 

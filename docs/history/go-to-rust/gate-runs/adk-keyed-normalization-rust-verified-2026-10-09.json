@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T17:25:52.755181+00:00",
+  "verifiedCommit": "739d870d7b1a0abab07d9451bb35a53ea4037b73",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-keyed-normalization-rust-full-20261009.log",
+  "rawOutputSha256": "0471562034b8ffbb486ae7ce1f7d3cbb06a00ec5fb0076fbed074615b37856e4",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3994,
+    "passed": 3994,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 108.39
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs": "319cb3ca1f28be8958e4b1ad3e105f40a250201d21ce522872a94f58248f41f4",
+    "crates/jftrade-engine/src/product_production_ports_adk_policy.rs": "4eee2fb865a6a95b06f19e5c6c1817450c655e29ae33ff6e37c1e032d020ce82"
+  },
+  "rustSourceFingerprintSha256": "6da90aa1206c111b3dcf7fc2fd79223f132804a157e0cb586e81c0388b3eb30e",
+  "frozenRustFiles": 1023,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Normalized keyed descriptors must enforce handler key consumption just like canonical keyed descriptors. Real loop proves ignored keys stay UNKNOWN/SUBMISSION_UNKNOWN, consumed keys complete, and second loop preserves output/ledger/events with one handler execution. Seven frozen originals reviewed without classification upgrades; complete typed Go tool.Run caller returns and empty UNKNOWN representation remain partial. Original red and raw evidence preserved; whole parity active.",
+  "static": "passed"
+}
