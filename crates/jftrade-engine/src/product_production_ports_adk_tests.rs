@@ -34,6 +34,9 @@ async fn request_json_with_status(
 #[path = "product_adk_store_parity_tests.rs"]
 mod store_parity;
 
+#[path = "product_adk_session_projection_boundary_tests.rs"]
+mod session_projection_boundary;
+
 #[path = "product_adk_workflow_tool_error_tests.rs"]
 mod workflow_tool_error;
 

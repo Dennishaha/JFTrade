@@ -86749,9 +86749,9 @@
     },
     "internal/assistant/engine/event_projection_boundaries_test.go:72:TestSessionProjectionPropagatesADKSessionReadFailures": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_session_context_tests.rs::session_context_read_reports_pressure_without_compacting",
-      "conclusion": "partial：Go 断言会话投影在 ADK 会话读取失败时向上报错。Rust 的上下文读取在存储不可读时返回错误（不当作空会话），上下文用例覆盖 fail-closed；没有针对会话投影函数的错误传播断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs::broken_durable_events_fail_session_projection_without_hiding_metadata_session",
+      "conclusion": "partial：真实production port保留metadata session，破坏durable events表后直接list_events返回typed Query错误，实际session detail projection返回500 ADK_MESSAGES_GET_FAILED并保留no such table: events原因，不当作空成功。 失败后metadata session仍可读取，底层不存在session仍为None，没有补写或隐藏元数据会话。 原注入ADK SessionService.Get失败，SessionProjection与TranscriptEntries两个调用均errors.Is同一原sentinel；Rust没有独立可注入ADK service identity seam/同形双helper，本批验证真实SQL失败传播但不声明原错误对象同一性。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/event_projection_boundaries_test.go",
@@ -86761,24 +86761,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_session_context_tests.rs",
-          "test": "session_context_read_reports_pressure_without_compacting",
+          "file": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs",
+          "test": "broken_durable_events_fail_session_projection_without_hiding_metadata_session",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/event_projection_boundaries_test.go",
             "goLine": 72,
-            "rustFile": "crates/jftrade-engine/src/product_adk_session_context_tests.rs",
-            "rustLine": 710
+            "rustFile": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs",
+            "rustLine": 51
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言会话投影在 ADK 会话读取失败时向上报错。",
-          "Rust 的上下文读取在存储不可读时返回错误（不当作空会话），上下文用例覆盖 fail-closed；"
+          "真实production port保留metadata session，破坏durable events表后直接list_events返回typed Query错误，实际session detail projection返回500 ADK_MESSAGES_GET_FAILED并保留no such table: events原因，不当作空成功。",
+          "失败后metadata session仍可读取，底层不存在session仍为None，没有补写或隐藏元数据会话。"
         ],
         "uncovered": [
-          "没有针对会话投影函数的错误传播断言。"
+          "原注入ADK SessionService.Get失败，SessionProjection与TranscriptEntries两个调用均errors.Is同一原sentinel；Rust没有独立可注入ADK service identity seam/同形双helper，本批验证真实SQL失败传播但不声明原错误对象同一性。"
         ],
         "source": "reviewed"
       },
@@ -86789,46 +86789,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)"
         ],
         "testFilter": [
-          "session_context_read_reports_pressure_without_compacting"
+          "broken_durable_events_fail_session_projection_without_hiding_metadata_session"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2cbc13248b2b0d2914278dbd15a01c1574f829be",
+        "verifiedAt": "2026-10-08T00:03:02Z",
+        "receiptDigest": "sha256:e603a41713b2b5edbe66b1e625653f8eff9dcb870b8b1e854b6eb9ceed230ba6"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言会话投影在 ADK 会话读取失败时向上报错。",
-        "Rust 的上下文读取在存储不可读时返回错误（不当作空会话），上下文用例覆盖 fail-closed；"
+        "真实production port保留metadata session，破坏durable events表后直接list_events返回typed Query错误，实际session detail projection返回500 ADK_MESSAGES_GET_FAILED并保留no such table: events原因，不当作空成功。",
+        "失败后metadata session仍可读取，底层不存在session仍为None，没有补写或隐藏元数据会话。"
       ],
       "uncoveredAssertions": [
-        "没有针对会话投影函数的错误传播断言。"
+        "原注入ADK SessionService.Get失败，SessionProjection与TranscriptEntries两个调用均errors.Is同一原sentinel；Rust没有独立可注入ADK service identity seam/同形双helper，本批验证真实SQL失败传播但不声明原错误对象同一性。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/engine/event_projection_boundaries_test.go:87:TestSessionProjectionTreatsMissingADKSessionAsEmpty": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::chat_creates_the_session_once_and_reuses_its_stored_title",
-      "conclusion": "partial：Go 断言缺 ADK 会话时投影为空（不报错）。Rust 的会话创建用例断言首次聊天创建会话并复用标题；“缺会话 → 空投影”没有直接断言（读取路径按行缺失处理）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs::metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity",
+      "conclusion": "partial：真实metadata session存在且durable get_session_by_id为None、list_events为空；production session read成功且session.id保持，timeline/runs/artifacts全部为空。投影读取后底层session仍None，没有自动创建durable行。 原SessionProjection独立返回projection.SessionID与ok=false，并由TranscriptEntries独立返回空列表；Rust返回metadata session加timeline的wire，没有同形projection ok布尔结果，不用合成flag伪造完整等价。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/event_projection_boundaries_test.go",
@@ -86838,24 +86841,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
-          "test": "chat_creates_the_session_once_and_reuses_its_stored_title",
+          "file": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs",
+          "test": "metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/event_projection_boundaries_test.go",
             "goLine": 87,
-            "rustFile": "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs",
-            "rustLine": 783
+            "rustFile": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs",
+            "rustLine": 15
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言缺 ADK 会话时投影为空（不报错）。",
-          "Rust 的会话创建用例断言首次聊天创建会话并复用标题；"
+          "真实metadata session存在且durable get_session_by_id为None、list_events为空；production session read成功且session.id保持，timeline/runs/artifacts全部为空。投影读取后底层session仍None，没有自动创建durable行。"
         ],
         "uncovered": [
-          "“缺会话 → 空投影”没有直接断言（读取路径按行缺失处理）。"
+          "原SessionProjection独立返回projection.SessionID与ok=false，并由TranscriptEntries独立返回空列表；Rust返回metadata session加timeline的wire，没有同形projection ok布尔结果，不用合成flag伪造完整等价。"
         ],
         "source": "reviewed"
       },
@@ -86866,38 +86868,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)"
         ],
         "testFilter": [
-          "chat_creates_the_session_once_and_reuses_its_stored_title"
+          "metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2cbc13248b2b0d2914278dbd15a01c1574f829be",
+        "verifiedAt": "2026-10-08T00:03:02Z",
+        "receiptDigest": "sha256:e603a41713b2b5edbe66b1e625653f8eff9dcb870b8b1e854b6eb9ceed230ba6"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言缺 ADK 会话时投影为空（不报错）。",
-        "Rust 的会话创建用例断言首次聊天创建会话并复用标题；"
+        "真实metadata session存在且durable get_session_by_id为None、list_events为空；production session read成功且session.id保持，timeline/runs/artifacts全部为空。投影读取后底层session仍None，没有自动创建durable行。"
       ],
       "uncoveredAssertions": [
-        "“缺会话 → 空投影”没有直接断言（读取路径按行缺失处理）。"
+        "原SessionProjection独立返回projection.SessionID与ok=false，并由TranscriptEntries独立返回空列表；Rust返回metadata session加timeline的wire，没有同形projection ok布尔结果，不用合成flag伪造完整等价。"
       ],
       "boundaryReason": null
     },
@@ -93930,8 +93934,8 @@
     "internal/assistant/engine/persistence/session_sqlite_schema_test.go:49:TestSQLiteSessionSchemaHealthReportsMissingAndClosedConnections": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/adk_session_store_contracts.rs::adk_session_store_rejects_missing_drifted_and_corrupted_go_databases",
-      "conclusion": "partial：Go 断言 schema health 对缺库/已关闭连接给出状态。Rust 通过可打开性检查与明确错误表达同类状态，没有独立 health 报告 API。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
+      "conclusion": "partial：本批实际复跑Rust既有store边界：不存在文件返回NotRegularFile、空文件与额外rogue table返回Schema，均fail closed；不再把这些入口检查声称为原schemaReady helper整表。 原nil schema readiness unavailable、in-memory/nil service validation、空schema ready=false且nil error、缺table=false且nil error、已Close连接的两个helper错误均无同形Rusthealth API；当前实际空数据库open返回Schema，继续保留partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/persistence/session_sqlite_schema_test.go",
@@ -93954,10 +93958,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 schema health 对缺库/已关闭连接给出状态。"
+          "本批实际复跑Rust既有store边界：不存在文件返回NotRegularFile、空文件与额外rogue table返回Schema，均fail closed；不再把这些入口检查声称为原schemaReady helper整表。"
         ],
         "uncovered": [
-          "Rust 通过可打开性检查与明确错误表达同类状态，没有独立 health 报告 API。"
+          "原nil schema readiness unavailable、in-memory/nil service validation、空schema ready=false且nil error、缺table=false且nil error、已Close连接的两个helper错误均无同形Rusthealth API；当前实际空数据库open返回Schema，继续保留partial。"
         ],
         "source": "reviewed"
       },
@@ -93968,46 +93972,49 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)"
         ],
         "testFilter": [
           "adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2cbc13248b2b0d2914278dbd15a01c1574f829be",
+        "verifiedAt": "2026-10-08T00:03:02Z",
+        "receiptDigest": "sha256:e603a41713b2b5edbe66b1e625653f8eff9dcb870b8b1e854b6eb9ceed230ba6"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 schema health 对缺库/已关闭连接给出状态。"
+        "本批实际复跑Rust既有store边界：不存在文件返回NotRegularFile、空文件与额外rogue table返回Schema，均fail closed；不再把这些入口检查声称为原schemaReady helper整表。"
       ],
       "uncoveredAssertions": [
-        "Rust 通过可打开性检查与明确错误表达同类状态，没有独立 health 报告 API。"
+        "原nil schema readiness unavailable、in-memory/nil service validation、空schema ready=false且nil error、缺table=false且nil error、已Close连接的两个helper错误均无同形Rusthealth API；当前实际空数据库open返回Schema，继续保留partial。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/engine/persistence/session_sqlite_schema_test.go:82:TestSQLiteSessionServiceRejectsV1SchemaWithoutMutatingEvents": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload",
-      "conclusion": "partial：Go 断言 V1 会话 schema 被拒绝且事件不被改写。Rust 的迁移用例断言 ADK v2 迁移重建 runs 且保留 payload（升级路径），拒绝降级由 schema manifest 的严格校验覆盖；没有“拒 V1 且字节不变”的专项断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-store-sqlite/tests/adk_session_schema_boundary_contracts.rs::production_session_store_rejects_v1_without_mutating_schema_or_events",
+      "conclusion": "function_exact：按冻结原文建立完整V1 sessions/events/app_states/user_states四表与metadata version1，保留原app/user/session/event/invocation/agent/branch/{}事件输入；调用实际生产AdkSessionStore::open，必须返回Schema且is_incompatible=true，没有成功store。 只读重开数据库明确断言schema version仍1、events count仍1及原event/session/branch/content不变；拒绝前后数据库文件全部字节相等。连续两次拒绝都为Schema而非WriterLease，证明失败释放writer lease。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/persistence/session_sqlite_schema_test.go",
         "line": 82,
@@ -94016,25 +94023,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-store-sqlite/tests/schema_migrations.rs",
-          "test": "adk_v2_migration_rebuilds_runs_without_losing_payload",
+          "file": "crates/jftrade-store-sqlite/tests/adk_session_schema_boundary_contracts.rs",
+          "test": "production_session_store_rejects_v1_without_mutating_schema_or_events",
           "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/assistant/engine/persistence/session_sqlite_schema_test.go",
             "goLine": 82,
-            "rustFile": "crates/jftrade-store-sqlite/tests/schema_migrations.rs",
-            "rustLine": 114
+            "rustFile": "crates/jftrade-store-sqlite/tests/adk_session_schema_boundary_contracts.rs",
+            "rustLine": 7
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 V1 会话 schema 被拒绝且事件不被改写。",
-          "Rust 的迁移用例断言 ADK v2 迁移重建 runs 且保留 payload（升级路径），拒绝降级由 schema manifest 的严格校验覆盖；"
+          "按冻结原文建立完整V1 sessions/events/app_states/user_states四表与metadata version1，保留原app/user/session/event/invocation/agent/branch/{}事件输入；调用实际生产AdkSessionStore::open，必须返回Schema且is_incompatible=true，没有成功store。",
+          "只读重开数据库明确断言schema version仍1、events count仍1及原event/session/branch/content不变；拒绝前后数据库文件全部字节相等。连续两次拒绝都为Schema而非WriterLease，证明失败释放writer lease。"
         ],
-        "uncovered": [
-          "没有“拒 V1 且字节不变”的专项断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -94044,46 +94049,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)"
         ],
         "testFilter": [
-          "adk_v2_migration_rebuilds_runs_without_losing_payload"
+          "production_session_store_rejects_v1_without_mutating_schema_or_events"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2cbc13248b2b0d2914278dbd15a01c1574f829be",
+        "verifiedAt": "2026-10-08T00:03:02Z",
+        "receiptDigest": "sha256:e603a41713b2b5edbe66b1e625653f8eff9dcb870b8b1e854b6eb9ceed230ba6"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 V1 会话 schema 被拒绝且事件不被改写。",
-        "Rust 的迁移用例断言 ADK v2 迁移重建 runs 且保留 payload（升级路径），拒绝降级由 schema manifest 的严格校验覆盖；"
+        "按冻结原文建立完整V1 sessions/events/app_states/user_states四表与metadata version1，保留原app/user/session/event/invocation/agent/branch/{}事件输入；调用实际生产AdkSessionStore::open，必须返回Schema且is_incompatible=true，没有成功store。",
+        "只读重开数据库明确断言schema version仍1、events count仍1及原event/session/branch/content不变；拒绝前后数据库文件全部字节相等。连续两次拒绝都为Schema而非WriterLease，证明失败释放writer lease。"
       ],
-      "uncoveredAssertions": [
-        "没有“拒 V1 且字节不变”的专项断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/persistence/session_sqlite_schema_test.go:127:TestSQLiteSessionServiceCloseNilBoundaries": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/adk_session_store_contracts.rs::adk_session_store_lifecycle_and_restart_durability",
-      "conclusion": "partial：Go 断言 Close/nil 边界。Rust 的会话存储生命周期用例覆盖重开与关闭后的持久性；nil 值语义在 Rust 不存在（&self/错误返回），该分支不适用。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "conclusion": "partial：本批复跑Rust真实store生命周期：打开schema4、写session/event与app/user state、第二writer拒绝、drop后同路径可重开且session可更新；这是所有权释放的直接回归。 原nil SQLiteSessionService.Close、无database service.Close和in-memory non-closer的CloseSessionService三个nil返回分支没有Rust同形接收者/关闭helper，不能用drop重开代替原整条断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/persistence/session_sqlite_schema_test.go",
@@ -94106,11 +94112,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 Close/nil 边界。",
-          "Rust 的会话存储生命周期用例覆盖重开与关闭后的持久性；"
+          "本批复跑Rust真实store生命周期：打开schema4、写session/event与app/user state、第二writer拒绝、drop后同路径可重开且session可更新；这是所有权释放的直接回归。"
         ],
         "uncovered": [
-          "nil 值语义在 Rust 不存在（&self/错误返回），该分支不适用。"
+          "原nil SQLiteSessionService.Close、无database service.Close和in-memory non-closer的CloseSessionService三个nil返回分支没有Rust同形接收者/关闭helper，不能用drop重开代替原整条断言。"
         ],
         "source": "reviewed"
       },
@@ -94121,38 +94126,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-store-sqlite",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)"
         ],
         "testFilter": [
           "adk_session_store_lifecycle_and_restart_durability"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "2cbc13248b2b0d2914278dbd15a01c1574f829be",
+        "verifiedAt": "2026-10-08T00:03:02Z",
+        "receiptDigest": "sha256:e603a41713b2b5edbe66b1e625653f8eff9dcb870b8b1e854b6eb9ceed230ba6"
       },
       "risk": "high",
       "owner": "assistant_workflow",
       "priority": "P1",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 Close/nil 边界。",
-        "Rust 的会话存储生命周期用例覆盖重开与关闭后的持久性；"
+        "本批复跑Rust真实store生命周期：打开schema4、写session/event与app/user state、第二writer拒绝、drop后同路径可重开且session可更新；这是所有权释放的直接回归。"
       ],
       "uncoveredAssertions": [
-        "nil 值语义在 Rust 不存在（&self/错误返回），该分支不适用。"
+        "原nil SQLiteSessionService.Close、无database service.Close和in-memory non-closer的CloseSessionService三个nil返回分支没有Rust同形接收者/关闭helper，不能用drop重开代替原整条断言。"
       ],
       "boundaryReason": null
     },
@@ -349371,11 +349378,10 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_adk_session_context_tests.rs::session_context_read_reports_pressure_without_compacting": {
-      "referenceCount": 5,
+      "referenceCount": 4,
       "referenceKeys": [
         "internal/assistant/engine/adk_store_edges_test.go:11:TestStoreSessionContextAndNoticeBoundaryBranches",
         "internal/assistant/engine/adk_tool_edges_test.go:340:TestTimelineAdditionalBoundaryBranches",
-        "internal/assistant/engine/event_projection_boundaries_test.go:72:TestSessionProjectionPropagatesADKSessionReadFailures",
         "internal/assistant/engine/session_context_stale_test.go:420:TestSessionContextProjectionKeepsSmallToolResponsesUntouched",
         "internal/assistant/engine/session_context_test.go:651:TestSessionContextViewDoesNotAutoCompact"
       ],
@@ -349609,13 +349615,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_run_projection_tests.rs::chat_creates_the_session_once_and_reuses_its_stored_title": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/event_projection_boundaries_test.go:87:TestSessionProjectionTreatsMissingADKSessionAsEmpty",
         "internal/assistant/engine/runner_chat_test.go:1043:TestResolveSessionReusesExistingRejectsMismatchAndCreatesTrimmedSession"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_tool_failure_tests.rs::a_failed_tool_result_is_persisted_on_the_call_not_the_run": {
       "referenceCount": 4,
@@ -350149,13 +350154,12 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-store-sqlite/tests/schema_migrations.rs::adk_v2_migration_rebuilds_runs_without_losing_payload": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/assistant/engine/persistence/session_sqlite_schema_test.go:82:TestSQLiteSessionServiceRejectsV1SchemaWithoutMutatingEvents",
         "internal/assistant/engine/sqlite_tools_test.go:79:TestSQLiteDialectorDataTypesDefaultsAndQuoting"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-store-sqlite/tests/adk_session_store_contracts.rs::adk_session_store_lifecycle_and_restart_durability": {
@@ -365007,6 +365011,30 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/api/marketdata/routes_test.go:459:TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs::metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/event_projection_boundaries_test.go:87:TestSessionProjectionTreatsMissingADKSessionAsEmpty"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs::broken_durable_events_fail_session_projection_without_hiding_metadata_session": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/event_projection_boundaries_test.go:72:TestSessionProjectionPropagatesADKSessionReadFailures"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-store-sqlite/tests/adk_session_schema_boundary_contracts.rs::production_session_store_rejects_v1_without_mutating_schema_or_events": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/persistence/session_sqlite_schema_test.go:82:TestSQLiteSessionServiceRejectsV1SchemaWithoutMutatingEvents"
       ],
       "reviewStatus": "single"
     },

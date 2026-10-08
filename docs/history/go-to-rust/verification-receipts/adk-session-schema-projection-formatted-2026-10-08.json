@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_session_store_rejects_v1_without_mutating_schema_or_events) or test(metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity) or test(broken_durable_events_fail_session_projection_without_hiding_metadata_session) or test(adk_session_store_rejects_missing_drifted_and_corrupted_go_databases) or test(adk_session_store_lifecycle_and_restart_durability)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T00:03:02Z",
+  "sourceState": {
+    "verifiedCommit": "2cbc13248b2b0d2914278dbd15a01c1574f829be",
+    "trackedDiffSha256": "7dd99f1e445f7b93bed0d595d1d02c367d2120d03f93cb2a69ae6a2253c868e3",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_session_projection_boundary_tests.rs",
+        "sha256": "d53314d876e2b3a79e7821dc6d73f1723a35bef96fb1ae5f3af7fabce18549c5"
+      },
+      {
+        "path": "crates/jftrade-store-sqlite/tests/adk_session_schema_boundary_contracts.rs",
+        "sha256": "87fad7b5e36f4303da269df84899869bff81fb9a959bcd4b2776a3875ac25fdc"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-session-schema-projection-owner-verified-2026-10-08.json",
+        "sha256": "3b2c3a879fa8f6b0f5292d112378346a1aa18a1165ea64a01b8907831d2ea0a5"
+      }
+    ]
+  },
+  "rawOutputSha256": "2479d14b093f88ed09ee5377a687894ff4a106a2ade5edd0dbbb173d55cf5cd2",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::session_projection_boundary::broken_durable_events_fail_session_projection_without_hiding_metadata_session",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::session_projection_boundary::metadata_session_without_durable_session_projects_empty_timeline_and_preserves_identity",
+    "jftrade-store-sqlite::adk_session_schema_boundary_contracts$production_session_store_rejects_v1_without_mutating_schema_or_events",
+    "jftrade-store-sqlite::adk_session_store_contracts$adk_session_store_lifecycle_and_restart_durability",
+    "jftrade-store-sqlite::adk_session_store_contracts$adk_session_store_rejects_missing_drifted_and_corrupted_go_databases"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_session_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_session_schema_boundary_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.15643125,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_session_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.085357583,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_session_schema_boundary_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1848,
+      "exec_time": 0.358892625,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

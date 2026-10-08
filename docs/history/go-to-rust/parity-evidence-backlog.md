@@ -1,5 +1,17 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Assistant V1 拒绝与空会话投影
+
+- 逐项复核session_sqlite_schema82/49/127与event_projection_boundaries72/87五条，净 **+1 exact / -1 partial / boundary 0**，当前 **1644 / 2167 / 640**。只原82升级：完整原V1四表、metadata version1与原session/event输入经过真实production AdkSessionStore::open拒绝，typed Schema/is_incompatible=true；只读重开仍version1、event count1、原event/session/branch/content不变。拒绝前后整个数据库字节相同，两次拒绝都为Schema而非WriterLease，证明失败释放lease。没有生产逻辑或契约/schema变化。
+- 两条新production projection回归：metadata session存在但durable session缺失时，真实get=None、events为空，session detail成功且session.id保留、timeline/runs/artifacts全空，读后底层仍None；破坏events表后typed Query错误与实际500 ADK_MESSAGES_GET_FAILED保留no such table: events原因，metadata仍可读且没有自动补写。两条仍partial：原87独立projection ok=false布尔helper不存在；原72两个helper要求errors.Is同一注入sentinel，Rust实际SQL错误传播不证明该错误对象同一性。
+- 原49/127仅重新执行现有missing/empty/drifted与writer/drop/reopen owner，不把它们称作schemaReady的nil/in-memory/closed整表或三个nil Close helper分支；两条继续保留partial。此次修正covered文字只描述真实执行断言，未通过文案或合成flag升exact。
+- formatted有效receipt `verification-receipts/adk-session-schema-projection-formatted-2026-10-08.json`：**5 passed / 0 failed / 0 ignored / 2450 filtered/skipped**，SHA-256 `e603a41713b2b5edbe66b1e625653f8eff9dcb870b8b1e854b6eb9ceed230ba6`；三份Rust指纹与diff保存于`/tmp/jftrade-adk-session-schema-projection-formatted-source`。格式化前owner-verified也是5条通过，SHA `3b2c3a879fa8f6b0f5292d112378346a1aa18a1165ea64a01b8907831d2ea0a5`，由formatted作为当前源码证据，原字节保留，备份于`/tmp/jftrade-adk-session-schema-projection-initial-source`。新测试首次通过，没有虚构生产红测。
+- quick计划、现场quick、完整Rust及ordinary/strict/anchor/context审计在收口时追加；定向五条不代表完整门禁，整体goal仍active。
+- ordinary/strict、AI context和diff通过，anchor **2134 unique / 2086 recorded / 0 unrecorded / 0 stale / 48 unknown**。首次现场quick明确退出1，日志`/tmp/jftrade-adk-session-schema-projection-quick.log`：target-health因至少50000个rcgu.o拒绝，本批quick测试未执行。确认无Cargo/rustc/nextest后启动仓库clean命令，日志`/tmp/jftrade-adk-session-schema-projection-clean.log`保留；等待清理结束后重跑，没有放宽阈值。
+- clean明确退出0，移除 **121602 files / 33.1GiB**；quick重跑日志`/tmp/jftrade-adk-session-schema-projection-quick-clean.log`中受影响nextest **2485 passed / 0 failed / 0 skipped**，但旧`test_historical_candle_conversion_rejects_invalid_fields_and_defaults_volume`被runner标记为 **1 LEAK**（测试本身只构造并验证内存candle page，原因尚未确定），不记为无LEAK结果。fmt与Clippy已通过；兼容回放与quick最终退出码、单项LEAK复跑和完整Rust结果待收口。三份Rust指纹仍匹配formatted，只改五条mapping与六个必要reuse。
+- quick重跑最终明确退出0，七类兼容回放及Pine worker **98 passed**；上述LEAK原日志保留。随后单项wrapper复跑明确退出0，日志`/tmp/jftrade-adk-session-schema-projection-leak-recheck.log`：**1 passed / 0 failed / 2251 filtered/skipped**，无LEAK，未修改该旧用例或runner配置。现场完整check:rust已启动，日志`/tmp/jftrade-adk-session-schema-projection-rust.log`，结束前不记完整门禁通过。
+- 本批现场完整`pnpm run check:rust`明确退出0：workspace **3851 passed / 0 failed / 2 skipped**，无LEAK；static、冻结manifest与七类兼容回放均通过。两条skipped不计为已执行通过，quick中的LEAK原因仍未确定、原记录保留，单项与完整workspace均未复现。三份Rust指纹仍匹配formatted，receipt SHA保持原值；最终strict/context与diff通过。下一批复核Snapshot HTTP的CN叶市场、legacy零值、authoritative空值、Provider切换、错误传播五条，并用实际证券HTTP大小写矩阵先验证currency/timezone分支，整体goal继续active。
+
 ## 2026-10-08 MarketData HTTP 小写市场与 snapshot 身份
 
 - 逐项复核原routes459/563/147与boundaries63/119五条，净 **+1 exact / -1 partial / boundary 0**，当前 **1643 / 2168 / 640**。原459通过同一真实HTTP监听器按原顺序执行provider、markets、小写security、强制snapshot、chart-main/US.AAPL acquire与heartbeat、US/nvda search、原小写normalize，八请求均200；所有原descriptor/defaultMarket/raw security/normalized snapshot/fromCache/subscription/search/raw normalize断言均直接闭合。fixture无physical reconciler与原NewService一致，subscription由真实router持有；记录quote/actions请求后继续调用真实production owner，没有成功DTO替身。
