@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T16:24:28.296896+00:00",
+  "verifiedCommit": "41e0ffbde1bc7cfd4c90d5e96ed31686fb6cb807",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-durable-completion-quick-20261009.log",
+  "rawOutputSha256": "cba71ec8c34bd5e05bce50cc5d70ea1d4e0c836f740e133f4c8750f1779ba920",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 2601,
+    "passed": 2601,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 107.553
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs": "d60572e04b03aae29db4f284f4c9ba588b194c3529819e127bfbdc1c2312e3ff",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_loop.rs": "98e4228e6ce130e4e0fdc80613398dc37feee0c4be3130377c2998c29b095d1b",
+    "crates/jftrade-engine/src/product_adk_model_runtime_tool_result.rs": "02dc9e311b0d8c9b76235ad562c36cc5788990bdd63f16dcbdff87c219189ab7",
+    "crates/jftrade-store-sqlite/src/adk.rs": "e999481151a7c134beebe6db014f391f7d73b19d993cec80b45986814ed77c64",
+    "crates/jftrade-engine/src/product_adk_durable_completion_owner_tests.rs": "a01c1f56d228352df5979db4302c2b10a689dfaf48edbbd7ab0bf52ce1c2b882"
+  },
+  "rustSourceFingerprintSha256": "6a3714c2622e675a79e308face62fca1fa46a4c28295f967dc740d91cea04c3b",
+  "frozenRustFiles": 1022,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Ordinary tool completions separate durable COMPLETED from SUCCEEDED/FAILED call projections. Legacy terminal labels preserve the original ledger and output during checkpoint replay; different output, stale fencing, UNKNOWN and journal rollback remain guarded. Seven originals reviewed; 108 closes exact, full caller error and UNKNOWN representation gaps remain partial. Whole parity stays active; red failure retained.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

@@ -558,7 +558,7 @@ impl ProductionAdkChatRuntime {
                 tool_name,
                 &input_json,
                 &output_json,
-                status,
+                durable_tool_completion_status(status),
                 owner_id,
                 fencing_token,
                 run_lease_token,
@@ -589,10 +589,11 @@ fn replay_mapped_tool_output(
 ) -> Result<MappedToolOutput, AdkChatPortError> {
     // Durable output is already mapped; a second mapping changes error text.
     let output: Value = serde_json::from_str(&invocation.output_json).map_err(storage_unavailable)?;
+    let status = replayed_tool_call_status(invocation, &output);
     Ok(MappedToolOutput {
-        error_text: (!invocation.status.eq_ignore_ascii_case("SUCCEEDED"))
+        error_text: (!status.eq_ignore_ascii_case("SUCCEEDED"))
             .then(|| tool_result_error_message(&output)),
-        status: invocation.status.clone(),
+        status,
         output,
     })
 }

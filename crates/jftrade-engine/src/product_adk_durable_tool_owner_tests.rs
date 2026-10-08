@@ -9,6 +9,9 @@ use jftrade_store_sqlite::AdkToolInvocationClaim;
 #[path = "product_adk_keyed_tool_owner_tests.rs"]
 mod keyed_tool;
 
+#[path = "product_adk_durable_completion_owner_tests.rs"]
+mod durable_completion;
+
 #[derive(Debug)]
 struct ReadTool {
     calls: Arc<AtomicUsize>,
@@ -65,12 +68,16 @@ impl ToolFixture {
     }
 
     fn seed(&self, run_id: &str) -> ChatExecution {
+        self.seed_with_value(run_id, "once")
+    }
+
+    fn seed_with_value(&self, run_id: &str, value: &str) -> ChatExecution {
         create_running_run(
             &self.store,
             run_id,
             json!([{
                 "id":"function-call-test", "name":"market.snapshot", "toolName":"market.snapshot",
-                "arguments":{"value":"once"}, "status":"RUNNING", "requiresUser":false,
+                "arguments":{"value":value}, "status":"RUNNING", "requiresUser":false,
             }]),
         );
         self.sessions
@@ -254,6 +261,7 @@ fn replay_restored_checkpoint(fail: bool) {
         .get_tool_invocation(&chat.run_id, "function-call-test")
         .unwrap()
         .unwrap();
+    assert_eq!(invocation.status, "COMPLETED");
     let replay_provider = Provider::new();
     chat.request.endpoint = replay_provider.endpoint.parse().unwrap();
     fixture
@@ -504,7 +512,7 @@ fn production_read_tool_result_replays_from_the_same_durable_invocation_without_
 fn production_failed_read_persists_its_false_output_and_failed_call() {
     let fixture = ToolFixture::new(true);
     let provider = Provider::new();
-    let mut chat = fixture.seed("run-failed-read");
+    let mut chat = fixture.seed_with_value("run-failed-read", "invalid");
     chat.request.endpoint = provider.endpoint.parse().unwrap();
     let lease =
         RunLeaseGuard::acquire(fixture.store.clone(), &chat.run_id, "failed-read-owner").unwrap();
@@ -520,7 +528,7 @@ fn production_failed_read_persists_its_false_output_and_failed_call() {
         .unwrap();
     let output: Value = serde_json::from_str(&invocation.output_json).unwrap();
     assert_eq!(output["success"], false);
-    assert_eq!(invocation.status, "FAILED");
+    assert_eq!(invocation.status, "COMPLETED");
     assert_eq!(output["error"]["message"], "provider rejected the request");
     assert_eq!(payload["toolResults"][0]["output"], output);
     assert_eq!(payload["toolCalls"][0]["status"], "FAILED");

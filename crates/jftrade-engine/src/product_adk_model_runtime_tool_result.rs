@@ -22,6 +22,23 @@ struct MappedToolOutput {
     error_text: Option<String>,
 }
 
+fn durable_tool_completion_status(call_status: &str) -> &str {
+    match call_status {
+        "SUCCEEDED" | "FAILED" => "COMPLETED",
+        other => other,
+    }
+}
+
+fn replayed_tool_call_status(invocation: &StoredAdkToolInvocation, output: &Value) -> String {
+    if !invocation.status.eq_ignore_ascii_case("COMPLETED") {
+        return invocation.status.clone();
+    }
+    if output["success"] == false {
+        return classify_tool_error_text(&tool_result_error_message(output)).0;
+    }
+    "SUCCEEDED".to_owned()
+}
+
 fn map_tool_output(name: &str, output: Value) -> MappedToolOutput {
     let Value::Object(object) = &output else {
         return MappedToolOutput {

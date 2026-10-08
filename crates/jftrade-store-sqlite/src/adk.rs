@@ -2499,7 +2499,7 @@ impl AdkStore {
             }
             if matches!(
                 existing.status.to_ascii_uppercase().as_str(),
-                "SUCCEEDED" | "FAILED"
+                "COMPLETED" | "SUCCEEDED" | "FAILED"
             ) {
                 transaction.commit().map_err(AdkStoreError::Query)?;
                 return Ok(AdkToolInvocationClaim::Replay(existing));
@@ -2714,9 +2714,12 @@ impl AdkStore {
         event: &AdkRunEvent<'_>,
     ) -> Result<AdkToolResultCommit, AdkStoreError> {
         let status = status.trim().to_ascii_uppercase();
-        if !matches!(status.as_str(), "SUCCEEDED" | "FAILED" | "UNKNOWN") {
+        if !matches!(
+            status.as_str(),
+            "COMPLETED" | "SUCCEEDED" | "FAILED" | "UNKNOWN"
+        ) {
             return Err(AdkStoreError::Validation(
-                "tool invocation status must be SUCCEEDED, FAILED or UNKNOWN".to_owned(),
+                "tool invocation status must be COMPLETED, SUCCEEDED, FAILED or UNKNOWN".to_owned(),
             ));
         }
         if id.trim().is_empty() || idempotency_key.trim().is_empty() || tool_name.trim().is_empty()
@@ -2763,9 +2766,15 @@ impl AdkStore {
                 }
                 if matches!(
                     existing.status.to_ascii_uppercase().as_str(),
-                    "SUCCEEDED" | "FAILED" | "UNKNOWN"
+                    "COMPLETED" | "SUCCEEDED" | "FAILED" | "UNKNOWN"
                 ) {
-                    if existing.output_json != output_json || existing.status != status {
+                    // Completed executions may have legacy outcome labels.
+                    // Replay preserves that original row and output verbatim.
+                    let legacy_completion = status == "COMPLETED"
+                        && matches!(existing.status.as_str(), "SUCCEEDED" | "FAILED");
+                    if existing.output_json != output_json
+                        || (existing.status != status && !legacy_completion)
+                    {
                         if existing.status.eq_ignore_ascii_case("UNKNOWN") {
                             return Err(AdkStoreError::LeaseLost(format!(
                                 "tool invocation {idempotency_key} is fenced with unknown outcome"

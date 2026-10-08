@@ -6,7 +6,7 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
-handler stable key、消费及UNKNOWN恢复批次已验证；当前心跳与清理批次复核十条原测试后为1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
+handler stable key、消费、UNKNOWN恢复及确定性takeover批次已验证；durable完成批次复核七条原测试后为1661 exact、2152 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
 - [x] 冻结execution_claims54/108/167/265/343五条及blob SHA复核；稳定context key经生产timeout worker交付handler，真实两次tool loop证明key非空、包含run-wrapper、first/second output.key及完整output相同、只执行一次。54升级exact，其余状态及错误分类残余不变。
 - [x] 定向18 passed、quick2385 Rust/98 Pine与desktop Node11+48通过；现场完整Rust3980 passed、0 failed、2 skipped，无LEAK，static/七类replay退出0。外置卷断开及launcher原30秒超时失败留证，未改源码或放宽deadline；launcher原样20次与prediction路由20次重复通过。receipt/reuse/anchor/context/diff及1020个Rust文件冻结指纹复核后独立提交。
@@ -20,7 +20,9 @@ handler stable key、消费及UNKNOWN恢复批次已验证；当前心跳与清�
 - [x] 首次完整Rust失败暴露Pine退出在STOPPED/通知后才释放订阅；生产owner修复为先释放自身消费者。通知时点探针红测两处失败，修复后心跳及清理定向68通过。十条原测试复核将未覆盖broker panic/活动汇总和停止态全量零写入的176/52纠正为partial，净exact−1，当前1660/2153/638。
 - [x] 修复后定向68及store3通过；重新查看quick计划并执行2600 Rust/98 Pine及desktop Node11+48通过。现场完整Rust3988 passed、0 failed、2 skipped，static/七类replay退出0，无LEAK；1021个Rust源码冻结指纹、十条receipt/reuse/anchor/diff复核，原1445 passed/1 failed的中断门禁及稳定红测保留。
 - [x] takeover测试文件的短租约与过期sleep已换同一fixture事务的精确过期；原23个断言保持，新增3个fixture控制。定向36、quick2393 Rust/98 Pine及现场完整Rust3988 passed、0 failed、2 skipped通过，static/七类replay退出0，无LEAK。1021个Rust文件冻结，六条原测试/blob/receipt/reuse/anchor复核，1660/2153/638保持。
-- [ ] 推进失败读取durable完成与FAILED call投影分离，验证旧状态恢复及原output/事件保持；UNKNOWN返回和已明确的策略panic/停止态边界仍待闭合。
+- [x] 普通工具执行记录COMPLETED与SUCCEEDED/FAILED call投影分离，108原invalid输入、false输出、COMPLETED ledger与FAILED call/error闭合，升级exact。旧SUCCEEDED/FAILED整行、output与event保持，异输出不替换winner；journal回滚、stale fence及UNKNOWN回归通过。七条原测试复核，当前1661/2152/638。
+- [x] 原状态断言红测0 passed/1 failed保留；最终定向47、quick2601 Rust/98 Pine与desktop Node11+48通过。现场完整Rust3989 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK；1022个Rust源码冻结，receipt/reuse/anchor/diff复核后独立提交。
+- [ ] 继续生产POST SSE malformed retry写失败验证；缺runtime后台终态、request-context预取消、UNKNOWN返回与已明确的策略panic/停止态边界仍待闭合。
 - [ ] 每批继续核对5–10条原测试，定向nextest、quick及现场完整Rust门禁通过后复核并提交；整体对齐未完成不标complete。
 
 ## 已验证批次：ADK checkpoint replay 与唯一投影 owner
