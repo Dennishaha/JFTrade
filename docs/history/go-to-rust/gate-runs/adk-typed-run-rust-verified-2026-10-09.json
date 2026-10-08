@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T22:13:46.556816+00:00",
+  "verifiedCommit": "85bf5b09fdb989bbf8f6e86fb038f294b32e40c4",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-typed-run-rust-20261009.log",
+  "rawOutputSha256": "024d9d5aa5d33ccd53be3742f362ed04353c15263a9f939a7f6800cf568bc428",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 4041,
+    "passed": 4041,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 111.806
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-assistant/src/lib.rs": "97baadca3a0235c432591f2717381888278d443ccd3143574ba4cde77830d5b6",
+    "crates/jftrade-engine/src/product_adk_durable_identity_preflight_tests.rs": "0a1e86b3841778121f65c63bdd4765fe6d2dea531ef6d9ffb2903fe52276c4e0",
+    "crates/jftrade-engine/src/product_adk_model_runtime_replay.rs": "8cb1e94f1e1ac77e67bfead3132ff73ba0ad33b8f93ad658da4a652b8447f428",
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_recovery.rs": "d9920bbcebe3510400cf3d858f5e189a8df5ed6cb1698e440578a8ab577656a7",
+    "crates/jftrade-store-sqlite/src/adk_stream_cursor.rs": "c6abaebc5ca3a36ef5d733c541b32b27ffe9c30db0027f3948299991597611e2",
+    "crates/jftrade-assistant/src/persisted_run.rs": "cdf5847de14bb2a05d090fd0c25f88933299435b0c38bb93acb18297e8a02025"
+  },
+  "rustSourceFingerprintSha256": "a0bb68ba9f916f2c718cf72ff23f84f3f0a2fa75295bc909132ccac7358cd99b",
+  "frozenRustFiles": 1041,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Production stream admission validates persisted Run and nested field types before a fingerprint conflict, retained transport cache or saved terminal response. Positive null/duplicate/unknown-extension controls and absent/null history recovery are read-only. Eight frozen originals remain unchanged:1666 exact/2147 partial/638 boundary. Sync and GET typed decode precedence, legacy request semantic reformatting, known-context, context revision, native partial/tool projection and lease startup failures remain gaps. Historical LEAKs unresolved; whole goal active.",
+  "static": "passed"
+}

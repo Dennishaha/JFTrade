@@ -22,8 +22,8 @@ fn check_durable_request_identity(
     };
     // Go's ChatRunByClientRequestID decodes the persisted run before comparing
     // fingerprints. A corrupt row must not be hidden by a transport record.
-    let _: Option<serde_json::Map<String, Value>> =
-        serde_json::from_str(&existing.payload_json).map_err(|error| failure(error.to_string()))?;
+    jftrade_assistant::validate_persisted_run_payload(&existing.payload_json)
+        .map_err(|error| failure(error.to_string()))?;
     if !crate::product::product_adk_chat_identity::ChatRequestIdentity::decode(&input.body)?
         .matches(&existing.request_fingerprint)
     {

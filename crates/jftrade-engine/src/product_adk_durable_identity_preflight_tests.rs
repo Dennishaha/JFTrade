@@ -3,6 +3,130 @@ use crate::product::product_adk_chat_stream_port::{AdkChatInput, AdkChatRoute, A
 use sha2::Digest;
 
 #[tokio::test]
+async fn production_stream_preflight_rejects_typed_run_corruption_before_replay_or_conflict() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let mut observed = Vec::new();
+    for (ready, cached) in [(false, true), (true, true), (true, false)] {
+        let (_directory, port, provider) = retained_readiness::configured_port();
+        let input = AdkChatInput {
+            client_request_id: "11111111-1111-4111-8111-111111111114".to_owned(),
+            body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111114","message":"hello"}"#.to_vec(),
+        };
+        // Retain a transport record before creating the authoritative row.
+        if cached {
+            drop(port.dispatch(AdkChatRoute::Stream, &input).unwrap());
+        }
+        let fingerprint = sha2::Sha256::digest(&input.body).iter()
+            .map(|byte| format!("{byte:02x}")).collect::<String>();
+        port.store.create_run(CreateAdkRunParams {
+            id: "run-typed-preflight", session_id: "session-typed", agent_id: "agent-typed",
+            status: "COMPLETED", client_request_id: &input.client_request_id,
+            request_fingerprint: &fingerprint, payload_json: "{}",
+        }).unwrap();
+        retained_readiness::set_provider(&port, &provider, ready);
+        let prepared = prepared_router_with_chat(port.clone(), true).await;
+        let handle = crate::product::expose_prepared_product(prepared).unwrap();
+        let url = format!("http://{}/api/v1/adk/chat/stream", handle.startup_record().address);
+        for fields in [
+            r#""message":42"#, r#""MeSsAgE":42"#,
+            r#""message":42,"message":"later valid value""#,
+            r#""toolCalls":"not an array""#,
+            r#""toolCalls":[{"requiresUser":"true"}]"#,
+            r#""pendingApprovals":[{"input":[]}]"#,
+            r#""inputRequest":{"questions":[{"options":[{"recommended":1}]}]}"#,
+            r#""inputRequests":[{"answers":[{"questionId":false}]}]"#,
+            r#""workflowPlan":[{"order":1.5}]"#,
+            r#""usage":{"tokensIn":9223372036854775808}"#,
+            r#""maxDurationMs":1e3"#, r#""reasoningEffortField":[]"#,
+            r#""completedAt":true"#,
+        ] {
+            let payload = format!(r#"{{"route":"stream","streamId":"stream-typed","response":{{"reply":"cached answer"}},{fields}}}"#);
+            port.store.update_run_state("run-typed-preflight", "COMPLETED", &payload).unwrap();
+            let runs = port.store.list_runs().unwrap();
+            let audit = port.store.list_audit_events().unwrap();
+            let native = port.session_store.list_sessions().unwrap();
+            for message in ["hello", "changed"] {
+                let response = reqwest::Client::new().post(&url)
+                    .json(&json!({"clientRequestId":input.client_request_id,"message":message}))
+                    .send().await.unwrap();
+                let status = response.status();
+                let has_id = response.headers().contains_key("x-adk-stream-id");
+                let body = response.text().await.unwrap();
+                observed.push((ready, cached, fields, message, status, has_id, body));
+            }
+            assert_eq!(port.store.list_runs().unwrap(), runs);
+            assert_eq!(port.store.list_audit_events().unwrap(), audit);
+            assert_eq!(port.session_store.list_sessions().unwrap(), native);
+        }
+        handle.shutdown().await.unwrap();
+        port.shutdown_with_error().unwrap();
+        assert_eq!(provider.accept().unwrap_err().kind(), io::ErrorKind::WouldBlock);
+    }
+    for (ready, cached, fields, message, status, has_id, body) in observed {
+        assert_eq!(status, 500, "ready={ready},cached={cached},fields={fields},message={message},body={body}");
+        assert!(!has_id, "typed decode failure must precede the stream handshake");
+        let error: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(error["error"]["code"], "ADK_CHAT_FAILED");
+        assert!(!error["error"]["message"].as_str().unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn production_stream_preflight_accepts_persisted_null_duplicate_and_extended_run_fields() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let (_directory, port, provider) = retained_readiness::configured_port();
+    retained_readiness::set_provider(&port, &provider, true);
+    let input = AdkChatInput {
+        client_request_id: "11111111-1111-4111-8111-111111111113".to_owned(),
+        body: br#"{"clientRequestId":"11111111-1111-4111-8111-111111111113","message":"hello"}"#.to_vec(),
+    };
+    let fingerprint = sha2::Sha256::digest(&input.body).iter()
+        .map(|byte| format!("{byte:02x}")).collect::<String>();
+    port.store.create_run(CreateAdkRunParams {
+        id: "run-valid-typed", session_id: "session-typed", agent_id: "agent-typed",
+        status: "COMPLETED", client_request_id: &input.client_request_id,
+        request_fingerprint: &fingerprint, payload_json: "{}",
+    }).unwrap();
+    let prepared = prepared_router_with_chat(port.clone(), true).await;
+    let handle = crate::product::expose_prepared_product(prepared).unwrap();
+    let url = format!("http://{}/api/v1/adk/chat/stream", handle.startup_record().address);
+    let mut responses = Vec::new();
+    for fields in [
+        r#""message":null,"toolCalls":null,"usage":null,"completedAt":null"#,
+        r#""streamEvents":null,"message":"legacy row""#,
+        r#""message":"old","message":"new","MESSAGE":null"#,
+        r#""toolCalls":[null,{"input":null,"output":[true,42],"error":null}]"#,
+        r#""pendingApprovals":[null,{"input":{"anything":[1,true]}}],"inputRequests":[null,{"questions":[null,{"options":[null]}]}]"#,
+        r#""workflowPlan":[null,{"dependsOn":[null,"run"],"order":-1}],"usage":{"tokensIn":-1},"maxDurationMs":9223372036854775807"#,
+        r#""reasoningEffort":"future-effort","createdAt":"opaque legacy timestamp","future":{"message":42},"response":{"reply":"cached answer","run":{"message":42}}"#,
+    ] {
+        let payload = format!(r#"{{"route":"stream","streamId":"stream-valid-typed","response":{{"reply":"cached answer"}},{fields}}}"#);
+        port.store.update_run_state("run-valid-typed", "COMPLETED", &payload).unwrap();
+        let runs = port.store.list_runs().unwrap();
+        let audit = port.store.list_audit_events().unwrap();
+        let response = reqwest::Client::new().post(&url)
+            .header("content-type", "application/json").body(input.body.clone())
+            .send().await.unwrap();
+        let status = response.status();
+        let id = response.headers().get("x-adk-stream-id").cloned();
+        responses.push((fields, status, id, response.text().await.unwrap()));
+        assert_eq!(port.store.list_runs().unwrap(), runs);
+        assert_eq!(port.store.list_audit_events().unwrap(), audit);
+    }
+    handle.shutdown().await.unwrap();
+    port.shutdown_with_error().unwrap();
+    for (fields, status, id, body) in responses {
+        assert_eq!(status, 200, "fields={fields},body={body}");
+        assert_eq!(id.unwrap(), "stream-valid-typed");
+        let event: Value = serde_json::from_str(body.lines().find_map(|line|line.strip_prefix("data: ")).unwrap()).unwrap();
+        assert_eq!(event["type"], "final");
+        assert_eq!(event["response"]["reply"], "cached answer");
+        assert_eq!(event["replay"], true);
+    }
+    assert_eq!(provider.accept().unwrap_err().kind(), io::ErrorKind::WouldBlock);
+}
+
+#[tokio::test]
 async fn production_stream_preflight_rejects_corrupt_durable_payload_before_conflict_or_cached_replay()
  {
     let _ = rustls::crypto::ring::default_provider().install_default();

@@ -45,6 +45,7 @@ impl AdkStore {
                     THEN json_extract(e.value, '$.sequence') ELSE CAST(e.key AS INTEGER) + 1 END AS sequence,
                     e.value AS value
                 FROM adk_runs r, json_each(r.payload_json, '$.streamEvents') e WHERE r.id = ?1
+                    AND json_type(r.payload_json, '$.streamEvents') = 'array'
              ) ORDER BY sequence DESC LIMIT 1",
             params![run_id], |row| Ok((row.get(0)?, row.get(1)?)),
         ).optional().map_err(AdkStoreError::Query)?;

@@ -10,6 +10,7 @@ mod builtin_agent;
 mod chat_identity;
 mod claims;
 mod model;
+mod persisted_run;
 mod ports;
 pub mod rig_adapter;
 mod runtime;
@@ -37,6 +38,7 @@ pub use model::{
     StreamDelta, ToolCall, ToolCallStatus, ToolDescriptor, ToolIdempotencyMode, VersionedArtifact,
     WorkflowTask, WorkflowTaskStatus,
 };
+pub use persisted_run::validate_persisted_run_payload;
 pub use ports::{
     CompletionInput, CompletionPort, CompletionTurn, JftradeMessage, MessageRole, ProviderFailure,
     ProviderFailureKind, ToolRequest,

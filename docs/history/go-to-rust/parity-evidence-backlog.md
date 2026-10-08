@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 durable Run 字段解码优先于 stream 重放
+
+- 实际HTTP生产红0 passed/1 failed：已有COMPLETED row的`message:42`被缺runtime保留记录重放为200，冻结Go的`ChatRunByClientRequestID`先`decodeRun`，应在handshake前返回500/ADK_CHAT_FAILED。原diff、1040文件源码快照及红receipt SHA `ad2d6c781a842b200a6b0e66c4aef39d3b205c99898103e7cf87672d7c6105f4`保留。
+- Assistant领域校验persisted Run及tool/approval/input/workflow/usage字段类型，engine在stream准入的指纹比较、内存记录与保存response前调用。对照冻结模型复核9种结构、124个字段。保留缺字段、null、未知扩展、任意status/时间戳字符串、有效重复字段和大小写字段名；早期已知字段类型错误不因后续合法重复而消失。整数采用有符号64位，任意output/input数字保留Go float64溢出拒绝。
+- 首次编译因Formatter省略lifetime退出101，原源码/指纹/日志保留。随后控制6 passed/2 failed暴露arbitrary_precision绕过float64溢出及终态恢复拒绝缺失history；修复生产校验和只读恢复，不改变测试预期。新增null history控制继续7 passed/1 failed：SQLite把json_each(null)当作event，原日志、receipt及源码独立保留。生产metadata只从array读取last event；缺失/null history仅在POST响应投影中补空数组，原row不回写。
+- 控制8 passed，最终定向227 passed/0 failed，无LEAK。HTTP拒绝13种字段损坏，在未就绪/就绪、原body/冲突body及有/无transport记录组合保持500、无stream ID、非空ADK_CHAT_FAILED；正向null/重复/嵌套null/未知扩展及负整数保持200/final/replay。完整run/audit/native sessions保持、零provider连接。canonical receipt SHA `ef999a77866a46675ca43761a5e57ed12050dbe4659ff80e14ffa5fa668326ad`。
+- 查看quick计划后2696 Rust/98 Pine/desktop Node11+48通过；同源码现场完整`CARGO_INCREMENTAL=0 pnpm run check:rust`4041 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK。1041个Rust文件冻结。8条原测试复核：helpers167/216、disconnect55/110、recovery41、service_business169、runner_chat1124、service_business_helpers145；分类与mapping文件不变，1666 exact/2147 partial/638 boundary，不因新解码控制扩大旧exact结论。
+- 五份receipt、两份gate/raw SHA、失败与最终源码、124字段、Go原函数、20处reuse/anchor及diff核验通过；strict/context退出0，unrecorded/stale0、既有unknown48。证据`.git/adk-typed-run-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-typed-run-recovery-20261009`。剩余：同步chat的解码错误应为400而非stream的500，仍需直接生产owner修复；GET typed解码与缺失/null history重连、任意map内部重复数字溢出、请求JSON重复/大小写解码、旧raw请求语义重排、known-context、context首次revision、原生partial/tool投影及lease启动失败继续开放。历史LEAK未定位，整体active，提交后继续。
+
 ## 2026-10-09 独立请求取消与生产重连 reader
 
 - 生产HTTP预取消红测0 passed/1 failed：独立请求signal已取消且listener仍活动，旧router仍交付retry并等待body。红receipt SHA `7fd1c6db99111c80605bafc556816427147ce479365cb928682d44959d09437f`；运行时diff、1040个Rust文件指纹及源码全文保留。修复前未安装middleware，失败不是listener shutdown控制。

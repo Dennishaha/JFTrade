@@ -3322,3 +3322,11 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 ## 2026-09-27 strict evidence batch
 
 本批人工复核 Assistant/ADK 的 11 条单引用 `function_exact`：approval resolution、metrics query、optimization cancellation、legacy route、resolved approval projection、pagination、approval idempotency、malformed query、missing mutation targets 与 catalog fault contracts。每条均引用已有 Parity anchor 和真实 workspace receipt `sha256:10e0f6f0303126574a56bb913fce6b78e03ef69a359136b6a92d3d6be3eb5bf8`；session-negative、空数组与 stream transport 因子断言未覆盖而未纳入。
+
+## 2026-10-09 请求取消与 durable 字段解码
+
+独立请求取消批次以真实 prepared HTTP router 与生产 SSE reader 补齐 disconnect110 的预取消零 body、活动 listener 和单 reader 取消边界，升级 exact；其他原测试保持分类。stream durable 字段解码批次先红复现旧缓存掩盖 `message:42`，领域校验与生产准入保证字段错误优先于重放和冲突。核对9种结构/124字段，保留null、合法重复、未知扩展；缺失/null history的POST终态恢复只修改响应投影。8条冻结原测试逐项复核，不以补充控制推断其未测组合闭合，当前1666 exact/2147 partial/638 boundary。
+
+两批失败原日志、源码快照和receipt均保留。最终字段解码 [生产owner receipt](verification-receipts/adk-typed-run-production-owner-verified-2026-10-09.json) 对应定向227 passed；[quick](gate-runs/adk-typed-run-quick-verified-2026-10-09.json) 与 [完整Rust](gate-runs/adk-typed-run-rust-verified-2026-10-09.json) 绑定同一1041文件冻结指纹。同步chat的400解码返回、GET缺失history/typed解码、请求重复与大小写解码、known-context、context首次revision、原生partial/tool投影及lease启动仍为活动缺口；历史LEAK未定位，整体目标未完成。
+
+验证：定向227/227、quick2696 Rust/98 Pine/desktop Node11+48、现场`CARGO_INCREMENTAL=0 check:rust`4041 passed/0 failed/2 skipped、static及七类replay退出0，无LEAK；五份receipt、两份gate、8条Go原函数、20处reuse/anchor、源码指纹与diff复核通过。

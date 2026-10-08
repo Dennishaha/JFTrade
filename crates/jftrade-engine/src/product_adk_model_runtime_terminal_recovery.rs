@@ -13,6 +13,11 @@ impl ProductionAdkChatRuntime {
         let mut payload: Value =
             serde_json::from_str(&run.payload_json).map_err(storage_unavailable)?;
         payload["status"] = json!(run.status);
+        // A Go-authored run has no Rust stream history extension. Recover it
+        // as an empty read projection without changing the authoritative row.
+        if payload.get("streamEvents").is_none_or(Value::is_null) {
+            payload["streamEvents"] = json!([]);
+        }
         let events = payload
             .get_mut("streamEvents")
             .and_then(Value::as_array_mut)
