@@ -3,6 +3,25 @@
 // `product_adk_model_runtime_adapters.rs` so the items stay in the same
 // module scope as the rest of the runtime.
 
+fn check_durable_request_identity(store: &AdkStore, input: &AdkChatInput) -> Result<(), AdkChatPortError> {
+    let failure = |message: String| AdkChatPortError::Failed {
+        status: 500, code: "ADK_CHAT_FAILED".to_owned(), message,
+    };
+    let Some(existing) = store.get_run_by_client_request_id(&input.client_request_id)
+        .map_err(|error| failure(error.to_string()))?
+    else { return Ok(()) };
+    // Go's ChatRunByClientRequestID decodes the persisted run before comparing
+    // fingerprints. A corrupt row must not be hidden by a transport record.
+    let _: Option<serde_json::Map<String, Value>> = serde_json::from_str(&existing.payload_json)
+        .map_err(|error| failure(error.to_string()))?;
+    if existing.request_fingerprint != fingerprint(&input.body) {
+        return Err(AdkChatPortError::Conflict(
+            "clientRequestId was already used with a different request".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 /// The first TIMED_OUT/FAILED/CANCELLED tool call message, mirroring Go's
 /// `FirstToolCallFailure` (`FirstToolCallByStatus` + `ToolCallFailureMessage`).
 ///
@@ -253,4 +272,3 @@ fn stream_from_payload(raw: &str) -> Result<AdkChatPortOutput, AdkChatPortError>
         terminal,
     }))
 }
-

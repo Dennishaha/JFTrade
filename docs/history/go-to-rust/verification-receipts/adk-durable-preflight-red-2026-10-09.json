@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_stream_preflight_rejects_corrupt_durable_payload)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T19:26:56Z",
+  "sourceState": {
+    "verifiedCommit": "db2b5cd9eb2ea674ecd4d4c455ecd39a11b39bb5",
+    "trackedDiffSha256": "d48e75110bd66b0b3879eda1b472c588df59978b1a51df82c95ebc27add22aa9",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_durable_identity_preflight_tests.rs",
+        "sha256": "9620d85937398889552b89aa51c16fa29c9f14f25b1ea6bb73a8a4965d52baa2"
+      }
+    ]
+  },
+  "rawOutputSha256": "cb68a623801738c7f22f4df92c998bb0648e5431a0fba82d9151c3c286fd0e01",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::durable_identity::production_stream_preflight_rejects_corrupt_durable_payload_before_conflict_or_cached_replay"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1962,
+      "exec_time": 0.83051875,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -16,6 +16,9 @@ mod retained_readiness;
 #[path = "product_adk_pre_run_stream_tests.rs"]
 mod pre_run;
 
+#[path = "product_adk_durable_identity_preflight_tests.rs"]
+mod durable_identity;
+
 // Inject only the socket failure. Routes, cursor projection, body polling and
 // connection cleanup all run through the prepared production router/Hyper.
 struct FailingListener {

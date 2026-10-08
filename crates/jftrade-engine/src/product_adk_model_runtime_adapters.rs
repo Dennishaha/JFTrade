@@ -95,20 +95,7 @@ impl AdkChatStreamPort for ProductionAdkChatRuntime {
     }
 
     fn check_chat_request_conflict(&self, input: &AdkChatInput) -> Result<(), AdkChatPortError> {
-        let existing = self
-            .store
-            .get_run_by_client_request_id(&input.client_request_id)
-            .map_err(|error| AdkChatPortError::Failed {
-                status: 500,
-                code: "ADK_CHAT_FAILED".to_owned(),
-                message: error.to_string(),
-            })?;
-        if existing.is_some_and(|run| run.request_fingerprint != fingerprint(&input.body)) {
-            return Err(AdkChatPortError::Conflict(
-                "clientRequestId was already used with a different request".to_owned(),
-            ));
-        }
-        Ok(())
+        check_durable_request_identity(&self.store, input)
     }
 
     fn cancel_run(&self, run_id: &str) -> bool {

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T19:33:07.302668+00:00",
+  "verifiedCommit": "db2b5cd9eb2ea674ecd4d4c455ecd39a11b39bb5",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-durable-preflight-quick-20261009.log",
+  "rawOutputSha256": "bb0ebbdd376d3f10c15e9dd29f6409643f88fd9bc46aa75e121624bc6241ceaf",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2415,
+    "passed": 2415,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 109.316
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_adapters.rs": "b7adc0e7671ca70d2eb07d376e9d756eb741e98a3337d86f12fa173743bfa540",
+    "crates/jftrade-engine/src/product_adk_model_runtime_replay.rs": "2a162a61d92e4670d3758e4b2d65e971bc813c86a92cb306fdfe2b3b16cc9e4f",
+    "crates/jftrade-engine/src/product_adk_pre_run_stream_tests.rs": "a188f555aa6f347c4fb1f9fc5d02f3559cf25c0e6e9dbcfced823a38c33e13bf",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "64b01dfcca06fac402b9bbe1125a27104b58bfe7112464b0d9052f847ac718e6",
+    "crates/jftrade-engine/src/product_adk_retained_stream_readiness_tests.rs": "5455ebbbe1faa185b5d3c5e7c3c2201682f0736a7f16468bfdeebb4058cd08b7",
+    "crates/jftrade-engine/src/product_adk_durable_identity_preflight_tests.rs": "9620d85937398889552b89aa51c16fa29c9f14f25b1ea6bb73a8a4965d52baa2"
+  },
+  "rustSourceFingerprintSha256": "abe8493ca3faa3bf2e47b73cd59e099af436b94513ff87b1999f919e29cdb6a1",
+  "frozenRustFiles": 1028,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Durable stream preflight rejects malformed JSON and nonobject/non-null payload before fingerprint conflict or cached replay; six corruption controls cover ready/unready runtime and matching/different identity. Retained GET error history and original durable row/audit remain unchanged with zero provider contacts. Six frozen originals reviewed without mapping upgrades. Go field-level typed decoding, canonical fingerprint, post-creation error terminal retention, known context, successful concurrency and idle per-request pre-cancellation remain open. Stable 200-versus-500 production red preserved. Whole parity active.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

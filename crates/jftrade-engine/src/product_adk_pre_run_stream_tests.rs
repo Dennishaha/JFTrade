@@ -122,12 +122,12 @@ async fn production_configured_stream_keeps_existing_durable_payload_failure_out
     }).unwrap();
     let before = port.store.list_runs().unwrap();
     let error = port.dispatch(AdkChatRoute::Stream,&input).unwrap_err();
-    assert!(matches!(error,crate::product::product_adk_chat_stream_port::AdkChatPortError::Unavailable(_)));
+    assert!(matches!(error,crate::product::product_adk_chat_stream_port::AdkChatPortError::Failed {status:500,code,..} if code=="ADK_CHAT_FAILED"));
     let changed = crate::product::product_adk_chat_stream_port::AdkChatInput {
         body:br#"{"message":"changed"}"#.to_vec(), ..input.clone()
     };
     assert!(matches!(port.dispatch(AdkChatRoute::Stream,&changed),
-        Err(crate::product::product_adk_chat_stream_port::AdkChatPortError::Conflict(_))));
+        Err(crate::product::product_adk_chat_stream_port::AdkChatPortError::Failed {status:500,code,..}) if code=="ADK_CHAT_FAILED"));
     assert_eq!(port.unavailable_streams.retained_request_count(), 0);
     port.shutdown_with_error().unwrap();
     assert_eq!(port.store.list_runs().unwrap(),before);

@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 durable 请求预检的 payload 解码优先级
+
+- 冻结Go `persistence.ChatRunByClientRequestID`先decodeRun后比指纹；真实生产红证明配置未就绪、指纹相同但payload畸形的已有run被保留流遮蔽为200。`adk-durable-preflight-red-2026-10-09.json`0 passed/1 failed，SHA `e29f46ebbca611ec2268c079932ff96c3756cf93e03974394dc8e31c37a26813`。原tested diff SHA、1028个Rust源码指纹及新测试全文在运行前保存；红源码按原指纹逐文件归档，不依赖旧机器/tmp。
+- 现有model runtime/store adapter在指纹比较之前验证payload JSON语法及顶层object/null形状，读取或解码失败统一500 `ADK_CHAT_FAILED`。六条控制跨真实runtime配置未就绪/就绪、相同/不同指纹、malformed/array/string payload，真实POST均500且无新stream ID；改变请求也保持解码失败优先，原保留流GET仍返回原error/replay，原run列表与audit完整保持，零provider连接。正向保留流fixture使用有效匹配payload并断言run保持；此前“不解析畸形payload”的断言按新生产红及Go源修正为解码失败，未放宽错误控制。
+- 核对6条冻结原函数及blob：helpers167/216、recovery41、disconnect55/110、routes301。原分类均保持1660 exact/2153 partial/638 boundary；本批是额外生产分支闭环，不添加无对应原断言的anchor或升级exact。JSON object内部字段的Go类型解码等价仍未承诺，canonical身份、创建后准备失败终态、known-context、成功并发及idle request-context预取消继续开放。
+- 控制定向10 passed receipt独立保存；最终canonical定向34 passed/0 failed，`adk-durable-preflight-production-owner-verified-2026-10-09.json` SHA `baa5d1bc61c2664523116f33dd07ceea36c87dce38e78a8d00b5395d1d958812`。查看quick计划后2415 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4010 passed/0 failed/2 skipped，static与七类兼容回放通过，无LEAK。1028个Rust文件从定向到完整门禁冻结；2 skipped不计执行通过。
+- 三份receipt、两份gate、raw SHA、6条原函数、anchor/reuse与diff逐项核验；strict/context通过，unrecorded/stale0、既有unknown48。证据`.git/adk-durable-preflight-*`，内置盘备份`/Users/jiangfan/.cache/jftrade/parity-durable-preflight-recovery-20261009`。历史LEAK未定位，整体active；继续请求身份规范化与剩余生产owner边界。
+
 ## 2026-10-09 已配置 runtime 的准备错误断连重放
 
 - 实际生产红证明配置可用runtime的空message在准备阶段直接JSON返回，首次retry BrokenPipe探针计数0。`adk-pre-run-red-2026-10-09.json`为0 passed/1 failed，SHA `83d975963f1e7cb0bd05274865609c312a34931e777273f840a659258646502f`；运行前完整源码指纹已保存，红测试源码由最终源码及基线重建后逐文件匹配原指纹，共1027个Rust文件归档。内部新增准备结果类型暴露provider probe非穷尽匹配的编译失败单独留证，按原runtime_error映射补齐，不放宽断言。

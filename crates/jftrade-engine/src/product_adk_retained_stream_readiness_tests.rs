@@ -140,7 +140,7 @@ async fn production_retained_error_survives_runtime_readiness_change_after_retry
 }
 
 #[tokio::test]
-async fn production_retained_error_replays_with_matching_durable_identity_without_parsing_run_payload()
+async fn production_retained_error_replays_with_valid_matching_durable_identity_without_run_changes()
  {
     use sha2::Digest;
     let (_directory, port, provider) = configured_port();
@@ -163,7 +163,7 @@ async fn production_retained_error_replays_with_matching_durable_identity_withou
             status: "COMPLETED",
             client_request_id: REQUEST,
             request_fingerprint: &fingerprint,
-            payload_json: "invalid payload that preflight must not parse",
+            payload_json: r#"{"route":"stream"}"#,
         })
         .unwrap();
     let before = port.store.get_run("run-matching").unwrap().unwrap();
