@@ -12,23 +12,23 @@ use jftrade_marketdata::{CacheLookup, ProviderRouter};
 use jftrade_settings::MarketDataProvider;
 use serde_json::{Value, json};
 
+#[path = "product_production_ports_market_data_quote_broker.rs"]
+mod quote_broker;
+#[path = "product_production_ports_market_data_quote_lease.rs"]
+mod quote_lease;
 #[path = "product_production_ports_market_data_quote_reads.rs"]
 mod quote_reads;
 #[path = "product_production_ports_market_data_quote_reads_futu.rs"]
 mod quote_reads_futu;
-#[path = "product_production_ports_market_data_quote_tick_candles.rs"]
-mod quote_tick_candles;
 #[path = "product_production_ports_market_data_quote_snapshot.rs"]
 mod quote_snapshot;
 #[path = "product_production_ports_market_data_quote_snapshot_reads.rs"]
 mod quote_snapshot_reads;
-#[path = "product_production_ports_market_data_quote_lease.rs"]
-mod quote_lease;
-#[path = "product_production_ports_market_data_quote_broker.rs"]
-mod quote_broker;
-use quote_lease::capability_unsupported_error;
-use quote_broker::validate_explicit_broker;
+#[path = "product_production_ports_market_data_quote_tick_candles.rs"]
+mod quote_tick_candles;
 use super::super::product_production_ports_trade::{canonical_candle_time, quote_market_code};
+use quote_broker::validate_explicit_broker;
+use quote_lease::capability_unsupported_error;
 use std::sync::{Arc, Mutex};
 
 use super::product_production_ports_market_data_projection::{
@@ -129,7 +129,6 @@ impl ProductionMarketDataQuotePort {
             .and_then(|runtime| runtime.market_microstructure_reader())
             .or_else(|| self.microstructure.clone())
     }
-
 }
 
 impl MarketDataQuoteReadSnapshotPort for ProductionMarketDataQuotePort {
@@ -236,14 +235,13 @@ impl ProductionMarketDataQuotePort {
         query: &str,
     ) -> Result<Value, MarketDataQuoteReadSnapshotError> {
         let (market, symbol) = parse_market_symbol_path(suffix)?;
-        let query_map = QueryMap::parse(query).map_err(|_| {
-            MarketDataQuoteReadSnapshotError::Failed {
+        let query_map =
+            QueryMap::parse(query).map_err(|_| MarketDataQuoteReadSnapshotError::Failed {
                 status: 400,
                 code: "BAD_REQUEST".to_owned(),
                 message: "invalid URL escape".to_owned(),
                 retry_after_seconds: None,
-            }
-        })?;
+            })?;
         let provider = self.active_provider()?;
         validate_explicit_broker(&query_map, provider)?;
 
@@ -298,7 +296,8 @@ impl ProductionMarketDataQuotePort {
         }
 
         if provider == MarketDataProvider::Futu {
-            let market_code = quote_market_code(&market.to_ascii_uppercase()).ok_or_else(|| {
+            let canonical_market = market.to_ascii_uppercase();
+            let market_code = quote_market_code(&canonical_market).ok_or_else(|| {
                 MarketDataQuoteReadSnapshotError::Failed {
                     status: 400,
                     code: "BAD_REQUEST".to_owned(),
@@ -354,7 +353,7 @@ impl ProductionMarketDataQuotePort {
             let mut sec = serde_json::Map::new();
             sec.insert(
                 "currency".to_owned(),
-                json!(match market.as_str() {
+                json!(match canonical_market.as_str() {
                     "HK" => "HKD",
                     "US" => "USD",
                     "SH" | "SZ" | "CN" => "CNY",
@@ -378,7 +377,7 @@ impl ProductionMarketDataQuotePort {
             sec.insert("symbol".to_owned(), json!(symbol));
             sec.insert(
                 "timezone".to_owned(),
-                json!(match market.as_str() {
+                json!(match canonical_market.as_str() {
                     "US" => "America/New_York",
                     _ => "Asia/Shanghai",
                 }),

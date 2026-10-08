@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T00:29:20Z",
+  "sourceState": {
+    "verifiedCommit": "5e6884c7033df246d4e499f3b57aa1df860a3912",
+    "trackedDiffSha256": "d874b95ae7aff13161f697fcdd8c03f9b5d86c1a6d49ca8ab00305b95c9ef57a",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+        "sha256": "522eef6cdba517bd15656f146ab9b94c466bfa23ef4319e60c1f78d5feedf367"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/snapshot-http-boundaries-original-2026-10-08.json",
+        "sha256": "fa83f6b9de46ae44f32a0725c177cf80054859027f9ba3b9515124d04916b7e3"
+      }
+    ]
+  },
+  "rawOutputSha256": "5cdae8c097454a5b3148ad02307537c09598cff55c7813aefd042464c926d2da",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::market_data_snapshot_http_boundary_tests::security_http_market_case_aliases_keep_currency_and_timezone_equal",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_snapshot_http_boundary_tests::snapshot_http_authoritative_quote_keeps_missing_fields_null",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_snapshot_http_boundary_tests::snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_snapshot_http_boundary_tests::snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_snapshot_http_boundary_tests::snapshot_http_legacy_quote_keeps_zero_strings_available",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_snapshot_http_boundary_tests::snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 6,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1850,
+      "exec_time": 17.263746291,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -2,6 +2,9 @@
 use super::*;
 
 fn client() -> reqwest::Client {
+    // This loopback client also constructs TLS configuration. Initialize it
+    // here so the fixture does not depend on another runtime adapter doing so.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     reqwest::Client::builder()
         .no_proxy()
         .timeout(Duration::from_secs(5))

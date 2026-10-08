@@ -204765,9 +204765,9 @@
     },
     "internal/marketdata/quote_availability_test.go:9:TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::authoritative_snapshot_keeps_missing_quote_fields_null；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract",
-      "conclusion": "partial：Rust 已将 Futu typed quote 标记为 authoritative，并在缓存 snapshot projection 中断言 bid/ask/volume/turnover 的缺失值为 JSON null；差异：Go 同一测试还断言 LiveTickJSON/LatestTicksJSON 的可空字段及 brokerId=akshare，Rust 没有这两个同形聚合序列化入口，不能升级为 exact。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(explicit_active_broker_selection_reaches_its_provider_owner) or test(authoritative_snapshot_keeps_missing_quote_fields_null) or test(legacy_tick_without_snapshot_keeps_zero_quote_fields_available) or test(futu_snapshot_route_projects_cached_extended_quote_contract)'",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_authoritative_quote_keeps_missing_fields_null",
+      "conclusion": "partial：实际HTTP缓存读取在authoritative=true、price100且无bid/ask/volume/turnover时返回200，四个键都存在且精确为JSON null，不借legacy volume0填补缺失；meta.brokerId实际为futu。 原输入Source=akshare:eastmoney还断言LiveTickJSON.cumulativeVolume=null、snapshot.volume=null和brokerId=akshare，以及LatestTicksJSON首条bid/ask/volume/cumulativeVolume全null；本批Futu缓存snapshot wire不代替上述AKShare live/latest聚合入口，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/quote_availability_test.go",
@@ -204777,34 +204777,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs",
-          "test": "authoritative_snapshot_keeps_missing_quote_fields_null",
+          "file": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+          "test": "snapshot_http_authoritative_quote_keeps_missing_fields_null",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/marketdata/quote_availability_test.go",
             "goLine": 9,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs",
-            "rustLine": 27
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "futu_snapshot_route_projects_cached_extended_quote_contract",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/marketdata/quote_availability_test.go",
-            "goLine": 9,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 353
+            "rustFile": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+            "rustLine": 207
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 已将 Futu typed quote 标记为 authoritative，并在缓存 snapshot projection 中断言 bid/ask/volume/turnover 的缺失值为 JSON null；"
+          "实际HTTP缓存读取在authoritative=true、price100且无bid/ask/volume/turnover时返回200，四个键都存在且精确为JSON null，不借legacy volume0填补缺失；meta.brokerId实际为futu。"
         ],
         "uncovered": [
-          "差异：Go 同一测试还断言 LiveTickJSON/LatestTicksJSON 的可空字段及 brokerId=akshare，Rust 没有这两个同形聚合序列化入口，不能升级为 exact。"
+          "原输入Source=akshare:eastmoney还断言LiveTickJSON.cumulativeVolume=null、snapshot.volume=null和brokerId=akshare，以及LatestTicksJSON首条bid/ask/volume/cumulativeVolume全null；本批Futu缓存snapshot wire不代替上述AKShare live/latest聚合入口，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -204815,52 +204804,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)"
         ],
         "testFilter": [
-          "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-          "news_route_serves_an_explicit_broker_id_for_the_active_provider",
-          "explicit_broker_selection_rejects_non_active_provider_before_reads",
-          "explicit_active_broker_selection_reaches_its_provider_owner",
-          "authoritative_snapshot_keeps_missing_quote_fields_null",
-          "legacy_tick_without_snapshot_keeps_zero_quote_fields_available",
-          "futu_snapshot_route_projects_cached_extended_quote_contract"
+          "snapshot_http_authoritative_quote_keeps_missing_fields_null"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5e6884c7033df246d4e499f3b57aa1df860a3912",
+        "verifiedAt": "2026-10-08T00:56:48Z",
+        "receiptDigest": "sha256:b7b3eef690768163d7a12f0aa3f0cc9fee51f9b56ce27d085a4263900e3e55d6"
       },
       "risk": "normal",
       "owner": "marketdata_quotes",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 已将 Futu typed quote 标记为 authoritative，并在缓存 snapshot projection 中断言 bid/ask/volume/turnover 的缺失值为 JSON null；"
+        "实际HTTP缓存读取在authoritative=true、price100且无bid/ask/volume/turnover时返回200，四个键都存在且精确为JSON null，不借legacy volume0填补缺失；meta.brokerId实际为futu。"
       ],
       "uncoveredAssertions": [
-        "差异：Go 同一测试还断言 LiveTickJSON/LatestTicksJSON 的可空字段及 brokerId=akshare，Rust 没有这两个同形聚合序列化入口，不能升级为 exact。"
+        "原输入Source=akshare:eastmoney还断言LiveTickJSON.cumulativeVolume=null、snapshot.volume=null和brokerId=akshare，以及LatestTicksJSON首条bid/ask/volume/cumulativeVolume全null；本批Futu缓存snapshot wire不代替上述AKShare live/latest聚合入口，保持partial。"
       ],
       "boundaryReason": null
     },
     "internal/marketdata/quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::legacy_tick_without_snapshot_keeps_zero_quote_fields_available；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract",
-      "conclusion": "partial：Rust projection 回归测试对无 snapshot 的 legacy Tick 逐项断言 bid/ask/volume/turnover 均保持字符串 0，并保留 route extended quote 证据；差异：Go 断言的是 SnapshotJSON 公共序列化函数，Rust 没有同名 helper 的直接 wire 测试，因此仍保留 partial。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback) or test(news_route_serves_an_explicit_broker_id_for_the_active_provider) or test(explicit_broker_selection_rejects_non_active_provider_before_reads) or test(explicit_active_broker_selection_reaches_its_provider_owner) or test(authoritative_snapshot_keeps_missing_quote_fields_null) or test(legacy_tick_without_snapshot_keeps_zero_quote_fields_available) or test(futu_snapshot_route_projects_cached_extended_quote_contract)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_legacy_quote_keeps_zero_strings_available",
+      "conclusion": "function_exact：原legacy价格100、bid/ask/volume/turnover零值且无authoritative snapshot，经真实ProductionMarketDataQuotePort的缓存读取与HTTP投影返回200、price字符串100、四个字段全部为字符串0，不是null或缺失。Rust缓存必需的US.AAPL身份只用于定位sample，未改变原四个可用性输入。 原35仅断言上述四个字段，没有live/latest、brokerId或同名SnapshotJSON helper要求；清除旧mapping仅因Rust helper名字不同而保留partial的额外限制。有效SNAPSHOT demand、fromCache=true与读取后缓存恰一条也直接断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/quote_availability_test.go",
         "line": 35,
@@ -204869,35 +204853,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs",
-          "test": "legacy_tick_without_snapshot_keeps_zero_quote_fields_available",
+          "file": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+          "test": "snapshot_http_legacy_quote_keeps_zero_strings_available",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/marketdata/quote_availability_test.go",
             "goLine": 35,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs",
-            "rustLine": 45
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "futu_snapshot_route_projects_cached_extended_quote_contract",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/marketdata/quote_availability_test.go",
-            "goLine": 35,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 353
+            "rustFile": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+            "rustLine": 192
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust projection 回归测试对无 snapshot 的 legacy Tick 逐项断言 bid/ask/volume/turnover 均保持字符串 0，并保留 route extended quote 证据；"
+          "原legacy价格100、bid/ask/volume/turnover零值且无authoritative snapshot，经真实ProductionMarketDataQuotePort的缓存读取与HTTP投影返回200、price字符串100、四个字段全部为字符串0，不是null或缺失。Rust缓存必需的US.AAPL身份只用于定位sample，未改变原四个可用性输入。",
+          "原35仅断言上述四个字段，没有live/latest、brokerId或同名SnapshotJSON helper要求；清除旧mapping仅因Rust helper名字不同而保留partial的额外限制。有效SNAPSHOT demand、fromCache=true与读取后缓存恰一条也直接断言。"
         ],
-        "uncovered": [
-          "差异：Go 断言的是 SnapshotJSON 公共序列化函数，Rust 没有同名 helper 的直接 wire 测试，因此仍保留 partial。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -204907,44 +204879,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)"
         ],
         "testFilter": [
-          "explicit_broker_that_is_not_the_active_provider_is_rejected_without_fallback",
-          "news_route_serves_an_explicit_broker_id_for_the_active_provider",
-          "explicit_broker_selection_rejects_non_active_provider_before_reads",
-          "explicit_active_broker_selection_reaches_its_provider_owner",
-          "authoritative_snapshot_keeps_missing_quote_fields_null",
-          "legacy_tick_without_snapshot_keeps_zero_quote_fields_available",
-          "futu_snapshot_route_projects_cached_extended_quote_contract"
+          "snapshot_http_legacy_quote_keeps_zero_strings_available"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5e6884c7033df246d4e499f3b57aa1df860a3912",
+        "verifiedAt": "2026-10-08T00:56:48Z",
+        "receiptDigest": "sha256:b7b3eef690768163d7a12f0aa3f0cc9fee51f9b56ce27d085a4263900e3e55d6"
       },
       "risk": "normal",
       "owner": "marketdata_quotes",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust projection 回归测试对无 snapshot 的 legacy Tick 逐项断言 bid/ask/volume/turnover 均保持字符串 0，并保留 route extended quote 证据；"
+        "原legacy价格100、bid/ask/volume/turnover零值且无authoritative snapshot，经真实ProductionMarketDataQuotePort的缓存读取与HTTP投影返回200、price字符串100、四个字段全部为字符串0，不是null或缺失。Rust缓存必需的US.AAPL身份只用于定位sample，未改变原四个可用性输入。",
+        "原35仅断言上述四个字段，没有live/latest、brokerId或同名SnapshotJSON helper要求；清除旧mapping仅因Rust helper名字不同而保留partial的额外限制。有效SNAPSHOT demand、fromCache=true与读取后缓存恰一条也直接断言。"
       ],
-      "uncoveredAssertions": [
-        "差异：Go 断言的是 SnapshotJSON 公共序列化函数，Rust 没有同名 helper 的直接 wire 测试，因此仍保留 partial。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/marketdata/rankings_facade_test.go:54:TestServiceRankingsRejectsProvidersWithoutCapability": {
@@ -205832,9 +205798,9 @@
     },
     "internal/marketdata/service_facade_test.go:69:TestServiceSnapshotErrorsAreBusinessVisible": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_rejects_malformed_refresh_before_provider_access",
-      "conclusion": "partial：Rust 断言 provider 不可用时读路由 fail-closed 返回业务错误；差异：Go 断言 provider 错误与“missing snapshot”两类错误原样可见（不被包装为空响应），Rust 的错误码映射在路由层断言，缺少同形的 provider 错误透传用例。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary",
+      "conclusion": "partial：原HK/00700 refresh=true在真实production snapshot owner中分别注入provider denied snapshot与空结果，两次实际reader均恰一次收到HK.00700，HTTP都返回503 MARKET_DATA_QUOTE_READ_UNAVAILABLE及no cached snapshot available for HK.00700，而非空200。 原provider denied要求errors.Is返回原错误，Rust Futu fallback的ok链吞掉provider错误原因，两种情形均映射无缓存503；原missing错误要求no snapshot available for HK.00700文本，与当前no cached snapshot available文字也不同。当前差异已直接断言，未静默改变公开错误分类或将其升exact。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/marketdata/service_facade_test.go",
@@ -205844,34 +205810,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable",
+          "file": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+          "test": "snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/marketdata/service_facade_test.go",
             "goLine": 69,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 181
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "snapshot_rejects_malformed_refresh_before_provider_access",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/marketdata/service_facade_test.go",
-            "goLine": 69,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 562
+            "rustFile": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+            "rustLine": 280
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 断言 provider 不可用时读路由 fail-closed 返回业务错误；"
+          "原HK/00700 refresh=true在真实production snapshot owner中分别注入provider denied snapshot与空结果，两次实际reader均恰一次收到HK.00700，HTTP都返回503 MARKET_DATA_QUOTE_READ_UNAVAILABLE及no cached snapshot available for HK.00700，而非空200。"
         ],
         "uncovered": [
-          "差异：Go 断言 provider 错误与“missing snapshot”两类错误原样可见（不被包装为空响应），Rust 的错误码映射在路由层断言，缺少同形的 provider 错误透传用例。"
+          "原provider denied要求errors.Is返回原错误，Rust Futu fallback的ok链吞掉provider错误原因，两种情形均映射无缓存503；原missing错误要求no snapshot available for HK.00700文本，与当前no cached snapshot available文字也不同。当前差异已直接断言，未静默改变公开错误分类或将其升exact。"
         ],
         "source": "reviewed"
       },
@@ -205882,47 +205837,47 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)"
         ],
         "testFilter": [
-          "market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable",
-          "snapshot_rejects_malformed_refresh_before_provider_access"
+          "snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5e6884c7033df246d4e499f3b57aa1df860a3912",
+        "verifiedAt": "2026-10-08T00:56:48Z",
+        "receiptDigest": "sha256:b7b3eef690768163d7a12f0aa3f0cc9fee51f9b56ce27d085a4263900e3e55d6"
       },
       "risk": "normal",
       "owner": "marketdata_quotes",
       "priority": "P2",
-      "nextAction": "add_exact_route_or_projection_assertions_for_uncovered_cases",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 断言 provider 不可用时读路由 fail-closed 返回业务错误；"
+        "原HK/00700 refresh=true在真实production snapshot owner中分别注入provider denied snapshot与空结果，两次实际reader均恰一次收到HK.00700，HTTP都返回503 MARKET_DATA_QUOTE_READ_UNAVAILABLE及no cached snapshot available for HK.00700，而非空200。"
       ],
       "uncoveredAssertions": [
-        "差异：Go 断言 provider 错误与“missing snapshot”两类错误原样可见（不被包装为空响应），Rust 的错误码映射在路由层断言，缺少同形的 provider 错误透传用例。"
+        "原provider denied要求errors.Is返回原错误，Rust Futu fallback的ok链吞掉provider错误原因，两种情形均映射无缓存503；原missing错误要求no snapshot available for HK.00700文本，与当前no cached snapshot available文字也不同。当前差异已直接断言，未静默改变公开错误分类或将其升exact。"
       ],
       "boundaryReason": null
     },
     "internal/marketdata/service_facade_test.go:83:TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_handles_cn_market_and_prefixes；crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract",
-      "conclusion": "partial：Rust 覆盖 CN 市场代码前缀推断（600519→SH.600519 一类叶市场归一）与快照读；差异：Go 断言 GetSnapshot(\"CN\",\"600519\") 时 provider 收到的 snapshotID 是叶市场，Rust 没有针对 CN 聚合参数落到叶市场的快照路由断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request",
+      "conclusion": "function_exact：原始CN/SH.600519、refresh=true、价1338.5和volume10输入走真实HTTP与production quote owner，实际snapshot reader恰一次收到SH.600519；response.request完整等于marketSH/symbol600519/instrumentIdSH.600519，状态200且价格1338.5。 原83实际symbol是SH.600519而非旧mapping文字的裸600519；生产parse_market_symbol_path已有CN叶市场owner，本次用同一读取直接闭合原provider目标和request字段，而非以独立normalize helper推测。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/service_facade_test.go",
         "line": 83,
@@ -205931,35 +205886,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-marketdata/src/catalog_tests.rs",
-          "test": "normalize_instrument_handles_cn_market_and_prefixes",
-          "crate": "jftrade-marketdata",
-          "anchor": {
-            "goFile": "internal/marketdata/service_facade_test.go",
-            "goLine": 83,
-            "rustFile": "crates/jftrade-marketdata/src/catalog_tests.rs",
-            "rustLine": 130
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "futu_snapshot_route_projects_cached_extended_quote_contract",
+          "file": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+          "test": "snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/marketdata/service_facade_test.go",
             "goLine": 83,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 353
+            "rustFile": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+            "rustLine": 231
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖 CN 市场代码前缀推断（600519→SH.600519 一类叶市场归一）与快照读；"
+          "原始CN/SH.600519、refresh=true、价1338.5和volume10输入走真实HTTP与production quote owner，实际snapshot reader恰一次收到SH.600519；response.request完整等于marketSH/symbol600519/instrumentIdSH.600519，状态200且价格1338.5。",
+          "原83实际symbol是SH.600519而非旧mapping文字的裸600519；生产parse_market_symbol_path已有CN叶市场owner，本次用同一读取直接闭合原provider目标和request字段，而非以独立normalize helper推测。"
         ],
-        "uncovered": [
-          "差异：Go 断言 GetSnapshot(\"CN\",\"600519\") 时 provider 收到的 snapshotID 是叶市场，Rust 没有针对 CN 聚合参数落到叶市场的快照路由断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -205969,39 +205912,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)"
         ],
         "testFilter": [
-          "normalize_instrument_handles_cn_market_and_prefixes",
-          "futu_snapshot_route_projects_cached_extended_quote_contract"
+          "snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5e6884c7033df246d4e499f3b57aa1df860a3912",
+        "verifiedAt": "2026-10-08T00:56:48Z",
+        "receiptDigest": "sha256:b7b3eef690768163d7a12f0aa3f0cc9fee51f9b56ce27d085a4263900e3e55d6"
       },
       "risk": "normal",
       "owner": "marketdata_quotes",
       "priority": "P2",
-      "nextAction": "add_exact_route_or_projection_assertions_for_uncovered_cases",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖 CN 市场代码前缀推断（600519→SH.600519 一类叶市场归一）与快照读；"
+        "原始CN/SH.600519、refresh=true、价1338.5和volume10输入走真实HTTP与production quote owner，实际snapshot reader恰一次收到SH.600519；response.request完整等于marketSH/symbol600519/instrumentIdSH.600519，状态200且价格1338.5。",
+        "原83实际symbol是SH.600519而非旧mapping文字的裸600519；生产parse_market_symbol_path已有CN叶市场owner，本次用同一读取直接闭合原provider目标和request字段，而非以独立normalize helper推测。"
       ],
-      "uncoveredAssertions": [
-        "差异：Go 断言 GetSnapshot(\"CN\",\"600519\") 时 provider 收到的 snapshotID 是叶市场，Rust 没有针对 CN 聚合参数落到叶市场的快照路由断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/marketdata/service_facade_test.go:105:TestServiceProviderReadsResolveChinaAggregateToExchangeLeaf": {
@@ -206092,11 +206034,11 @@
       "boundaryReason": null
     },
     "internal/marketdata/service_facade_test.go:136:TestServiceRejectsSnapshotCompletedAfterProviderChange": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query；crates/jftrade-marketdata/src/snapshot_poll.rs::completion_after_generation_change_cannot_mutate_cache_or_failure_state",
-      "conclusion": "partial：Rust 断言 provider 切换期间完成的旧快照读被 generation fence 拒绝且不写入缓存；差异：Go 断言旧 provider 结果错误可见且不重新填充缓存，Rust 以读端口错误与缓存计数断言表达，语义等价。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-marketdata -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty",
+      "conclusion": "function_exact：真实loopback helper收到US.AAPL请求头后，在交付原188.5/volume10的成功响应前推进实际active provider generation；真实HTTP结果为409 MARKET_DATA_PROVIDER_CHANGED而非旧provider成功数据，对应原ErrProviderChanged业务分类。 actual state为Akshare/generation1，router.cache.history(US.AAPL)为空且instrument_count=0，直接证明旧请求没有回填cache；不用另一pure cache测试替代该同一query的副作用断言。helper accept/read/write有3秒边界、headers最多8192字节、2秒client timeout，并显式join，未用sleep推断切换时序。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/marketdata/service_facade_test.go",
         "line": 136,
@@ -206105,35 +206047,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "snapshot_read_fences_provider_generation_switch_during_helper_query",
+          "file": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+          "test": "snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/marketdata/service_facade_test.go",
             "goLine": 136,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 460
-          }
-        },
-        {
-          "file": "crates/jftrade-marketdata/src/snapshot_poll.rs",
-          "test": "completion_after_generation_change_cannot_mutate_cache_or_failure_state",
-          "crate": "jftrade-marketdata",
-          "anchor": {
-            "goFile": "internal/marketdata/service_facade_test.go",
-            "goLine": 136,
-            "rustFile": "crates/jftrade-marketdata/src/snapshot_poll.rs",
-            "rustLine": 405
+            "rustFile": "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs",
+            "rustLine": 16
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 断言 provider 切换期间完成的旧快照读被 generation fence 拒绝且不写入缓存；"
+          "真实loopback helper收到US.AAPL请求头后，在交付原188.5/volume10的成功响应前推进实际active provider generation；真实HTTP结果为409 MARKET_DATA_PROVIDER_CHANGED而非旧provider成功数据，对应原ErrProviderChanged业务分类。",
+          "actual state为Akshare/generation1，router.cache.history(US.AAPL)为空且instrument_count=0，直接证明旧请求没有回填cache；不用另一pure cache测试替代该同一query的副作用断言。helper accept/read/write有3秒边界、headers最多8192字节、2秒client timeout，并显式join，未用sleep推断切换时序。"
         ],
-        "uncovered": [
-          "差异：Go 断言旧 provider 结果错误可见且不重新填充缓存，Rust 以读端口错误与缓存计数断言表达，语义等价。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -206143,39 +206073,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_settings_preserve_original_integration_delete_and_removed_route_shapes) or test(snapshot_http_legacy_quote_keeps_zero_strings_available) or test(snapshot_http_authoritative_quote_keeps_missing_fields_null) or test(snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request) or test(snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary) or test(snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty) or test(security_http_market_case_aliases_keep_currency_and_timezone_equal)"
         ],
         "testFilter": [
-          "snapshot_read_fences_provider_generation_switch_during_helper_query",
-          "completion_after_generation_change_cannot_mutate_cache_or_failure_state"
+          "snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "5e6884c7033df246d4e499f3b57aa1df860a3912",
+        "verifiedAt": "2026-10-08T00:56:48Z",
+        "receiptDigest": "sha256:b7b3eef690768163d7a12f0aa3f0cc9fee51f9b56ce27d085a4263900e3e55d6"
       },
       "risk": "normal",
       "owner": "marketdata_quotes",
       "priority": "P2",
-      "nextAction": "add_exact_route_or_projection_assertions_for_uncovered_cases",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 断言 provider 切换期间完成的旧快照读被 generation fence 拒绝且不写入缓存；"
+        "真实loopback helper收到US.AAPL请求头后，在交付原188.5/volume10的成功响应前推进实际active provider generation；真实HTTP结果为409 MARKET_DATA_PROVIDER_CHANGED而非旧provider成功数据，对应原ErrProviderChanged业务分类。",
+        "actual state为Akshare/generation1，router.cache.history(US.AAPL)为空且instrument_count=0，直接证明旧请求没有回填cache；不用另一pure cache测试替代该同一query的副作用断言。helper accept/read/write有3秒边界、headers最多8192字节、2秒client timeout，并显式join，未用sleep推断切换时序。"
       ],
-      "uncoveredAssertions": [
-        "差异：Go 断言旧 provider 结果错误可见且不重新填充缓存，Rust 以读端口错误与缓存计数断言表达，语义等价。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/marketdata/service_facade_test.go:162:TestServiceTickCandlesProviderAndFallbackBoundaries": {
@@ -342194,26 +342123,24 @@
       "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_rejects_malformed_refresh_before_provider_access": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/marketdata/routes_boundaries_test.go:208:TestSnapshotRejectsMalformedRefreshQuery",
-        "internal/marketdata/lifecycle_boundaries_test.go:101:TestServiceRemainingLifecycleBoundaries",
-        "internal/marketdata/service_facade_test.go:69:TestServiceSnapshotErrorsAreBusinessVisible"
+        "internal/marketdata/lifecycle_boundaries_test.go:101:TestServiceRemainingLifecycleBoundaries"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-09-29 API transport batch: bounded fan-out owner compared against every cited Go assertion; shared behavior is explicit and test-backed. Fan-out >5 remains backlog."
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::snapshot_read_fences_provider_generation_switch_during_helper_query": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
         "internal/api/marketdata/routes_boundaries_test.go:273:TestMarketDataReadErrorsExposeProviderSwitchRetrySignal",
         "internal/marketdata/instrument_resolver_test.go:314:TestMarketSubsetInstrumentResolverResetSeparatesProviderGenerations",
         "internal/marketdata/instrument_resolver_test.go:437:TestMarketSubsetInstrumentResolverPropagatesContextCancellation",
         "internal/marketdata/provider_switch_boundaries_test.go:55:TestProviderSwitchRetainsOnlyCurrentGenerationTickCandles",
         "internal/marketdata/provider_switch_lifecycle_test.go:224:TestProviderChangeBlocksReadsDuringActivation",
-        "internal/marketdata/provider_switch_lifecycle_test.go:268:TestProviderChangeWaitsForInflightReadThenClearsItsCache",
-        "internal/marketdata/service_facade_test.go:136:TestServiceRejectsSnapshotCompletedAfterProviderChange"
+        "internal/marketdata/provider_switch_lifecycle_test.go:268:TestProviderChangeWaitsForInflightReadThenClearsItsCache"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
@@ -346376,11 +346303,10 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-marketdata/src/catalog_tests.rs::normalize_instrument_handles_cn_market_and_prefixes": {
-      "referenceCount": 4,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/app/apiserver/servercore/instrument_ref_test.go:8:TestNormalizeInstrumentInput",
         "internal/app/apiserver/servercoretest/market_profiles_test.go:79:TestNormalizeMarketInstrumentEndpoint",
-        "internal/marketdata/service_facade_test.go:83:TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf",
         "internal/integration/yfinance/provider_test.go:265:TestProviderQueriesHongKongAndChinaLeafMarkets"
       ],
       "allowed": false,
@@ -357184,12 +357110,9 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_snapshot_route_projects_cached_extended_quote_contract": {
-      "referenceCount": 6,
+      "referenceCount": 3,
       "referenceKeys": [
         "internal/marketdata/cache_test.go:261:TestSerializationPreservesNullExtendedAndStringPrices",
-        "internal/marketdata/quote_availability_test.go:9:TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields",
-        "internal/marketdata/quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable",
-        "internal/marketdata/service_facade_test.go:83:TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf",
         "internal/integration/yfinance/conversion_test.go:45:TestSnapshotConversionPreservesRegularChangeWhenPreMarketQuoteIsUnavailable",
         "internal/integration/yfinance/conversion_test.go:77:TestSnapshotConversionUsesRegularCloseForValidPreMarketQuote"
       ],
@@ -357342,14 +357265,13 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-marketdata/src/snapshot_poll.rs::completion_after_generation_change_cannot_mutate_cache_or_failure_state": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/marketdata/collector_test.go:47:TestCollectorOldGenerationCannotCommitPushOrConnect",
         "internal/marketdata/collector_test.go:249:TestCollectorDemandChangeCancelsPreviousProviderPoll",
         "internal/marketdata/collector_test.go:279:TestCollectorResetInvalidatesBlockingQueryResult",
         "internal/marketdata/provider_switch_boundaries_test.go:55:TestProviderSwitchRetainsOnlyCurrentGenerationTickCandles",
-        "internal/marketdata/provider_switch_lifecycle_test.go:268:TestProviderChangeWaitsForInflightReadThenClearsItsCache",
-        "internal/marketdata/service_facade_test.go:136:TestServiceRejectsSnapshotCompletedAfterProviderChange"
+        "internal/marketdata/provider_switch_lifecycle_test.go:268:TestProviderChangeWaitsForInflightReadThenClearsItsCache"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
@@ -357549,13 +357471,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::market_data_quote_read_routes_fail_closed_when_snapshot_is_unavailable": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/marketdata/lifecycle_boundaries_test.go:101:TestServiceRemainingLifecycleBoundaries",
-        "internal/marketdata/service_facade_test.go:69:TestServiceSnapshotErrorsAreBusinessVisible"
+        "internal/marketdata/lifecycle_boundaries_test.go:101:TestServiceRemainingLifecycleBoundaries"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-marketdata/src/router.rs::router_drives_runtime_recorder_from_provider_and_demand_state": {
@@ -357638,22 +357559,6 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/marketdata/provider_switch_lifecycle_test.go:63:TestProviderChangeAndManagedLeaseAreMutuallyExclusive"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::authoritative_snapshot_keeps_missing_quote_fields_null": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/marketdata/quote_availability_test.go:9:TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
-    "crates/jftrade-engine/src/product_production_ports_market_data_quote_snapshot_tests.rs::legacy_tick_without_snapshot_keeps_zero_quote_fields_available": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/marketdata/quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable"
       ],
       "allowed": true,
       "reviewStatus": "single"
@@ -365035,6 +364940,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "internal/assistant/engine/persistence/session_sqlite_schema_test.go:82:TestSQLiteSessionServiceRejectsV1SchemaWithoutMutatingEvents"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_denied_and_missing_reader_results_keep_the_current_unavailable_boundary": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/service_facade_test.go:69:TestServiceSnapshotErrorsAreBusinessVisible"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_legacy_quote_keeps_zero_strings_available": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/quote_availability_test.go:35:TestSnapshotSerializationKeepsLegacyZeroValuesAvailable"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_authoritative_quote_keeps_missing_fields_null": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/quote_availability_test.go:9:TestSnapshotSerializationPreservesAuthoritativeMissingQuoteFields"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_provider_change_rejects_late_success_and_keeps_cache_empty": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/service_facade_test.go:136:TestServiceRejectsSnapshotCompletedAfterProviderChange"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_market_data_snapshot_http_boundary_tests.rs::snapshot_http_china_aggregate_uses_exchange_leaf_for_actual_reader_and_request": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/marketdata/service_facade_test.go:83:TestServiceSnapshotResolvesChinaAggregateToExchangeLeaf"
       ],
       "reviewStatus": "single"
     },
