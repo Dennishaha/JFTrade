@@ -3,6 +3,9 @@ use crate::product::product_production_ports::ProductionAdkPort;
 use jftrade_store_sqlite::{AdkArtifactStore, CreateAdkRunParams};
 use tokio_stream::StreamExt;
 
+#[path = "product_adk_reconnect_disconnect_tests.rs"]
+mod disconnect;
+
 fn reconnect_port() -> (tempfile::TempDir, Arc<ProductionAdkPort>) {
     let (directory, store, sessions) = initialized_stores();
     let artifact = directory.path().join("adk-artifact.db");

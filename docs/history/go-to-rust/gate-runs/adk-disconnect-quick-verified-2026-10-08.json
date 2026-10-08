@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T10:57:38.768820+00:00",
+  "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-disconnect-quick-20261008.log",
+  "rawOutputSha256": "1361f23b594b776499380bace64cbb3605498332155b15f9a8d10966e143c4c4",
+  "planOutputSha256": "b3e10304cc6fce097332fe2399d7abe6be7b92b997c134205428224b691f95ad",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2357,
+    "passed": 2357,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 101.047
+  },
+  "pineWorker": {
+    "passed": 98,
+    "failed": 0
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "rustSourceFingerprintSha256": "10e7284a42f41db4ebbc8f9385861724fc614bd6030e323966096aa83aa24db1",
+  "frozenRustFiles": 1013,
+  "rustSourceChangedDuringGate": []
+}

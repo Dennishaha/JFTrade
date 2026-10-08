@@ -4,13 +4,20 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：ADK 重连失败与取消
+## 当前批次：ADK 租约 heartbeat 与 provider 取消
 
 内置 agent 配置批次之后，租约夹具已改为受控失效及 worker 同步信号，保留 takeover、UNKNOWN、禁止重复执行和旧 fencing token 拒绝断言。新机器定向 12 passed，quick 2353 passed，完整 Rust 3945 passed、0 failed、2 skipped；五条 Go 原测试复核中纠正一条证据不足的 exact，当前 1660 exact、2153 partial、638 boundary。失败及通过证据见 [证据积压清单](history/go-to-rust/parity-evidence-backlog.md)。开发分支为 `codex/parity-assistant-builtin-config-20261008`，整体行为目标继续 active。
 
-- [ ] 逐项复核 chat_transport_disconnect55/110、chat_helpers167/216 和 service_test49；具体重连路径的写失败与预取消必须有直接 owner 证据，不能仅用 generic SSE 测试替代。
-- [ ] 真实缺口补测，必要时独立红后修复；完整原行为闭合才升级 exact，公开 admission 差异和未执行分支仍保持 partial。
-- [ ] 最窄 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+- [ ] 逐项复核 runtime_execution_lease_boundaries 的 context/reuse、heartbeat failure、expired refresh、near-expiry TTL 和 safe defaults 五条；直接验证生产 RunLeaseGuard、SQLite owner 与 provider 取消链。
+- [ ] 用受控存储故障和阻塞 provider 验证 heartbeat 丢失是否立即取消当前执行并 join；完整原行为闭合才升级 exact，nil/context 与写入前检查差异保留。
+- [ ] 定向 receipt、ordinary/strict、anchor/context、quick 计划与现场 quick、完整 Rust 门禁、diff/源码指纹复核后独立提交。
+
+## 已验证批次：ADK 重连失败与取消
+
+- [x] 复核 chat_transport_disconnect55/110、chat_helpers167/216、service_test49 和 runner_chat1124 六条冻结 Go 原测试及 blob SHA。
+- [x] 真实 prepared router/ProductionAdkPort/Hyper socket 覆盖两路 retry/event 写失败精确一次退出、reader 回收和终态历史保留；listener 预取消两路空 body 保留 RUNNING。Go request-context 预取消差异继续 partial。
+- [x] 直接生产模板 owner 在 chat runtime 缺失时无 error、templates 非 null，service49 升 exact；disconnect55 的旧证据未覆盖 malformed retry 和 absent-runtime 后台 error，纠正为 partial。五种终态重复迟到取消/失败保持完整 row、timestamps、stream history、session events 和 audit。
+- [x] 新机器定向 15 passed，quick 2357 Rust/98 Pine passed，完整 `CARGO_INCREMENTAL=0 check:rust` 3949 passed、0 failed、2 skipped，明确退出 0；1013 个 Rust 文件指纹未变。ordinary/strict/anchor 通过，当前 1660 exact、2153 partial、638 boundary。三次 fixture 失败和 reuse 元数据失败日志均保留，继续下一批。
 
 ## 已验证批次：Pine tuple重复别名与公共helper诊断
 

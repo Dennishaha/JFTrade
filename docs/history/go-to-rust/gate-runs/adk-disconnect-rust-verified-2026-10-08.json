@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T10:59:44.036988+00:00",
+  "verifiedCommit": "1b648d4193356893c86b56da268662a3b9d82b99",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-disconnect-rust-full-20261008.log",
+  "rawOutputSha256": "4ea605b1f1033251553a75adadd3e351cf175c340d130cca1e6d298100e5170d",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "cargoDeny": "0.20.2",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 3949,
+    "passed": 3949,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 102.679
+  },
+  "static": "passed",
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs": "cf218405d33732705d9ea3efd2514f6915d34f9a032bc1e3453b96e6008a0779",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "4a409052fdc4dbe8399bc92d27e2e4fab63c1978f16ae5e3b22a5c31cd07a3a3",
+    "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs": "a0d809d2d5a49396b3e308aceba671fb4b36aec5d2f7952e47f73fe47c0dc65e",
+    "crates/jftrade-engine/src/product_adk_terminal_disconnect_tests.rs": "60037bc032e80bdfdae8b5b1fe37c106b4494f294486d9a1e397133379df75d8",
+    "crates/jftrade-engine/src/product_server.rs": "2bb9ef69adaf47791ef8da34e02924624b0d942c65eebf803060cf0467b26a48"
+  },
+  "rustSourceFingerprintSha256": "10e7284a42f41db4ebbc8f9385861724fc614bd6030e323966096aa83aa24db1",
+  "frozenRustFiles": 1013,
+  "rustSourceChangedDuringGate": [],
+  "remainingRisk": "request-context precancel and malformed initial stream/unavailable-runtime terminal error remain partial; whole parity goal remains active."
+}

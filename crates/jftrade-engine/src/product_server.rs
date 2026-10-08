@@ -21,6 +21,8 @@ pub async fn start_product(config: ProductConfig) -> Result<ProductHandle, Produ
 /// listener and marks the live hub `serving`.
 pub(crate) struct PreparedProduct {
     pub(crate) handle: ProductHandle,
+    #[cfg(test)]
+    api: Arc<ProductApi>,
     listener: StdTcpListener,
     router: axum::Router,
     live_hub: Arc<LiveHub>,
@@ -654,6 +656,8 @@ pub(crate) async fn prepare_product_with_runtime_state(
             },
         },
     ));
+    #[cfg(test)]
+    let api = Arc::clone(&port);
     let mut state = ApiState::new(routes, access_policy, port)
         .with_live_hub(Arc::clone(&live_hub))
         .with_swagger_docs(swagger_docs());
@@ -743,6 +747,8 @@ pub(crate) async fn prepare_product_with_runtime_state(
         websocket_status: live_hub.lifecycle().as_str(),
     };
     Ok(PreparedProduct {
+        #[cfg(test)]
+        api,
         handle: ProductHandle {
             startup_record,
             server: None,

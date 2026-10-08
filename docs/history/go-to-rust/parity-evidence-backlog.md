@@ -1287,3 +1287,13 @@ runtime resource ownership 与 lifecycle 两批已完成真实 owner 测试、as
 - 新机器 quick：2353 Rust tests passed、98 Pine worker tests passed、七类 replay passed；完整 `CARGO_INCREMENTAL=0 pnpm run check:rust` 明确退出 0，3945 passed、0 failed、2 skipped，static 与七类 replay 全部通过。receipt 为 `gate-runs/adk-lease-quick-verified-2026-10-08.json`、`gate-runs/adk-lease-rust-verified-2026-10-08.json`；1011 个 Rust 源文件在运行期间指纹未变。
 - 首次 quick 的外置卷 AppleDouble/Tauri 构建失败，以及首次完整 Rust 的直接 GitHub advisory 拉取失败分别保留独立失败 receipt。编译输出移至内置 APFS，子 Git 继承已配置系统代理后重跑，未修改 Rust 源码、依赖、门禁或断言。
 - strict/ordinary 审计通过，当前 1660 exact、2153 partial、638 boundary；anchor 未登记 0、stale 0，原有 unknown Go line 48 保持显式结果。接续 ADK 重连失败、预取消和断连终态的生产 owner 验证。
+
+## 2026-10-08 ADK 重连写失败与终态 owner
+
+- 六条冻结 Go 原测试及 blob SHA 已复核：disconnect55/110、helpers167/216、service49、runner_chat1124。socket 只注入 AsyncWrite BrokenPipe，真实 prepared router、ProductionAdkPort reader、Hyper connection cleanup 均执行；两路 retry/event 失败只发生一次，canonical streamId、reader 释放、完整终态保留和后续健康 replay 直接断言。
+- listener 已预取消的两路请求返回 503/空 body 且完整 RUNNING row 不变；这是生产 listener cancellation owner 证据，Go request-context 预取消 idle 零 body 分支仍未闭合，disconnect110 保持 partial。
+- ProductionAdkPort.chat_runtime=None、ProductApi.adk_chat_stream_port=None 下直接调用 `production_agent_templates`，无 error、templates 非 null，service49 升 exact。首次 stream disconnect55 的旧 exact 仅合成成功帧与 499 收敛，缺 malformed retry 写失败和 unavailable-runtime 后台 error 保留，纠正为 partial；净数量不变：1660 exact、2153 partial、638 boundary。
+- COMPLETED/FAILED/CANCELLED/TIMED_OUT/DENIED 五种状态的生产 `persist_cancelled`/`persist_failure` 重复调用保留完整 row、时间戳、stream history、session events 与 audit；CANCELLED/DENIED 的迟到 failure 分类也保持。runner_chat1124 的 COMPLETED status/message/no-cancel-audit 原断言闭合，改为直接引用此表；其余 helper 分类/preview/admission 缺口保留。
+- 定向 nextest 15/15 passed；canonical receipt `verification-receipts/adk-disconnect-production-owner-2026-10-08.json`。TLS provider、错误模板 URL 和未 seed session 的外键错误分别保留三份 failure receipt；断言没有放宽。首次 strict/anchor 因新增 evidence 未同步 reuse 失败，原日志保留在本机 `.git/adk-disconnect-strict-20261008.log` 和 `.git/adk-disconnect-anchor-20261008.log`；复核引用关系后重跑通过。
+- quick 2357 Rust passed、98 Pine worker passed、七类 replay 通过；现场完整 Rust 3949 passed、0 failed、2 skipped，static 与七类 replay 通过，两门禁明确退出 0。证据为 `gate-runs/adk-disconnect-quick-verified-2026-10-08.json` 和 `gate-runs/adk-disconnect-rust-verified-2026-10-08.json`；1013 个 Rust 文件在运行期间指纹未变。
+- ordinary/strict 通过，anchor 未登记 0、stale 0，既有 unknown Go line 48 保持显式记录。终态表 reuse 仅支持两项 mapping 中列明的断言；整体对齐继续 active，下一批检查生产 heartbeat 丢失与 provider 取消链。
