@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T16:10:57.536104+00:00",
+  "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-takeover-fixture-quick-20261009.log",
+  "rawOutputSha256": "ca419bd6727d9a8be9f243c1845e39a405c30b5ccaeaa894863f742afa9b6776",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 2393,
+    "passed": 2393,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 104.702
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_takeover_tests.rs": "605c4787e73d273adeff72064ce6c14c44e59a39764d3c203e28b1b75ad394ce"
+  },
+  "rustSourceFingerprintSha256": "471854c60b0c92dca9b77bd5cbc7c9abf8c2d1532882128a3d92f0de3ef24984",
+  "frozenRustFiles": 1021,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Remaining takeover fixtures use explicit transactional expiry while exercising the original production store claim/commit. UNKNOWN, stale token rejection, terminal winner and single execution assertions remain. Six originals reviewed without status upgrades; ADK durable FAILED/COMPLETED and full caller error boundaries remain partial. Whole parity stays active; prior failures retained.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "status": "not_selected",
+    "reason": "Quick planner selects desktop Rust reverse dependency and compatibility replay for test-only engine changes; standalone desktop Node runtime/script checks were not scheduled."
+  }
+}

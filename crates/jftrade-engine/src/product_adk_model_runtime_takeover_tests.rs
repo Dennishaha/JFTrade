@@ -15,6 +15,42 @@ use jftrade_store_sqlite::{
 
 use super::{AdkToolExecutor, replay_safe_tool};
 
+const FIXTURE_TTL: Duration = Duration::from_secs(30);
+
+fn expire_lease_fixture(
+    directory: &tempfile::TempDir,
+    run_id: &str,
+    call_id: Option<&str>,
+    run: bool,
+) {
+    let mut connection = Connection::open(directory.path().join("adk.db")).expect("fixture DB");
+    let transaction = connection.transaction().expect("expiry transaction");
+    if run {
+        assert_eq!(
+            transaction
+                .execute(
+                    "UPDATE adk_run_leases SET expires_at_unix_ms=0 WHERE run_id=?1",
+                    [run_id],
+                )
+                .expect("expire run lease"),
+            1
+        );
+    }
+    if let Some(call_id) = call_id {
+        assert_eq!(
+            transaction
+                .execute(
+                    "UPDATE adk_tool_invocations SET lease_expires_at_unix_ms=0
+             WHERE run_id=?1 AND idempotency_key=?2",
+                    [run_id, call_id],
+                )
+                .expect("expire tool lease"),
+            1
+        );
+    }
+    transaction.commit().expect("commit fixture expiry");
+}
+
 fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
     let directory = tempdir().expect("temporary directory");
     let adk_path = directory.path().join("adk.db");
@@ -138,7 +174,7 @@ impl AdkToolExecutor for MockReplayToolExecutor {
 
 #[test]
 fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_condition() {
-    let (_directory, store, session_store) = initialized_stores();
+    let (directory, store, session_store) = initialized_stores();
     let run = create_test_run(&store, "run-stale-commit");
     let event = AdkRunEvent {
         id: "run-stale-commit:tool:call-1",
@@ -150,7 +186,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
 
     // Scenario 1: Tool lease expired before takeover, worker tries to commit
     let lease_1 = store
-        .claim_run_lease("run-stale-commit", "worker-1", Duration::from_millis(30))
+        .claim_run_lease("run-stale-commit", "worker-1", FIXTURE_TTL)
         .expect("claim lease 1");
     let claim_1 = match claim_tool(
         &store,
@@ -161,7 +197,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         &run.updated_at,
         "worker-1",
         lease_1.fencing_token,
-        Duration::from_millis(30),
+        FIXTURE_TTL,
         true,
     )
     .expect("claim tool 1")
@@ -169,7 +205,16 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         AdkToolInvocationClaim::Execute(inv) => inv,
         other => panic!("expected Execute, got {other:?}"),
     };
-    thread::sleep(Duration::from_millis(50));
+    expire_lease_fixture(
+        &directory,
+        "run-stale-commit",
+        Some("call-expired-before-takeover"),
+        false,
+    );
+    assert_eq!(
+        store.get_run_lease("run-stale-commit").unwrap().unwrap(),
+        lease_1
+    );
     let commit_err_1 = commit_tool(
         &store,
         "run-stale-commit",
@@ -190,8 +235,9 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
     );
 
     // Scenario 2: Tool invocation transitioned to UNKNOWN by takeover worker
+    expire_lease_fixture(&directory, "run-stale-commit", None, true);
     let lease_2 = store
-        .claim_run_lease("run-stale-commit", "worker-2", Duration::from_millis(500))
+        .claim_run_lease("run-stale-commit", "worker-2", FIXTURE_TTL)
         .expect("claim lease 2");
     let claim_unknown = claim_tool(
         &store,
@@ -202,7 +248,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         &run.updated_at,
         "worker-2",
         lease_2.fencing_token,
-        Duration::from_millis(100),
+        FIXTURE_TTL,
         true,
     )
     .expect("takeover claim");
@@ -237,7 +283,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         &run.updated_at,
         "worker-2",
         lease_2.fencing_token,
-        Duration::from_secs(10),
+        FIXTURE_TTL,
         true,
     )
     .expect("claim long ttl")
@@ -245,9 +291,9 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         AdkToolInvocationClaim::Execute(inv) => inv,
         other => panic!("expected Execute, got {other:?}"),
     };
-    thread::sleep(Duration::from_millis(550));
+    expire_lease_fixture(&directory, "run-stale-commit", None, true);
     let _lease_3 = store
-        .claim_run_lease("run-stale-commit", "worker-3", Duration::from_millis(40))
+        .claim_run_lease("run-stale-commit", "worker-3", FIXTURE_TTL)
         .expect("claim lease 3");
 
     let commit_err_3 = commit_tool(
@@ -297,7 +343,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         content: "{}",
     };
     let replay_lease_1 = store
-        .claim_run_lease("run-stale-replay", "worker-1", Duration::from_millis(30))
+        .claim_run_lease("run-stale-replay", "worker-1", FIXTURE_TTL)
         .expect("claim replay lease 1");
     let replay_claim_1 = match claim_tool(
         &store,
@@ -308,7 +354,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         &run_replay.updated_at,
         "worker-1",
         replay_lease_1.fencing_token,
-        Duration::from_millis(30),
+        FIXTURE_TTL,
         false,
     )
     .expect("claim replay-safe")
@@ -316,9 +362,14 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         AdkToolInvocationClaim::Execute(inv) => inv,
         other => panic!("expected Execute, got {other:?}"),
     };
-    thread::sleep(Duration::from_millis(50));
+    expire_lease_fixture(
+        &directory,
+        "run-stale-replay",
+        Some("call-replay-commit"),
+        true,
+    );
     let replay_lease_2 = store
-        .claim_run_lease("run-stale-replay", "worker-2", Duration::from_secs(5))
+        .claim_run_lease("run-stale-replay", "worker-2", FIXTURE_TTL)
         .expect("claim replay lease 2");
     let takeover_replay_claim = match claim_tool(
         &store,
@@ -329,7 +380,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
         &run_replay.updated_at,
         "worker-2",
         replay_lease_2.fencing_token,
-        Duration::from_secs(5),
+        FIXTURE_TTL,
         false,
     )
     .expect("takeover replay claim")
@@ -385,7 +436,7 @@ fn stale_worker_late_result_commit_never_succeeds_under_any_takeover_or_expiry_c
 
 #[test]
 fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() {
-    let (_directory, store, session_store) = initialized_stores();
+    let (directory, store, session_store) = initialized_stores();
     let run = create_test_run(&store, "run-replay-safe");
     assert!(replay_safe_tool("portfolio.positions"));
     assert!(!replay_safe_tool("trade.place_order"));
@@ -397,7 +448,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
     });
 
     let lease_1 = store
-        .claim_run_lease("run-replay-safe", "worker-1", Duration::from_millis(40))
+        .claim_run_lease("run-replay-safe", "worker-1", FIXTURE_TTL)
         .expect("claim lease 1");
     let claim_1 = match claim_tool(
         &store,
@@ -408,7 +459,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
         &run.updated_at,
         "worker-1",
         lease_1.fencing_token,
-        Duration::from_millis(40),
+        FIXTURE_TTL,
         false,
     )
     .expect("claim 1")
@@ -421,10 +472,10 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
         .execute("portfolio.positions", &json!({}))
         .expect("exec 1");
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
-    thread::sleep(Duration::from_millis(60));
+    expire_lease_fixture(&directory, "run-replay-safe", Some("call-pos-1"), true);
 
     let lease_2 = store
-        .claim_run_lease("run-replay-safe", "worker-2", Duration::from_secs(5))
+        .claim_run_lease("run-replay-safe", "worker-2", FIXTURE_TTL)
         .expect("claim lease 2");
     assert_eq!(lease_2.fencing_token, 2);
 
@@ -437,7 +488,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
         &run.updated_at,
         "worker-2",
         lease_2.fencing_token,
-        Duration::from_secs(5),
+        FIXTURE_TTL,
         false,
     )
     .expect("claim 2")
@@ -491,7 +542,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
         &current_run.updated_at,
         "worker-2",
         lease_2.fencing_token,
-        Duration::from_secs(5),
+        FIXTURE_TTL,
         false,
     )
     .expect("claim 3");
@@ -514,7 +565,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
         &current_run.updated_at,
         "worker-2",
         lease_2.fencing_token,
-        Duration::from_millis(30),
+        FIXTURE_TTL,
         false,
     )
     .expect("claim race init")
@@ -522,7 +573,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
         AdkToolInvocationClaim::Execute(inv) => inv,
         other => panic!("expected Execute, got {other:?}"),
     };
-    thread::sleep(Duration::from_millis(50));
+    expire_lease_fixture(&directory, "run-replay-safe", Some("call-pos-race"), false);
 
     let mut race_handles = Vec::new();
     for _ in 0..5 {
@@ -539,7 +590,7 @@ fn replay_safe_tools_re_execute_on_takeover_and_deduplicate_subsequent_claims() 
                 &updated_at,
                 "worker-2",
                 token,
-                Duration::from_secs(5),
+                FIXTURE_TTL,
                 false,
             )
         }));

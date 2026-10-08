@@ -88422,7 +88422,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T15:46:42.243338+00:00",
+        "verifiedAt": "2026-10-08T16:06:57.625436+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88438,7 +88438,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(run_lease) | test(durable_tool) | test(tool_deadline_tests) | test(lease_snapshot) | test(commit_tool_result) | test(test_run_lease_release) | test(strategy_runtime::owner_tests) | test(recovery_failure_converges_the_running_instance_to_stopped)"
+          "test(takeover_tests) | test(fencing_tests) | test(durable_tool) | test(adk_lease_fencing_takeover_edge_conditions) | test(run_lease::snapshot)"
         ],
         "testFilter": [
           "production_read_tool_result_replays_from_the_same_durable_invocation_without_execution",
@@ -88446,8 +88446,8 @@
           "production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key",
           "production_keyed_handler_consuming_the_key_completes_and_replays_without_execution"
         ],
-        "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
-        "receiptDigest": "sha256:75b11b112eed999eca20cd6dd4e9272af64dd66c16cc87b6e64dcf3d8bedab4a"
+        "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+        "receiptDigest": "sha256:34682560e5e5ba8c2cb092f9ea41da925d27cd2ea21c10d79f555edbfd5aff2d"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88522,7 +88522,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T15:46:42.243338+00:00",
+        "verifiedAt": "2026-10-08T16:06:57.625436+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88538,15 +88538,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(run_lease) | test(durable_tool) | test(tool_deadline_tests) | test(lease_snapshot) | test(commit_tool_result) | test(test_run_lease_release) | test(strategy_runtime::owner_tests) | test(recovery_failure_converges_the_running_instance_to_stopped)"
+          "test(takeover_tests) | test(fencing_tests) | test(durable_tool) | test(adk_lease_fencing_takeover_edge_conditions) | test(run_lease::snapshot)"
         ],
         "testFilter": [
           "production_failed_read_persists_its_false_output_and_failed_call",
           "production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution",
           "production_checkpoint_replay_journal_failure_rolls_back_the_projection"
         ],
-        "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
-        "receiptDigest": "sha256:75b11b112eed999eca20cd6dd4e9272af64dd66c16cc87b6e64dcf3d8bedab4a"
+        "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+        "receiptDigest": "sha256:34682560e5e5ba8c2cb092f9ea41da925d27cd2ea21c10d79f555edbfd5aff2d"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88647,7 +88647,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T15:46:42.243338+00:00",
+        "verifiedAt": "2026-10-08T16:06:57.625436+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88663,7 +88663,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(run_lease) | test(durable_tool) | test(tool_deadline_tests) | test(lease_snapshot) | test(commit_tool_result) | test(test_run_lease_release) | test(strategy_runtime::owner_tests) | test(recovery_failure_converges_the_running_instance_to_stopped)"
+          "test(takeover_tests) | test(fencing_tests) | test(durable_tool) | test(adk_lease_fencing_takeover_edge_conditions) | test(run_lease::snapshot)"
         ],
         "testFilter": [
           "production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement",
@@ -88672,8 +88672,8 @@
           "production_tool_claim_preserves_precancellation_and_allows_its_current_owner",
           "production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost"
         ],
-        "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
-        "receiptDigest": "sha256:75b11b112eed999eca20cd6dd4e9272af64dd66c16cc87b6e64dcf3d8bedab4a"
+        "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+        "receiptDigest": "sha256:34682560e5e5ba8c2cb092f9ea41da925d27cd2ea21c10d79f555edbfd5aff2d"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -88843,7 +88843,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T15:46:42.243338+00:00",
+        "verifiedAt": "2026-10-08T16:06:57.625436+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88859,13 +88859,13 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(run_lease) | test(durable_tool) | test(tool_deadline_tests) | test(lease_snapshot) | test(commit_tool_result) | test(test_run_lease_release) | test(strategy_runtime::owner_tests) | test(recovery_failure_converges_the_running_instance_to_stopped)"
+          "test(takeover_tests) | test(fencing_tests) | test(durable_tool) | test(adk_lease_fencing_takeover_edge_conditions) | test(run_lease::snapshot)"
         ],
         "testFilter": [
           "production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run"
         ],
-        "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
-        "receiptDigest": "sha256:75b11b112eed999eca20cd6dd4e9272af64dd66c16cc87b6e64dcf3d8bedab4a"
+        "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+        "receiptDigest": "sha256:34682560e5e5ba8c2cb092f9ea41da925d27cd2ea21c10d79f555edbfd5aff2d"
       },
       "risk": "high",
       "owner": "assistant_workflow",
@@ -88927,7 +88927,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T15:46:42.243338+00:00",
+        "verifiedAt": "2026-10-08T16:06:57.625436+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -88943,14 +88943,14 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(run_lease) | test(durable_tool) | test(tool_deadline_tests) | test(lease_snapshot) | test(commit_tool_result) | test(test_run_lease_release) | test(strategy_runtime::owner_tests) | test(recovery_failure_converges_the_running_instance_to_stopped)"
+          "test(takeover_tests) | test(fencing_tests) | test(durable_tool) | test(adk_lease_fencing_takeover_edge_conditions) | test(run_lease::snapshot)"
         ],
         "testFilter": [
           "production_heartbeat_keeps_its_owner_live_beyond_the_initial_snapshot_expiry",
           "production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry"
         ],
-        "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
-        "receiptDigest": "sha256:75b11b112eed999eca20cd6dd4e9272af64dd66c16cc87b6e64dcf3d8bedab4a"
+        "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+        "receiptDigest": "sha256:34682560e5e5ba8c2cb092f9ea41da925d27cd2ea21c10d79f555edbfd5aff2d"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -89025,7 +89025,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T15:46:42.243338+00:00",
+        "verifiedAt": "2026-10-08T16:06:57.625436+00:00",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -89041,15 +89041,15 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(run_lease) | test(durable_tool) | test(tool_deadline_tests) | test(lease_snapshot) | test(commit_tool_result) | test(test_run_lease_release) | test(strategy_runtime::owner_tests) | test(recovery_failure_converges_the_running_instance_to_stopped)"
+          "test(takeover_tests) | test(fencing_tests) | test(durable_tool) | test(adk_lease_fencing_takeover_edge_conditions) | test(run_lease::snapshot)"
         ],
         "testFilter": [
           "production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write",
           "production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
           "production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration"
         ],
-        "verifiedCommit": "96a35e513da1ad2bb6edba9e8cca5a50265d1eaa",
-        "receiptDigest": "sha256:75b11b112eed999eca20cd6dd4e9272af64dd66c16cc87b6e64dcf3d8bedab4a"
+        "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+        "receiptDigest": "sha256:34682560e5e5ba8c2cb092f9ea41da925d27cd2ea21c10d79f555edbfd5aff2d"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -366168,7 +366168,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement": {
       "referenceCount": 1,
@@ -366177,7 +366177,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run": {
       "referenceCount": 1,
@@ -366186,7 +366186,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution": {
       "referenceCount": 1,
@@ -366195,7 +366195,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write": {
       "referenceCount": 1,
@@ -366204,7 +366204,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_near_expiry_caller_snapshot_uses_the_full_requested_ttl": {
       "referenceCount": 1,
@@ -366232,7 +366232,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-store-sqlite/src/adk_run_lease_snapshot_tests.rs::heartbeat_snapshot_at_the_expiry_boundary_preserves_the_live_durable_row": {
       "referenceCount": 1,
@@ -366259,7 +366259,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution": {
       "referenceCount": 1,
@@ -366268,7 +366268,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_journal_failure_rolls_back_the_projection": {
       "referenceCount": 1,
@@ -366277,7 +366277,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover": {
       "referenceCount": 2,
@@ -366287,7 +366287,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key": {
       "referenceCount": 1,
@@ -366296,7 +366296,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt": {
       "referenceCount": 1,
@@ -366314,7 +366314,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_keyed_tool_owner_tests.rs::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption": {
       "referenceCount": 1,
@@ -366343,7 +366343,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost": {
       "referenceCount": 1,
@@ -366352,7 +366352,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_durable_tool_owner_tests.rs::production_tool_claim_preserves_precancellation_and_allows_its_current_owner": {
       "referenceCount": 1,
@@ -366361,7 +366361,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     },
     "crates/jftrade-engine/src/product_adk_run_lease_snapshot_tests.rs::production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry": {
       "referenceCount": 1,
@@ -366370,7 +366370,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-08: ten frozen originals reviewed (six execution_claims and four strategy cleanup/reconcile originals). Configured production heartbeat closes 294. Notification-time probe verifies release before terminal/notification; generic Remote Result is not broker panic, stopped total writes and active summary remain partial. 176/52 corrected to partial. Other consumers of shared tests gain no verdict upgrade from this review."
+      "reviewNote": "2026-10-09: six frozen execution_claims originals and blob SHA reviewed against current production-owner assertions. Takeover fixtures use explicit expiry rather than short leases or sleep, preserving UNKNOWN, no duplicate execution and stale token rejection. Statuses unchanged: 54/265/294 exact; 108 durable status, 167 full tool.Run caller return and 343 SaveRun error classification remain partial."
     }
   }
 }

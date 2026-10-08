@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T16:12:45.758925+00:00",
+  "verifiedCommit": "de51b7ab303bf0ce9c02e08683f0beda944b2a0e",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-takeover-fixture-rust-full-20261009.log",
+  "rawOutputSha256": "a019b683761dc16d83f41bb515afad90412ed22fcff37c37b000a70bdd32e93e",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "rustc": "1.97.1",
+    "node": "24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "34.1",
+    "nextest": "0.9.143",
+    "cargoDeny": "0.20.2",
+    "gitProxy": "macOS configured http://127.0.0.1:10808; child Git only"
+  },
+  "nextestSummary": {
+    "planned": 3988,
+    "passed": 3988,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 108.228
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_takeover_tests.rs": "605c4787e73d273adeff72064ce6c14c44e59a39764d3c203e28b1b75ad394ce"
+  },
+  "rustSourceFingerprintSha256": "471854c60b0c92dca9b77bd5cbc7c9abf8c2d1532882128a3d92f0de3ef24984",
+  "frozenRustFiles": 1021,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Remaining takeover fixtures use explicit transactional expiry while exercising the original production store claim/commit. UNKNOWN, stale token rejection, terminal winner and single execution assertions remain. Six originals reviewed without status upgrades; ADK durable FAILED/COMPLETED and full caller error boundaries remain partial. Whole parity stays active; prior failures retained.",
+  "static": "passed"
+}
