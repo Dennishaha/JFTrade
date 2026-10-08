@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 独立请求取消与生产重连 reader
+
+- 生产HTTP预取消红测0 passed/1 failed：独立请求signal已取消且listener仍活动，旧router仍交付retry并等待body。红receipt SHA `7fd1c6db99111c80605bafc556816427147ce479365cb928682d44959d09437f`；运行时diff、1040个Rust文件指纹及源码全文保留。修复前未安装middleware，失败不是listener shutdown控制。
+- API transport在Axum extension承载独立`RequestCancellation`，生产SSE body owner在首次poll前及idle时消费signal并释放reader，无新增任务或writer。两条重连路由预取消均200、canonical stream ID、零body/EOF，同listener普通GET仍成功；完整RUNNING row、audit及native sessions保持。取消一个reader后同run sibling仍收到live final并EOF，reader引用回收。此证据仅闭合SSE body取消，不推断handler/provider未来全部遵守signal。
+- 控制46 passed，最终定向210 passed/0 failed，无LEAK；canonical receipt SHA `6f8dd9bd59c1ad17794730642af4ffae0ebdd08158c2ebf9126cdd0fd3c5c757`。查看quick计划后2549 Rust/98 Pine/desktop Node11+48通过；现场`CARGO_INCREMENTAL=0 pnpm run check:rust`4037 passed/0 failed/2 skipped，static/七类replay退出0，无LEAK。1040个Rust文件从定向至完整门禁冻结。
+- 8条冻结原函数及blob复核：helpers167/216、disconnect55/110、recovery41、service_business169、runner_chat1124、service_business_helpers145。disconnect110四个原分支由生产owner证据闭合，partial→exact；删除listener-only与错误generic复用，保留具有对应物理anchor的reader/HTTP写失败证据。其余7条分类保持，当前1666 exact/2147 partial/638 boundary。
+- 三份receipt、两份gate/raw SHA、原函数、20处reuse及物理anchor/diff复核；strict/context通过，unrecorded/stale0、既有unknown48。现场证据`.git/adk-request-cancellation-*`及内置盘备份`/Users/jiangfan/.cache/jftrade/parity-request-cancellation-20261009`。known-context、durable字段类型解码、旧请求语义重排、lease启动失败、context首次revision和原生partial/tool投影仍开放；历史LEAK未定位，整体active，继续下一批。
+
 ## 2026-10-09 无内嵌 response 的生产终态恢复
 
 - 两条生产红0 passed/2 failed：实际provider失败且最终原生消息追加被SQLite trigger拒绝时，live发送error；无response的Go式COMPLETED row经两路真实HTTP重连只有run且直接EOF。红receipt `adk-terminal-projection-recovery-red-2026-10-09.json` SHA `ea50688e34a3570de77ba198e06f88d2bf21be4a52efe95d3a1d0fa3503c91e4`，当时diff、1036文件指纹及源码全文保留。

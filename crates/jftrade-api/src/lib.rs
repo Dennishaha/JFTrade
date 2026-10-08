@@ -6,6 +6,7 @@ mod envelope;
 mod listener_lifecycle;
 mod observability;
 mod ports;
+mod request_lifecycle;
 mod route;
 mod router;
 mod session_lifecycle;
@@ -31,6 +32,7 @@ pub use ports::{
     ApiOutput, ApiPort, ApiRequest, ApiStream, ApiStreamBody, ApiStreamSender, Asset, AssetBundle,
     PortFuture,
 };
+pub use request_lifecycle::RequestCancellation;
 pub use route::{RouteCatalog, RouteCatalogError, RouteSpec};
 pub use router::{
     ApiState, LiveMarketDataStatus, LiveMarketDataStatusPort, RequestContext, build_router,

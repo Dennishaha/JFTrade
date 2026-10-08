@@ -31,7 +31,7 @@
 
 ### Rust、行情与交易
 
-- Rust 分层、port、store 和 integration：[Rust 局部指令](../crates/AGENTS.md)、[后端编码规范](architecture/backend-coding-standards.md)。
+- Rust 分层、port、store 和 integration，以及 HTTP 请求取消与 SSE body 所有权：[Rust 局部指令](../crates/AGENTS.md)、[后端编码规范](architecture/backend-coding-standards.md)。
 - Provider 选择、Futu/yfinance/AKShare 能力：[行情数据源](market-data-providers.md)、[helper 排障](troubleshooting/marketdata-sidecar.md)。
 - 行情 helper 的安装、内部 API 与测试：[helper README](../workers/marketdata-sidecar/README.md)。
 - 研究数据源扩展与资格：[数据源资格门槛](market-data-provider-qualification.md)。

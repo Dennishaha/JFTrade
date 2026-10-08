@@ -1,4 +1,7 @@
 use super::*;
+
+#[path = "product_adk_request_cancellation_owner_tests.rs"]
+mod request_cancellation;
 use crate::product::AdkReadSnapshotPort;
 use std::io;
 use std::net::SocketAddr;

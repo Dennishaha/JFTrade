@@ -141,6 +141,9 @@ pub fn build_router(state: ApiState) -> Router {
             state.clone(),
             transport_middleware,
         ))
+        .layer(middleware::from_fn(
+            crate::request_lifecycle::request_lifecycle,
+        ))
         .with_state(state)
 }
 

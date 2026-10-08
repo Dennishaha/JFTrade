@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T21:42:25.938455+00:00",
+  "verifiedCommit": "c90a3ccf1185c41e2aae1fd8a56b5791e2c99918",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-request-cancellation-quick-20261009.log",
+  "rawOutputSha256": "960cb9565ea4e6f3ed4d92a473b8b381fd28cf9d2279e74922742a110b9d247a",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2549,
+    "passed": 2549,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 109.638
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-api/src/lib.rs": "7c28c99566a5c8ccfa59aefa7f74263f39672253ca060f76029285c0dff9cb03",
+    "crates/jftrade-api/src/router.rs": "3e04df2b292e06e24e7975b47df2bdb72e6ece7847268646b0303c4c7609bdd8",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "9ab0fa1734607d6013ee693cc37122b41c7f8d458a31c179722e6eff4857b5d6",
+    "crates/jftrade-api/src/request_lifecycle.rs": "65d2cb0ed08a339a58741770b3f42006969b8e967cf95cf08b1e3759f6b9285d",
+    "crates/jftrade-engine/src/product_adk_request_cancellation_owner_tests.rs": "65581f31f451f178f916761f535b8030b4363f5f47840ac46b5503c62293c023"
+  },
+  "rustSourceFingerprintSha256": "679a4d4ccd2b33efa82f81650776f7a60a265f66b9356541620c72bb3c3968e0",
+  "frozenRustFiles": 1040,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Independent per-request cancellation is carried in an Axum extension and consumed by the production SSE body owner before the first frame and while idle. Real HTTP two-route pre-cancellation gives 200/canonical stream ID/zero body with active listener and unchanged RUNNING row/audit/native sessions; cancelling one reader leaves its sibling able to deliver a live final. Eight frozen originals reviewed; disconnect110 exact+1, counts1666 exact/2147 partial/638 boundary. Known-context suppression, durable typed decoding, legacy semantic reformatting, context revision initialization, native partial/tool projection and lease startup failures remain gaps. Historical LEAKs unresolved; whole goal active.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

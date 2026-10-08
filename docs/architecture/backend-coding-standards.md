@@ -27,6 +27,12 @@ ADK GET 重连 body 由 HTTP 消费者持有，无后台 producer task。SQLite 
 之前标记 replay，之后为 live。终态排空所有页后结束，连接释放即释放 reader 与 timer。
 事件仍保存在 run 的 JSON 数组中，SQLite 每页仍扫描该数组；这不承诺索引读取或固定查询成本。
 
+每个 HTTP 请求在 transport 中创建独立 `RequestCancellation`；上游 transport owner
+也可通过 Axum request extension 传入同一信号。SSE body owner 在首次和后续读取前
+检查该请求信号，预取消可在 retry 前结束为空 body，idle 取消唤醒并立即释放 reader。
+取消只释放该请求 body，同 listener 的其他请求继续服务；信号不进入序列化 `ApiRequest`，
+不创建后台 task，不获得领域写入权。
+
 ### 领域 crates
 
 `jftrade-{settings,marketdata,trading,strategy,backtest,assistant,research,watchlist}` 承载业务规则与协议中立 port。不得依赖 `jftrade-api`、Axum handler、具体 SQLite driver、Futu protobuf 或桌面类型。

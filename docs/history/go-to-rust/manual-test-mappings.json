@@ -4239,11 +4239,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_reader_drop_releases_idle_store_reference_without_background_reads; crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run; crates/jftrade-engine/src/product_adk_read_tests.rs::adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart; crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_retry_and_replay_write_failures_preserve_terminal_history; crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_precancelled_listener_writes_no_body_or_run_changes",
-      "conclusion": "partial：2026-10-08冻结Go原断言复核。真实 prepared HTTP router、ProductionAdkPort reader 与 Hyper socket 在 stream/run 两路 retry/event 写入注入 BrokenPipe；canonical streamId、一次失败、reader释放、完整终态不变和健康重连 replay 闭合。 production listener 预取消两路503空body、完整RUNNING row不变；这仅证明listener取消owner。 剩余：Go request-context 已预取消的 idle stream 零 body 返回分支未闭合；listener shutdown cancellation 与其不同。",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_request_cancellation_owner_tests.rs::production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active",
+      "conclusion": "function_exact：2026-10-09冻结Go四个子分支复核。真实prepared router/ProductionAdkPort/Hyper在stream/run两路retry和event写入注入BrokenPipe，canonical streamId、精确一次失败、reader释放、完整终态不变及健康replay闭合。独立RequestCancellation在HTTP request extension中预先取消；listener仍200服务，两路idle SSE均200、canonical streamId、零body且EOF；完整RUNNING row/audit/native sessions保持，reader store引用释放。 listener-only与无anchor的generic replay不再作为本条exact证据。",
       "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/assistant/chat_transport_disconnect_test.go",
         "line": 110,
@@ -4259,14 +4259,8 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs",
-            "rustLine": 127
+            "rustLine": 129
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs",
-          "test": "reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run",
-          "crate": "jftrade-engine",
-          "anchor": null
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_read_tests.rs",
@@ -4276,14 +4270,8 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_read_tests.rs",
-            "rustLine": 324
+            "rustLine": 326
           }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs",
-          "test": "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
-          "crate": "jftrade-engine",
-          "anchor": null
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
@@ -4293,29 +4281,27 @@
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
             "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
-            "rustLine": 416
+            "rustLine": 436
           }
         },
         {
-          "file": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
-          "test": "production_reconnect_precancelled_listener_writes_no_body_or_run_changes",
+          "file": "crates/jftrade-engine/src/product_adk_request_cancellation_owner_tests.rs",
+          "test": "production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/api/assistant/chat_transport_disconnect_test.go",
             "goLine": 110,
-            "rustFile": "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs",
-            "rustLine": 445
+            "rustFile": "crates/jftrade-engine/src/product_adk_request_cancellation_owner_tests.rs",
+            "rustLine": 6
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "真实 prepared HTTP router、ProductionAdkPort reader 与 Hyper socket 在 stream/run 两路 retry/event 写入注入 BrokenPipe；canonical streamId、一次失败、reader释放、完整终态不变和健康重连 replay 闭合。",
-          "production listener 预取消两路503空body、完整RUNNING row不变；这仅证明listener取消owner。"
+          "真实prepared router/ProductionAdkPort/Hyper在stream/run两路retry和event写入注入BrokenPipe，canonical streamId、精确一次失败、reader释放、完整终态不变及健康replay闭合。",
+          "独立RequestCancellation在HTTP request extension中预先取消；listener仍200服务，两路idle SSE均200、canonical streamId、零body且EOF；完整RUNNING row/audit/native sessions保持，reader store引用释放。"
         ],
-        "uncovered": [
-          "Go request-context 已预取消的 idle stream 零 body 返回分支未闭合；listener shutdown cancellation 与其不同。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -4323,7 +4309,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-08T18:28:58.816871+00:00",
+        "verifiedAt": "2026-10-08T21:38:48Z",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -4333,40 +4319,38 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_unavailable_chat) | test(expired_unavailable_stream) | test(chat_dispatch_retains_error_stream) | test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) | test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_agent_templates_remain_available_without_chat_runtime) | test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) | test(production_live_chat_stream_emits_session_run_and_final_events) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_malformed_chat_stops_after_the_first_retry_write_failure) | test(production_reconnect_precancelled_listener_writes_no_body_or_run_changes) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(production_stream_missing_agent_emits_no_preview_frames) | test(reconnect) | test(stream_owner) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(test_client_disconnect_returns_499_within_250ms) | test(production_adk_and_plugin_and_alert_ports) | test(canonical_278_routes_table_driven_reachability_and_auth_matrix)"
+          "test(request_cancellation) | test(reconnect) | test(terminal_audit) | test(fenc) | test(lease) | test(UNKNOWN) | test(revoked_idle_sse) | test(session_owner_disappearance)"
         ],
         "testFilter": [
           "reconnect_reader_drop_releases_idle_store_reference_without_background_reads",
-          "reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run",
           "adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history",
-          "adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart",
           "production_reconnect_retry_and_replay_write_failures_preserve_terminal_history",
-          "production_reconnect_precancelled_listener_writes_no_body_or_run_changes"
+          "production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active"
         ],
-        "verifiedCommit": "42d01f3434de6d8543fb237925df425df3243e1a",
-        "receiptDigest": "sha256:6c41ff100d5dedd971a967e733f43fa2a3d9c67cdf6a12d52f61272dc86259e1"
+        "verifiedCommit": "c90a3ccf1185c41e2aae1fd8a56b5791e2c99918",
+        "receiptDigest": "sha256:6f8dd9bd59c1ad17794730642af4ffae0ebdd08158c2ebf9126cdd0fd3c5c757"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "close_production_owner_assertions",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "真实 prepared HTTP router、ProductionAdkPort reader 与 Hyper socket 在 stream/run 两路 retry/event 写入注入 BrokenPipe；canonical streamId、一次失败、reader释放、完整终态不变和健康重连 replay 闭合。",
-        "production listener 预取消两路503空body、完整RUNNING row不变；这仅证明listener取消owner。"
+        "真实prepared router/ProductionAdkPort/Hyper在stream/run两路retry和event写入注入BrokenPipe，canonical streamId、精确一次失败、reader释放、完整终态不变及健康replay闭合。",
+        "独立RequestCancellation在HTTP request extension中预先取消；listener仍200服务，两路idle SSE均200、canonical streamId、零body且EOF；完整RUNNING row/audit/native sessions保持，reader store引用释放。"
       ],
-      "uncoveredAssertions": [
-        "Go request-context 已预取消的 idle stream 零 body 返回分支未闭合；listener shutdown cancellation 与其不同。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/input_response_test.go:12:TestRunInputResponseErrorAndRetryContracts": {
@@ -342160,14 +342144,13 @@
       "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
     },
     "crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants",
-        "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
+        "internal/api/assistant/chat_helpers_test.go:167:TestChatStreamExecutionPublishesDeltaAndFinalVariants"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: direct production HTTP request cancellation closes disconnect110 idle pre-cancellation with active listener, empty body, retained row/audit/native sessions and released reader. Retry/event BrokenPipe cases remain proved by the real socket owner. Listener-only and unanchored generic replay references removed from this exact claim; all other original classifications unchanged."
     },
     "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error": {
       "referenceCount": 3,
@@ -364934,7 +364917,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
+      "reviewNote": "2026-10-09: direct production HTTP request cancellation closes disconnect110 idle pre-cancellation with active listener, empty body, retained row/audit/native sessions and released reader. Retry/event BrokenPipe cases remain proved by the real socket owner. Listener-only and unanchored generic replay references removed from this exact claim; all other original classifications unchanged."
     },
     "crates/jftrade-engine/src/product_ws_live_tests.rs::password_change_revokes_browser_websocket_and_keeps_desktop_capability": {
       "referenceCount": 1,
@@ -365551,16 +365534,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
-    },
-    "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
-      ],
-      "allowed": true,
-      "reviewStatus": "single",
-      "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
+      "reviewNote": "2026-10-09: direct production HTTP request cancellation closes disconnect110 idle pre-cancellation with active listener, empty body, retained row/audit/native sessions and released reader. Retry/event BrokenPipe cases remain proved by the real socket owner. Listener-only and unanchored generic replay references removed from this exact claim; all other original classifications unchanged."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection": {
       "allowed": true,
@@ -366103,16 +366077,7 @@
       ],
       "allowed": true,
       "reviewStatus": "single",
-      "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
-    },
-    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_reconnect_precancelled_listener_writes_no_body_or_run_changes": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
-      ],
-      "allowed": true,
-      "reviewStatus": "single",
-      "reviewNote": "2026-10-09: nine frozen originals and blobs rechecked. Transport disconnect55 directly covers both malformed and valid missing-runtime first-retry failures, terminal retention and nonempty error replay. Generic stream/499/late-disconnect reuse removed from its exact claim. Service unready test renamed and reverified; all eight other classifications unchanged. Idle per-request cancellation, private delta/context combinations and canonical request fingerprint remain explicit gaps."
+      "reviewNote": "2026-10-09: direct production HTTP request cancellation closes disconnect110 idle pre-cancellation with active listener, empty body, retained row/audit/native sessions and released reader. Retry/event BrokenPipe cases remain proved by the real socket owner. Listener-only and unanchored generic replay references removed from this exact claim; all other original classifications unchanged."
     },
     "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs::production_agent_templates_remain_available_without_chat_runtime": {
       "referenceCount": 1,
@@ -366571,6 +366536,15 @@
       "allowed": true,
       "reviewStatus": "single",
       "reviewNote": "2026-10-09: frozen service169/recovery10/lifecycle95 assertions closed by the direct production terminal read owner. Prior generic replay evidence retained only for its documented subassertions; new native selection, blank/empty and read-only assertions use dedicated tests. Stream recovery41 remains partial for known-context suppression; request precancellation is not inferred."
+    },
+    "crates/jftrade-engine/src/product_adk_request_cancellation_owner_tests.rs::production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_transport_disconnect_test.go:110:TestChatStreamReconnectAndReplayRespectClientDisconnect"
+      ],
+      "allowed": true,
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-09: direct production HTTP request cancellation closes disconnect110 idle pre-cancellation with active listener, empty body, retained row/audit/native sessions and released reader. Retry/event BrokenPipe cases remain proved by the real socket owner. Listener-only and unanchored generic replay references removed from this exact claim; all other original classifications unchanged."
     }
   }
 }
