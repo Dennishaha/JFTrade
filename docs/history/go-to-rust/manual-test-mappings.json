@@ -9875,9 +9875,9 @@
     },
     "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_ws_depth_http_parity_tests.rs::production_websocket_depth_provider_failure_keeps_session_available_for_retry; crates/jftrade-api/src/websocket_depth_tests.rs::websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot",
-      "conclusion": "partial：具体production depth reader失败后同一认证socket继续收到通知；provider恢复再订阅得到初始深度，恰两次owner读取。真实session projection按各请求档数去重相同resolvedAt、新resolvedAt各发一次、重新订阅允许强制读取；双侧裁剪不改变global event。延迟初始响应不会覆盖已发live push。 本批直接证据只闭合depth provider跳过/恢复与resolvedAt去重；原console刷新及错误冒泡、security provider跳过/去重/forced写失败、depth写失败与auxiliary security失败仍未由相应WS dispatcher完整证明。旧投影/语料不是生产socket send失败对象传播的替代，保留partial。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_websocket_depth_reads_initial_snapshot_then_projects_fresh_opend_push) or test(production_websocket_depth_filters_symbols_and_preserves_each_clients_requested_size) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(websocket_listener_shutdown_cancels_pending_initial_depth_read_and_releases_demand) or test(websocket_depth_pending_reads_release_on_subscription_replacement_and_owner_drop) or test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads)'",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_depth_http_parity_tests.rs::production_websocket_depth_provider_failure_keeps_session_available_for_retry; crates/jftrade-api/src/websocket_depth_tests.rs::websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot; crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs::production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated; crates/jftrade-api/src/websocket_security_tests.rs::security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader; crates/jftrade-api/src/websocket_security_tests.rs::security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read",
+      "conclusion": "partial：真实production depth provider失败跳过并可重试、resolvedAt去重证据保留；新增原US.AAPL security读取seam直接断言provider error跳过、forced订阅重试、同resolvedAt去重及重新订阅强制读取。 真实双production socket验证HK详情push不送至仅订阅US.AAPL的客户端、同resolvedAt不重复送达、重新订阅重新查询；晚到初始详情不能覆盖已送push。 原console refresh及write错误冒泡、security/depth forced write失败和auxiliary dispatcher返回同一wantErr仍未由Rust同形返回值证明；socket send失败退出会话不等于Go私有dispatcher返回错误对象。仍partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/live/dispatcher_boundaries_test.go",
@@ -9907,14 +9907,48 @@
             "rustFile": "crates/jftrade-api/src/websocket_depth_tests.rs",
             "rustLine": 110
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs",
+          "test": "production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 59,
+            "rustFile": "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs",
+            "rustLine": 226
+          }
+        },
+        {
+          "file": "crates/jftrade-api/src/websocket_security_tests.rs",
+          "test": "security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 59,
+            "rustFile": "crates/jftrade-api/src/websocket_security_tests.rs",
+            "rustLine": 134
+          }
+        },
+        {
+          "file": "crates/jftrade-api/src/websocket_security_tests.rs",
+          "test": "security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 59,
+            "rustFile": "crates/jftrade-api/src/websocket_security_tests.rs",
+            "rustLine": 160
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "具体production depth reader失败后同一认证socket继续收到通知；provider恢复再订阅得到初始深度，恰两次owner读取。真实session projection按各请求档数去重相同resolvedAt、新resolvedAt各发一次、重新订阅允许强制读取；双侧裁剪不改变global event。延迟初始响应不会覆盖已发live push。"
+          "真实production depth provider失败跳过并可重试、resolvedAt去重证据保留；新增原US.AAPL security读取seam直接断言provider error跳过、forced订阅重试、同resolvedAt去重及重新订阅强制读取。",
+          "真实双production socket验证HK详情push不送至仅订阅US.AAPL的客户端、同resolvedAt不重复送达、重新订阅重新查询；晚到初始详情不能覆盖已送push。"
         ],
         "uncovered": [
-          "本批直接证据只闭合depth provider跳过/恢复与resolvedAt去重；原console刷新及错误冒泡、security provider跳过/去重/forced写失败、depth写失败与auxiliary security失败仍未由相应WS dispatcher完整证明。旧投影/语料不是生产socket send失败对象传播的替代，保留partial。"
+          "原console refresh及write错误冒泡、security/depth forced write失败和auxiliary dispatcher返回同一wantErr仍未由Rust同形返回值证明；socket send失败退出会话不等于Go私有dispatcher返回错误对象。仍partial。"
         ],
         "source": "reviewed"
       },
@@ -9926,42 +9960,44 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-api",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_websocket_depth_reads_initial_snapshot_then_projects_fresh_opend_push) or test(production_websocket_depth_filters_symbols_and_preserves_each_clients_requested_size) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(websocket_listener_shutdown_cancels_pending_initial_depth_read_and_releases_demand) or test(websocket_depth_pending_reads_release_on_subscription_replacement_and_owner_drop) or test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads)"
+          "test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)"
         ],
         "testFilter": [
           "production_websocket_depth_provider_failure_keeps_session_available_for_retry",
-          "websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot"
+          "websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot",
+          "production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated",
+          "security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader",
+          "security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read"
         ],
         "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3855d0f80e9ccc02714c35dabba4d9e4ad09f84d",
-        "verifiedAt": "2026-10-07T20:38:21Z",
-        "receiptDigest": "sha256:74ad82e03d641044fbbaa92ba71b1c1fd3106a3575861c3fab36638e8070679a"
+        "verifiedCommit": "e4ac97230fe873bcd9142615422e2429e73b73c3",
+        "verifiedAt": "2026-10-08T02:03:21Z",
+        "receiptDigest": "sha256:8942db434a3c1cdd89c0029af426319e8f97607a5547b4cf2aafbbe45280e78e"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_original_websocket_dispatcher_residuals",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "具体production depth reader失败后同一认证socket继续收到通知；provider恢复再订阅得到初始深度，恰两次owner读取。真实session projection按各请求档数去重相同resolvedAt、新resolvedAt各发一次、重新订阅允许强制读取；双侧裁剪不改变global event。延迟初始响应不会覆盖已发live push。"
+        "真实production depth provider失败跳过并可重试、resolvedAt去重证据保留；新增原US.AAPL security读取seam直接断言provider error跳过、forced订阅重试、同resolvedAt去重及重新订阅强制读取。",
+        "真实双production socket验证HK详情push不送至仅订阅US.AAPL的客户端、同resolvedAt不重复送达、重新订阅重新查询；晚到初始详情不能覆盖已送push。"
       ],
       "uncoveredAssertions": [
-        "本批直接证据只闭合depth provider跳过/恢复与resolvedAt去重；原console刷新及错误冒泡、security provider跳过/去重/forced写失败、depth写失败与auxiliary security失败仍未由相应WS dispatcher完整证明。旧投影/语料不是生产socket send失败对象传播的替代，保留partial。"
+        "原console refresh及write错误冒泡、security/depth forced write失败和auxiliary dispatcher返回同一wantErr仍未由Rust同形返回值证明；socket send失败退出会话不等于Go私有dispatcher返回错误对象。仍partial。"
       ],
       "boundaryReason": null
     },
@@ -10117,9 +10153,9 @@
     },
     "internal/api/live/dispatcher_boundaries_test.go:219:TestBackendReceivesExplicitBrokerSelection": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-api/src/websocket_depth_tests.rs::websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future",
-      "conclusion": "partial：原显式alpha broker在新增WebSocket depth读取路径真实传至API port：GET /api/v1/market-data/depth/US/TME、num10&brokerId=alpha，继承认证desktop trusted状态、空body；挂起read在2秒deadline释放future且无伪造帧。 原文还要求heartbeat/MarketTicks/SecurityDetails/Depth四调用alpha，原AAPL输入、nil origin、HTTPS同源与checked assertion panic。当前只证明depth API request透传，没有四类production backend调用的整体证明，原剩余分支仍partial。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-api -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_websocket_depth_reads_initial_snapshot_then_projects_fresh_opend_push) or test(production_websocket_depth_filters_symbols_and_preserves_each_clients_requested_size) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(websocket_listener_shutdown_cancels_pending_initial_depth_read_and_releases_demand) or test(websocket_depth_pending_reads_release_on_subscription_replacement_and_owner_drop) or test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads)'",
+      "rust_entry": "crates/jftrade-api/src/websocket_depth_tests.rs::websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future; crates/jftrade-api/src/websocket_security_tests.rs::security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future",
+      "conclusion": "partial：原显式alpha现在分别有depth与security真实ApiPort请求透传断言；security使用原US.AAPL、GET证券路径、brokerId=alpha，保留desktop信任与Origin认证元信息，2秒超时释放未完成future。depth既有TME入参透传证据保持。 原heartbeat与MarketTicks的alpha调用、depth原US.AAPL及四调用整体成功、nil request拒绝、HTTPS同源与checked assertion panic仍未闭合。当前只证明两类read请求元数据和有界future释放，不能把超时seam替代原完整成功矩阵。仍partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/api/live/dispatcher_boundaries_test.go",
@@ -10138,14 +10174,25 @@
             "rustFile": "crates/jftrade-api/src/websocket_depth_tests.rs",
             "rustLine": 84
           }
+        },
+        {
+          "file": "crates/jftrade-api/src/websocket_security_tests.rs",
+          "test": "security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future",
+          "crate": "jftrade-api",
+          "anchor": {
+            "goFile": "internal/api/live/dispatcher_boundaries_test.go",
+            "goLine": 219,
+            "rustFile": "crates/jftrade-api/src/websocket_security_tests.rs",
+            "rustLine": 110
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "原显式alpha broker在新增WebSocket depth读取路径真实传至API port：GET /api/v1/market-data/depth/US/TME、num10&brokerId=alpha，继承认证desktop trusted状态、空body；挂起read在2秒deadline释放future且无伪造帧。"
+          "原显式alpha现在分别有depth与security真实ApiPort请求透传断言；security使用原US.AAPL、GET证券路径、brokerId=alpha，保留desktop信任与Origin认证元信息，2秒超时释放未完成future。depth既有TME入参透传证据保持。"
         ],
         "uncovered": [
-          "原文还要求heartbeat/MarketTicks/SecurityDetails/Depth四调用alpha，原AAPL输入、nil origin、HTTPS同源与checked assertion panic。当前只证明depth API request透传，没有四类production backend调用的整体证明，原剩余分支仍partial。"
+          "原heartbeat与MarketTicks的alpha调用、depth原US.AAPL及四调用整体成功、nil request拒绝、HTTPS同源与checked assertion panic仍未闭合。当前只证明两类read请求元数据和有界future释放，不能把超时seam替代原完整成功矩阵。仍partial。"
         ],
         "source": "reviewed"
       },
@@ -10157,41 +10204,40 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-api",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_websocket_depth_reads_initial_snapshot_then_projects_fresh_opend_push) or test(production_websocket_depth_filters_symbols_and_preserves_each_clients_requested_size) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(websocket_listener_shutdown_cancels_pending_initial_depth_read_and_releases_demand) or test(websocket_depth_pending_reads_release_on_subscription_replacement_and_owner_drop) or test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads)"
+          "test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)"
         ],
         "testFilter": [
-          "websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future"
+          "websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future",
+          "security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future"
         ],
         "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "3855d0f80e9ccc02714c35dabba4d9e4ad09f84d",
-        "verifiedAt": "2026-10-07T20:38:21Z",
-        "receiptDigest": "sha256:74ad82e03d641044fbbaa92ba71b1c1fd3106a3575861c3fab36638e8070679a"
+        "verifiedCommit": "e4ac97230fe873bcd9142615422e2429e73b73c3",
+        "verifiedAt": "2026-10-08T02:03:21Z",
+        "receiptDigest": "sha256:8942db434a3c1cdd89c0029af426319e8f97607a5547b4cf2aafbbe45280e78e"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_original_websocket_dispatcher_residuals",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "preserve_partial_and_track_residual",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "原显式alpha broker在新增WebSocket depth读取路径真实传至API port：GET /api/v1/market-data/depth/US/TME、num10&brokerId=alpha，继承认证desktop trusted状态、空body；挂起read在2秒deadline释放future且无伪造帧。"
+        "原显式alpha现在分别有depth与security真实ApiPort请求透传断言；security使用原US.AAPL、GET证券路径、brokerId=alpha，保留desktop信任与Origin认证元信息，2秒超时释放未完成future。depth既有TME入参透传证据保持。"
       ],
       "uncoveredAssertions": [
-        "原文还要求heartbeat/MarketTicks/SecurityDetails/Depth四调用alpha，原AAPL输入、nil origin、HTTPS同源与checked assertion panic。当前只证明depth API request透传，没有四类production backend调用的整体证明，原剩余分支仍partial。"
+        "原heartbeat与MarketTicks的alpha调用、depth原US.AAPL及四调用整体成功、nil request拒绝、HTTPS同源与checked assertion panic仍未闭合。当前只证明两类read请求元数据和有界future释放，不能把超时seam替代原完整成功矩阵。仍partial。"
       ],
       "boundaryReason": null
     },
@@ -51408,11 +51454,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/market_details_ws_test.go:11:TestMarketSecurityDetailsWebSocketSendsInitialPayload": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::securities_route_queries_the_security_snapshot_once; crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary",
-      "conclusion": "partial：REST 快照一次查询与包络成立；但 Go 题眼为 WS 订阅首帧（market.security-details 事件类型/source/request/security 载荷经 socket 投递），Rust 无 WS 初始帧用例（仅有订阅归一与帧类型投影）。回归要求：WS 订阅→证券详情初始帧内容断言（或 corpus 用例）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs::production_websocket_security_subscription_sends_provider_details_as_initial_frame",
+      "conclusion": "function_exact：原HK/00700/HK.00700与providerBrokerId=futu订阅经真实production握手101后送达证券详情首帧；直接断言event.type=market.security-details、source=market-data、payload.request.instrumentId=HK.00700与security.name=Tencent Holdings，完整闭合冻结原11全部断言。 实际snapshot reader恰一次收到HK.00700；另断言非空eventId/serverTime、entityId、payload.type/brokerId，连接释放后hub需求清零。没有以REST调用或冻结帧投影代替socket送达。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/market_details_ws_test.go",
         "line": 11,
@@ -51421,36 +51467,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "securities_route_queries_the_security_snapshot_once",
+          "file": "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs",
+          "test": "production_websocket_security_subscription_sends_provider_details_as_initial_frame",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/market_details_ws_test.go",
             "goLine": 11,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 1654
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-          "test": "futu_securities_route_projects_broker_neutral_envelope_boundary",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/app/apiserver/servercore/market_details_ws_test.go",
-            "goLine": 11,
-            "rustFile": "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs",
-            "rustLine": 229
+            "rustFile": "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs",
+            "rustLine": 169
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "REST 快照一次查询与包络成立；",
-          "但 Go 题眼为 WS 订阅首帧（market.security-details 事件类型/source/request/security 载荷经 socket 投递），Rust 无 WS 初始帧用例（仅有订阅归一与帧类型投影）。"
+          "原HK/00700/HK.00700与providerBrokerId=futu订阅经真实production握手101后送达证券详情首帧；直接断言event.type=market.security-details、source=market-data、payload.request.instrumentId=HK.00700与security.name=Tencent Holdings，完整闭合冻结原11全部断言。",
+          "实际snapshot reader恰一次收到HK.00700；另断言非空eventId/serverTime、entityId、payload.type/brokerId，连接释放后hub需求清零。没有以REST调用或冻结帧投影代替socket送达。"
         ],
-        "uncovered": [
-          "回归要求：WS 订阅→证券详情初始帧内容断言（或 corpus 用例）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -51460,40 +51493,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)"
         ],
         "testFilter": [
-          "futu_securities_route_projects_broker_neutral_envelope_boundary",
-          "securities_route_queries_the_security_snapshot_once"
+          "production_websocket_security_subscription_sends_provider_details_as_initial_frame"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "e4ac97230fe873bcd9142615422e2429e73b73c3",
+        "verifiedAt": "2026-10-08T02:03:21Z",
+        "receiptDigest": "sha256:8942db434a3c1cdd89c0029af426319e8f97607a5547b4cf2aafbbe45280e78e"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "REST 快照一次查询与包络成立；",
-        "但 Go 题眼为 WS 订阅首帧（market.security-details 事件类型/source/request/security 载荷经 socket 投递），Rust 无 WS 初始帧用例（仅有订阅归一与帧类型投影）。"
+        "原HK/00700/HK.00700与providerBrokerId=futu订阅经真实production握手101后送达证券详情首帧；直接断言event.type=market.security-details、source=market-data、payload.request.instrumentId=HK.00700与security.name=Tencent Holdings，完整闭合冻结原11全部断言。",
+        "实际snapshot reader恰一次收到HK.00700；另断言非空eventId/serverTime、entityId、payload.type/brokerId，连接释放后hub需求清零。没有以REST调用或冻结帧投影代替socket送达。"
       ],
-      "uncoveredAssertions": [
-        "回归要求：WS 订阅→证券详情初始帧内容断言（或 corpus 用例）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/market_instrument_resolver_test.go:13:TestMarketInstrumentResolverEndpointUsesSearchWithoutQuoteSubscription": {
@@ -345270,17 +345303,16 @@
       "reviewNote": "2026-09-29 API/marketdata owner review: all 3 referenceKeys were compared individually; 1 function_exact reference(s) retain their route/port assertions and the remaining partial references retain provider, cache, collector, facade, or conversion differences. Shared owner release does not upgrade non-exact rows."
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::securities_route_queries_the_security_snapshot_once": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/marketdataapp/market_http_test.go:478:TestMarketSecurityDetailsResponseQueriesSecuritySnapshot",
-        "internal/app/apiserver/servercore/market_details_ws_test.go:11:TestMarketSecurityDetailsWebSocketSendsInitialPayload"
+        "internal/app/apiserver/marketdataapp/market_http_test.go:478:TestMarketSecurityDetailsResponseQueriesSecuritySnapshot"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_market_data_quote_read_tests.rs::futu_securities_route_projects_broker_neutral_envelope_boundary": {
-      "referenceCount": 11,
+      "referenceCount": 10,
       "referenceKeys": [
         "internal/app/apiserver/marketdataapp/market_http_test.go:533:TestMarketSecurityDetailsResponseIncludesWarrantBlock",
         "internal/app/apiserver/marketdataapp/market_http_test.go:555:TestMarketSecurityDetailsResponseIncludesOptionBlock",
@@ -345288,7 +345320,6 @@
         "internal/app/apiserver/marketdataapp/market_http_test.go:592:TestMarketSecurityDetailsResponseIncludesTrustBlock",
         "internal/app/apiserver/marketdataapp/market_http_test.go:607:TestMarketSecurityDetailsResponseIncludesIndexBlock",
         "internal/app/apiserver/marketdataapp/market_http_test.go:622:TestMarketSecurityDetailsResponseIncludesPlateBlock",
-        "internal/app/apiserver/servercore/market_details_ws_test.go:11:TestMarketSecurityDetailsWebSocketSendsInitialPayload",
         "internal/integration/futu/security_details_test.go:12:TestSecurityDetailsMapPreservesCompleteBrokerNeutralWireShape",
         "internal/integration/futu/security_details_test.go:126:TestSecurityDetailsMapKeepsMissingOptionalAndProductBlocksNull",
         "internal/integration/futu/security_details_test.go:160:TestSecurityRefMapUsesCanonicalIdentity",
@@ -365006,6 +365037,46 @@
       "referenceCount": 1,
       "referenceKeys": [
         "pkg/strategy/pine/parse_semantic_test.go:10:TestAnalyzeScriptIncludesV17SemanticSummary"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-api/src/websocket_security_tests.rs::security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs::production_websocket_security_subscription_sends_provider_details_as_initial_frame": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/market_details_ws_test.go:11:TestMarketSecurityDetailsWebSocketSendsInitialPayload"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-api/src/websocket_security_tests.rs::security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/dispatcher_boundaries_test.go:219:TestBackendReceivesExplicitBrokerSelection"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-api/src/websocket_security_tests.rs::security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches"
+      ],
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs::production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated": {
+      "allowed": true,
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/live/dispatcher_boundaries_test.go:59:TestDispatcherAuxiliarySubscriptionBranches"
       ],
       "reviewStatus": "single"
     },

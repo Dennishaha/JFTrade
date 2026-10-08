@@ -753,6 +753,7 @@ async fn websocket_handler(
     };
     let shutdown = state.live_hub.subscribe_shutdown();
     let depth = crate::websocket_depth::WebsocketDepth::new(&state, &headers);
+    let security = crate::websocket_security::WebsocketSecurity::new(&state, &headers);
     upgrade
         .protocols([crate::auth::DESKTOP_WEBSOCKET_PROTOCOL])
         .on_upgrade(move |socket| {
@@ -765,6 +766,7 @@ async fn websocket_handler(
                     live_market_data_status,
                     live_connections,
                     depth,
+                    security,
                 },
                 WebsocketCancellation {
                     shutdown,
@@ -824,6 +826,7 @@ struct WebsocketSessionContext {
     live_market_data_status: Option<Arc<dyn LiveMarketDataStatusPort>>,
     live_connections: Arc<LiveConnectionMetrics>,
     depth: crate::websocket_depth::WebsocketDepth,
+    security: crate::websocket_security::WebsocketSecurity,
 }
 
 async fn websocket_session(
@@ -838,6 +841,7 @@ async fn websocket_session(
         live_market_data_status,
         live_connections,
         mut depth,
+        mut security,
     } = context;
     let WebsocketCancellation {
         mut shutdown,
@@ -930,6 +934,7 @@ async fn websocket_session(
                         connection_permit.set_active_instruments(&active_instruments);
                         live_hub_connection.set_subscription_snapshot(&snapshot);
                         depth.replace(&snapshot);
+                        security.replace(&snapshot);
                     }
                     Ok(None) => {}
                     Err(code) => {
@@ -951,12 +956,17 @@ async fn websocket_session(
                 let Some(event) = event else {
                     break;
                 };
-                if send_live_events(&mut socket, depth.project(event)).await.is_err() {
+                let events = security.project(event).into_iter().flat_map(|event| depth.project(event)).collect();
+                if send_live_events(&mut socket, events).await.is_err() {
                     break;
                 }
             }
             snapshots = depth.snapshots() => {
                 let events = depth.filter_snapshots(snapshots);
+                if send_live_events(&mut socket, events).await.is_err() { break; }
+            }
+            snapshots = security.snapshots() => {
+                let events = security.filter_snapshots(snapshots);
                 if send_live_events(&mut socket, events).await.is_err() { break; }
             }
             changed = shutdown.changed() => {

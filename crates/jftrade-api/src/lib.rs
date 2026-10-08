@@ -13,6 +13,8 @@ mod sse;
 mod swagger_docs;
 mod websocket;
 mod websocket_depth;
+mod websocket_read;
+mod websocket_security;
 
 pub use auth::{
     ACCESS_SURFACE_HEADER, AccessOriginProvider, AccessPolicy, DESKTOP_WEBSOCKET_PROTOCOL,

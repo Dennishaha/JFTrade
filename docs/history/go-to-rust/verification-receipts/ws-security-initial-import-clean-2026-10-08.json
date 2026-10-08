@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future) or test(websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot) or test(security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop) or test(security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader) or test(security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future) or test(security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection) or test(security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read) or test(production_websocket_depth_provider_failure_keeps_session_available_for_retry) or test(production_websocket_security_subscription_sends_provider_details_as_initial_frame) or test(production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated) or test(production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers) or test(websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T02:03:21Z",
+  "sourceState": {
+    "verifiedCommit": "e4ac97230fe873bcd9142615422e2429e73b73c3",
+    "trackedDiffSha256": "e76d325685f552315588edad21a51bddba8864eb5d1b9acca0123cf8b1b9ebdf",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-api/src/websocket_read.rs",
+        "sha256": "11049dc8500846db0ef838b2d9449dd40fec03fe4f4bdbb7976af49c259a7e2c"
+      },
+      {
+        "path": "crates/jftrade-api/src/websocket_security.rs",
+        "sha256": "5402cc379194ef1a9d1535b59b2d19380984395a52dcb9834b459010e2b4dfa5"
+      },
+      {
+        "path": "crates/jftrade-api/src/websocket_security_tests.rs",
+        "sha256": "3e32ea961a2d19b37114b578bf3e1d807751a282448d49b0b38505aaae1674b8"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_ws_security_http_parity_tests.rs",
+        "sha256": "060a1c720b99edcf6db924e33960479d5c655eb0b7f4cd81f76815b4ee1c4684"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/ws-security-initial-assertions-verified-2026-10-08.json",
+        "sha256": "8fb519e15aabf976433cc6e5c504797357d5f8aee9440b9e11b1b722510e6cd7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/ws-security-initial-lifecycle-rechecked-2026-10-08.json",
+        "sha256": "ada79036e4f1c62fb303a38cef3703771938c47f838c40322d64a3c274c7075d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/ws-security-initial-lifecycle-verified-2026-10-08.json",
+        "sha256": "8ff1ccd0adbce85639c848fc6515b0d1d8429c0bd0f562b7ef69c7ee56d87683"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/ws-security-initial-original-2026-10-08.json",
+        "sha256": "56507349b5b373f7add800161e40404cf183812a668afd92ffc4dddc8d8a7ba7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/ws-security-initial-owner-verified-2026-10-08.json",
+        "sha256": "5010f67cf9582e60b38873650e50ca709a287cbb1ebae183055187a9cc796769"
+      }
+    ]
+  },
+  "rawOutputSha256": "79f58f52d020c54b13f46e715982b0394cfbf4a72a014aa0ba3233e65403a879",
+  "passedTests": [
+    "jftrade-api::jftrade_api$websocket_depth::tests::websocket_depth_read_forwards_explicit_broker_and_releases_timed_out_port_future",
+    "jftrade-api::jftrade_api$websocket_depth::tests::websocket_depth_unchanged_resolution_is_deduplicated_per_requested_size_and_resubscribe_forces_snapshot",
+    "jftrade-api::jftrade_api$websocket_security::tests::security_pending_reads_release_on_subscription_replacement_and_connection_owner_drop",
+    "jftrade-api::jftrade_api$websocket_security::tests::security_provider_error_is_skipped_and_a_new_subscription_retries_the_same_reader",
+    "jftrade-api::jftrade_api$websocket_security::tests::security_read_forwards_explicit_broker_and_credentials_and_releases_timed_out_future",
+    "jftrade-api::jftrade_api$websocket_security::tests::security_reads_skip_unregistered_routes_and_non_object_payloads_and_escape_provider_selection",
+    "jftrade-api::jftrade_api$websocket_security::tests::security_resolution_deduplication_does_not_rewind_pushes_and_resubscribe_forces_a_read",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::depth_parity::production_websocket_depth_provider_failure_keeps_session_available_for_retry",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::security_parity::production_websocket_security_subscription_sends_provider_details_as_initial_frame",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::security_parity::production_websocket_security_updates_are_isolated_and_unchanged_resolution_is_deduplicated",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::security_parity::production_websocket_security_wrong_provider_cannot_read_active_snapshot_and_resubscribe_recovers",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::security_parity::websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 57,
+      "exec_time": 4.118195457,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1855,
+      "exec_time": 21.758336292,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

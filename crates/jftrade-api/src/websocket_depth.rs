@@ -2,23 +2,18 @@
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 
 use axum::http::HeaderMap;
 use serde_json::{Value, json};
 
 use crate::router::ApiState;
-use crate::{
-    ApiOutput, ApiPort, ApiRequest, Clock, LiveDepthSubscription, LiveSubscriptionSnapshot,
-};
+use crate::websocket_read::{WebsocketRead, query_component};
+use crate::{LiveDepthSubscription, LiveSubscriptionSnapshot};
 
 type DepthRead = Pin<Box<dyn Future<Output = Vec<Value>> + Send>>;
 
 pub(crate) struct WebsocketDepth {
-    port: Arc<dyn ApiPort>,
-    clock: Arc<dyn Clock>,
-    routes: crate::RouteCatalog,
-    request: ApiRequest,
+    read: WebsocketRead,
     subscriptions: Vec<LiveDepthSubscription>,
     resolved_at: BTreeMap<String, String>,
     pending: Option<DepthRead>,
@@ -27,22 +22,7 @@ pub(crate) struct WebsocketDepth {
 impl WebsocketDepth {
     pub(crate) fn new(state: &ApiState, headers: &HeaderMap) -> Self {
         Self {
-            port: Arc::clone(&state.port),
-            clock: Arc::clone(&state.clock),
-            routes: state.routes.clone(),
-            request: ApiRequest {
-                method: "GET".into(),
-                path: String::new(),
-                query: String::new(),
-                body: Vec::new(),
-                request_id: String::new(),
-                desktop_trusted: state.access.desktop_trusted(headers),
-                origin_provided: crate::auth::origin_provided(headers),
-                origin_allowed: crate::websocket_origin_allowed(headers, &state.access),
-                browser_authenticated: state.access.browser_authenticated(headers),
-                csrf_valid: state.access.csrf_valid(headers),
-                session_cookie: state.access.session_cookie(headers),
-            },
+            read: WebsocketRead::new(state, headers),
             subscriptions: Vec::new(),
             resolved_at: BTreeMap::new(),
             pending: None,
@@ -54,15 +34,10 @@ impl WebsocketDepth {
         self.resolved_at.clear();
         // Replacing or dropping this future releases a pending asynchronous
         // read. There is no detached producer for a previous subscription.
-        let port = Arc::clone(&self.port);
-        let clock = Arc::clone(&self.clock);
-        let routes = self.routes.clone();
-        let request = self.request.clone();
+        let read = self.read.clone();
         let snapshot = snapshot.clone();
-        self.pending = (!snapshot.depth.is_empty()).then(|| {
-            Box::pin(async move { read_snapshots(port, clock, routes, request, snapshot).await })
-                as DepthRead
-        });
+        self.pending = (!snapshot.depth.is_empty())
+            .then(|| Box::pin(async move { read_snapshots(read, snapshot).await }) as DepthRead);
     }
 
     pub(crate) async fn snapshots(&mut self) -> Vec<Value> {
@@ -133,35 +108,23 @@ impl WebsocketDepth {
     }
 }
 
-async fn read_snapshots(
-    port: Arc<dyn ApiPort>,
-    clock: Arc<dyn Clock>,
-    routes: crate::RouteCatalog,
-    request: ApiRequest,
-    snapshot: LiveSubscriptionSnapshot,
-) -> Vec<Value> {
+async fn read_snapshots(read: WebsocketRead, snapshot: LiveSubscriptionSnapshot) -> Vec<Value> {
     let mut events = Vec::new();
     for item in snapshot.depth {
-        let mut input = request.clone();
-        input.path = format!("/api/v1/market-data/depth/{}/{}", item.market, item.symbol);
-        if !routes.allows("GET", &input.path) {
-            continue;
-        }
-        input.query = format!(
+        let path = format!("/api/v1/market-data/depth/{}/{}", item.market, item.symbol);
+        let query = format!(
             "num={}&brokerId={}",
             item.num,
             query_component(&snapshot.provider_broker_id)
         );
-        let result =
-            tokio::time::timeout(std::time::Duration::from_secs(2), port.dispatch(input)).await;
         // Auxiliary provider failures skip the family; the live session stays
         // available for the next subscription and concrete provider pushes.
-        if let Ok(Ok(ApiOutput::Json(mut payload))) = result
+        if let Some(mut payload) = read.query(path, query).await
             && let Some(object) = payload.as_object_mut()
         {
             object.insert("type".into(), json!("market.depth"));
             object.insert("brokerId".into(), json!(snapshot.provider_broker_id));
-            let at = clock.now_rfc3339();
+            let at = read.now();
             events.push(depth_frame(
                 json!({"eventId":format!("market.depth|{}|{}|{}", item.instrument_id, item.num, at),
                 "type":"market.depth","source":"market-data","entityId":item.instrument_id,
@@ -187,18 +150,6 @@ fn depth_frame(mut event: Value, item: &LiveDepthSubscription) -> Value {
         }
     }
     event
-}
-
-fn query_component(value: &str) -> String {
-    let mut encoded = String::new();
-    for byte in value.bytes() {
-        if byte.is_ascii_alphanumeric() || b"-._~".contains(&byte) {
-            encoded.push(char::from(byte));
-        } else {
-            encoded.push_str(&format!("%{byte:02X}"));
-        }
-    }
-    encoded
 }
 
 #[cfg(test)]

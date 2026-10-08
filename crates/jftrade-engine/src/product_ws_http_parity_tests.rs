@@ -6,6 +6,9 @@ use super::*;
 #[path = "product_ws_depth_http_parity_tests.rs"]
 mod depth_parity;
 
+#[path = "product_ws_security_http_parity_tests.rs"]
+mod security_parity;
+
 const PROTOCOL: &[(&str, &str)] = &[(
     "Sec-WebSocket-Protocol",
     "jftrade.desktop.v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
