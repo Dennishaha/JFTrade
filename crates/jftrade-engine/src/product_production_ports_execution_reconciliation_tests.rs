@@ -1068,6 +1068,9 @@ mod push_worker_tests;
 #[path = "product_production_ports_execution_reconciliation_read_boundaries_tests.rs"]
 mod read_boundaries_tests;
 
+#[path = "product_production_ports_execution_reconciliation_fee_ledger_tests.rs"]
+mod fee_ledger_tests;
+
 /// Parity: go:452dea11:internal/trading/order_updates_test.go:280 TestOrderUpdatesWorkerSyncExecutionOrderHistoryUsesOrderScope
 #[test]
 fn reconciliation_order_history_reads_use_the_stored_order_scope() {

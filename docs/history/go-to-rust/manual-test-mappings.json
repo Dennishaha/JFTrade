@@ -282182,11 +282182,11 @@
       "boundaryReason": null
     },
     "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_retries_fees_after_terminal_order_projection",
-      "conclusion": "partial：Go 断言空费用结果与“未知订单费用”都不产生事件/变更。Rust 已断言费用金额回退（feeItems 求和）、费用在订单终态后重试写入；缺口：`fee_amount == None` 或 orderIdEx 缺失时不应写事件/不应变账本的否定断言（owner：`product_production_ports_execution_reconciliation.rs` 的费用应用路径，`matches_fee`/`fee_amount` 守卫）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs::reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged",
+      "conclusion": "function_exact：原空费用与missing-order金额1.5不创建订单、不产生事件、changed=false；已知终态订单收到空ID、无金额/明细或未知订单费用时两轮实际fee read均no-op，订单全值和revision不变，重开数据库后仍无事件。空账本亦不创建费用订单。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/store/trading/broker_ledger_test.go",
         "line": 65,
@@ -282195,36 +282195,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs",
-          "test": "reconciliation_fee_amount_falls_back_to_fee_items",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs",
+          "test": "reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/store/trading/broker_ledger_test.go",
             "goLine": 65,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs",
-            "rustLine": 619
-          }
-        },
-        {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs",
-          "test": "reconciliation_retries_fees_after_terminal_order_projection",
-          "crate": "jftrade-engine",
-          "anchor": {
-            "goFile": "internal/store/trading/broker_ledger_test.go",
-            "goLine": 65,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs",
-            "rustLine": 877
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs",
+            "rustLine": 5
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言空费用结果与“未知订单费用”都不产生事件/变更。",
-          "Rust 已断言费用金额回退（feeItems 求和）、费用在订单终态后重试写入；"
+          "原空费用与missing-order金额1.5不创建订单、不产生事件、changed=false；已知终态订单收到空ID、无金额/明细或未知订单费用时两轮实际fee read均no-op，订单全值和revision不变，重开数据库后仍无事件。空账本亦不创建费用订单。"
         ],
-        "uncovered": [
-          "缺口：`fee_amount == None` 或 orderIdEx 缺失时不应写事件/不应变账本的否定断言（owner：`product_production_ports_execution_reconciliation.rs` 的费用应用路径，`matches_fee`/`fee_amount` 守卫）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -282234,40 +282220,39 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)"
         ],
         "testFilter": [
-          "reconciliation_fee_amount_falls_back_to_fee_items",
-          "reconciliation_retries_fees_after_terminal_order_projection"
+          "reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+        "verifiedAt": "2026-10-08T05:30:53Z",
+        "receiptDigest": "sha256:4f9299f8df75d9a7c809c9052604da0ad2308e9a7d5a32f4093d5e4c758980f2"
       },
       "risk": "normal",
       "owner": "storage_sqlite",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言空费用结果与“未知订单费用”都不产生事件/变更。",
-        "Rust 已断言费用金额回退（feeItems 求和）、费用在订单终态后重试写入；"
+        "原空费用与missing-order金额1.5不创建订单、不产生事件、changed=false；已知终态订单收到空ID、无金额/明细或未知订单费用时两轮实际fee read均no-op，订单全值和revision不变，重开数据库后仍无事件。空账本亦不创建费用订单。"
       ],
-      "uncoveredAssertions": [
-        "缺口：`fee_amount == None` 或 orderIdEx 缺失时不应写事件/不应变账本的否定断言（owner：`product_production_ports_execution_reconciliation.rs` 的费用应用路径，`matches_fee`/`fee_amount` 守卫）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/store/trading/execution_composition_test.go:32:TestExecutionOrderStorePromotesBrokerSourceToSystemOnPlacedMerge": {
@@ -282429,8 +282414,8 @@
     "internal/store/trading/execution_composition_test.go:153:TestExecutionOrderStoreBrokerSyncUpdatesAndFillDeduplication": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::reconciliation_deduplicates_same_fill_from_active_and_history",
-      "conclusion": "partial：Rust 覆盖同一成交同时出现在活动页与历史页时只应用一次（该用例），以及重复终态快照幂等（reconciliation_duplicate_terminal_snapshot_is_idempotent）与成交数量推进/均价重算（reconciliation_advancing_fill_quantity_updates_its_average_price）。缺口：Go 还断言一致性同步 no-op（相同快照不产生事件）与 lastErrorSource=broker.sync；Rust 的 lastErrorSource 取 opend（仅当 broker 错误消息非空），事件状态标签也不同（SUBMITTED/PARTIALLY_FILLED 而非 BROKER_ACCEPTED）。owner：crates/jftrade-engine 对账应用；回归要求：补 lastErrorSource 映射与 BROKER_SYNC_UPDATED 事件 previous/next 状态断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "conclusion": "partial：既有生产对账测试验证活动/历史同一fill只应用一次，订单PARTIALLY_FILLED、数量2、事件数2；本批按原断言复核并定向重新执行。 原完整HK.00700/100数量链的初始source=broker/sourceDetail=broker.current、相同快照无事件、BROKER_SYNC_UPDATED previous= BROKER_ACCEPTED/next=PARTIALLY_FILLED、lastErrorSource=broker.sync和两成交累计50/avg100.8→100及最终4事件未由本条Rust用例闭合。当前发现来源为broker-sync/futu external order discovery，不把其他snapshot receipt替代原全链。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/store/trading/execution_composition_test.go",
@@ -282453,13 +282438,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 覆盖同一成交同时出现在活动页与历史页时只应用一次（该用例），以及重复终态快照幂等（reconciliation_duplicate_terminal_snapshot_is_idempotent）与成交数量推进/均价重算（reconciliation_advancing_fill_quantity_updates_its_average_price）。",
-          "Rust 的 lastErrorSource 取 opend（仅当 broker 错误消息非空），事件状态标签也不同（SUBMITTED/PARTIALLY_FILLED 而非 BROKER_ACCEPTED）。",
-          "owner：crates/jftrade-engine 对账应用；"
+          "既有生产对账测试验证活动/历史同一fill只应用一次，订单PARTIALLY_FILLED、数量2、事件数2；本批按原断言复核并定向重新执行。"
         ],
         "uncovered": [
-          "缺口：Go 还断言一致性同步 no-op（相同快照不产生事件）与 lastErrorSource=broker.sync；",
-          "回归要求：补 lastErrorSource 映射与 BROKER_SYNC_UPDATED 事件 previous/next 状态断言。"
+          "原完整HK.00700/100数量链的初始source=broker/sourceDetail=broker.current、相同快照无事件、BROKER_SYNC_UPDATED previous= BROKER_ACCEPTED/next=PARTIALLY_FILLED、lastErrorSource=broker.sync和两成交累计50/avg100.8→100及最终4事件未由本条Rust用例闭合。当前发现来源为broker-sync/futu external order discovery，不把其他snapshot receipt替代原全链。"
         ],
         "source": "reviewed"
       },
@@ -282470,23 +282452,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)"
         ],
         "testFilter": [
           "reconciliation_deduplicates_same_fill_from_active_and_history"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+        "verifiedAt": "2026-10-08T05:30:53Z",
+        "receiptDigest": "sha256:4f9299f8df75d9a7c809c9052604da0ad2308e9a7d5a32f4093d5e4c758980f2"
       },
       "risk": "normal",
       "owner": "storage_sqlite",
@@ -282497,13 +282484,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 覆盖同一成交同时出现在活动页与历史页时只应用一次（该用例），以及重复终态快照幂等（reconciliation_duplicate_terminal_snapshot_is_idempotent）与成交数量推进/均价重算（reconciliation_advancing_fill_quantity_updates_its_average_price）。",
-        "Rust 的 lastErrorSource 取 opend（仅当 broker 错误消息非空），事件状态标签也不同（SUBMITTED/PARTIALLY_FILLED 而非 BROKER_ACCEPTED）。",
-        "owner：crates/jftrade-engine 对账应用；"
+        "既有生产对账测试验证活动/历史同一fill只应用一次，订单PARTIALLY_FILLED、数量2、事件数2；本批按原断言复核并定向重新执行。"
       ],
       "uncoveredAssertions": [
-        "缺口：Go 还断言一致性同步 no-op（相同快照不产生事件）与 lastErrorSource=broker.sync；",
-        "回归要求：补 lastErrorSource 映射与 BROKER_SYNC_UPDATED 事件 previous/next 状态断言。"
+        "原完整HK.00700/100数量链的初始source=broker/sourceDetail=broker.current、相同快照无事件、BROKER_SYNC_UPDATED previous= BROKER_ACCEPTED/next=PARTIALLY_FILLED、lastErrorSource=broker.sync和两成交累计50/avg100.8→100及最终4事件未由本条Rust用例闭合。当前发现来源为broker-sync/futu external order discovery，不把其他snapshot receipt替代原全链。"
       ],
       "boundaryReason": null
     },
@@ -282821,9 +282805,9 @@
     },
     "internal/store/trading/ledger_lifecycle_test.go:73:TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::test_tc_d5_01_sequential_partial_fills_and_fees_monotonic",
-      "conclusion": "partial：Rust 对账通过 read_order_fees + apply_fee_snapshot 写订单级 fees，fee_amount 缺省时按 fee_items 求和（reconciliation_fee_amount_falls_back_to_fee_items），且没有 leg 级费用写入路径（结构上不会虚构分摊）。缺口：缺少“1.25+0.75=2.00、重复费用快照 no-op、leg fees 保持 NULL”的等价断言。owner：crates/jftrade-engine 对账费用路径；回归要求：按上述三条补测。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs::reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs",
+      "conclusion": "partial：生产费用owner实际保存commission1.25+platform0.75=2，父订单ID和legs原始请求保持，恰一条BROKER_ORDER_FEES_UPDATED；重复金额2再次实际读取返回false、无新事件、revision仍1；重开后两腿fees字段均显式NULL。 原输入为broker=coverage/account=account、单腿option combo；当前Rust对账使用Futu数值账户，公开读模型要求至少两腿。已直接验证单腿投影返回EXECUTION_ORDER_DATA_INVALID/at least two legs，未放宽契约，不将两腿成功当作原单腿完整等价。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/store/trading/ledger_lifecycle_test.go",
@@ -282833,25 +282817,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs",
-          "test": "test_tc_d5_01_sequential_partial_fills_and_fees_monotonic",
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs",
+          "test": "reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/store/trading/ledger_lifecycle_test.go",
             "goLine": 73,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs",
-            "rustLine": 10
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs",
+            "rustLine": 87
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "owner：crates/jftrade-engine 对账费用路径；"
+          "生产费用owner实际保存commission1.25+platform0.75=2，父订单ID和legs原始请求保持，恰一条BROKER_ORDER_FEES_UPDATED；重复金额2再次实际读取返回false、无新事件、revision仍1；重开后两腿fees字段均显式NULL。"
         ],
         "uncovered": [
-          "Rust 对账通过 read_order_fees + apply_fee_snapshot 写订单级 fees，fee_amount 缺省时按 fee_items 求和（reconciliation_fee_amount_falls_back_to_fee_items），且没有 leg 级费用写入路径（结构上不会虚构分摊）。",
-          "缺口：缺少“1.25+0.75=2.00、重复费用快照 no-op、leg fees 保持 NULL”的等价断言。",
-          "回归要求：按上述三条补测。"
+          "原输入为broker=coverage/account=account、单腿option combo；当前Rust对账使用Futu数值账户，公开读模型要求至少两腿。已直接验证单腿投影返回EXECUTION_ORDER_DATA_INVALID/at least two legs，未放宽契约，不将两腿成功当作原单腿完整等价。"
         ],
         "source": "reviewed"
       },
@@ -282862,23 +282844,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)"
         ],
         "testFilter": [
-          "test_tc_d5_01_sequential_partial_fills_and_fees_monotonic"
+          "reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+        "verifiedAt": "2026-10-08T05:30:53Z",
+        "receiptDigest": "sha256:4f9299f8df75d9a7c809c9052604da0ad2308e9a7d5a32f4093d5e4c758980f2"
       },
       "risk": "normal",
       "owner": "storage_sqlite",
@@ -282889,12 +282876,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "owner：crates/jftrade-engine 对账费用路径；"
+        "生产费用owner实际保存commission1.25+platform0.75=2，父订单ID和legs原始请求保持，恰一条BROKER_ORDER_FEES_UPDATED；重复金额2再次实际读取返回false、无新事件、revision仍1；重开后两腿fees字段均显式NULL。"
       ],
       "uncoveredAssertions": [
-        "Rust 对账通过 read_order_fees + apply_fee_snapshot 写订单级 fees，fee_amount 缺省时按 fee_items 求和（reconciliation_fee_amount_falls_back_to_fee_items），且没有 leg 级费用写入路径（结构上不会虚构分摊）。",
-        "缺口：缺少“1.25+0.75=2.00、重复费用快照 no-op、leg fees 保持 NULL”的等价断言。",
-        "回归要求：按上述三条补测。"
+        "原输入为broker=coverage/account=account、单腿option combo；当前Rust对账使用Futu数值账户，公开读模型要求至少两腿。已直接验证单腿投影返回EXECUTION_ORDER_DATA_INVALID/at least two legs，未放宽契约，不将两腿成功当作原单腿完整等价。"
       ],
       "boundaryReason": null
     },
@@ -283072,11 +283057,11 @@
       "boundaryReason": null
     },
     "internal/store/trading/ledger_test.go:12:TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability",
-      "conclusion": "partial：Go 断言 listOrdersFiltered 的 broker/market 过滤、updatedAt/createdAt/id 降序 tie-break 与缺单返回未找到。Rust 存储 `list_orders` 以 `updated_at DESC, created_at DESC, internal_order_id DESC` 排序（该用例覆盖读写回环），但没有 broker/market 过滤参数，过滤在 engine 读端口/路由层完成，缺少等价过滤与 tie-break 的显式断言。缺口 owner：crates/jftrade-engine 执行读端口；回归要求：补 broker/market 过滤、同 updatedAt 下 created_at/id 降序、缺单 not-found 三条断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties; crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_sort_updated_created_and_identity_after_reopening",
+      "conclusion": "function_exact：原exec-000001/2/3、SIM-001/HK、相同updatedAt08:00及createdAt07:00/07:30/07:30经真实HTTP按3/2/1返回；brokerId=FUTU匹配三条，ib与US市场过滤为空，缺单404/ORDER_NOT_FOUND且没有创建订单。 底层查询修复为updated_at/created_at/internal_order_id降序；重开后保留3/2/1，新增较旧createdAt但较新updatedAt的4号订单优先。HTTP读取不新增生命周期事件。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/store/trading/ledger_test.go",
         "line": 12,
@@ -283085,26 +283070,34 @@
       },
       "rustEvidence": [
         {
+          "file": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs",
+          "test": "execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/store/trading/ledger_test.go",
+            "goLine": 12,
+            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs",
+            "rustLine": 123
+          }
+        },
+        {
           "file": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs",
-          "test": "execution_orders_lifecycle_events_and_restart_durability",
+          "test": "execution_orders_sort_updated_created_and_identity_after_reopening",
           "crate": "jftrade-store-sqlite",
           "anchor": {
             "goFile": "internal/store/trading/ledger_test.go",
             "goLine": 12,
             "rustFile": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs",
-            "rustLine": 55
+            "rustLine": 634
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 listOrdersFiltered 的 broker/market 过滤、updatedAt/createdAt/id 降序 tie-break 与缺单返回未找到。"
+          "原exec-000001/2/3、SIM-001/HK、相同updatedAt08:00及createdAt07:00/07:30/07:30经真实HTTP按3/2/1返回；brokerId=FUTU匹配三条，ib与US市场过滤为空，缺单404/ORDER_NOT_FOUND且没有创建订单。",
+          "底层查询修复为updated_at/created_at/internal_order_id降序；重开后保留3/2/1，新增较旧createdAt但较新updatedAt的4号订单优先。HTTP读取不新增生命周期事件。"
         ],
-        "uncovered": [
-          "Rust 存储 `list_orders` 以 `updated_at DESC, created_at DESC, internal_order_id DESC` 排序（该用例覆盖读写回环），但没有 broker/market 过滤参数，过滤在 engine 读端口/路由层完成，缺少等价过滤与 tie-break 的显式断言。",
-          "缺口 owner：crates/jftrade-engine 执行读端口；",
-          "回归要求：补 broker/market 过滤、同 updatedAt 下 created_at/id 降序、缺单 not-found 三条断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -283114,40 +283107,41 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)"
         ],
         "testFilter": [
-          "execution_orders_lifecycle_events_and_restart_durability"
+          "execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties",
+          "execution_orders_sort_updated_created_and_identity_after_reopening"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+        "verifiedAt": "2026-10-08T05:30:53Z",
+        "receiptDigest": "sha256:4f9299f8df75d9a7c809c9052604da0ad2308e9a7d5a32f4093d5e4c758980f2"
       },
       "risk": "normal",
       "owner": "storage_sqlite",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 listOrdersFiltered 的 broker/market 过滤、updatedAt/createdAt/id 降序 tie-break 与缺单返回未找到。"
+        "原exec-000001/2/3、SIM-001/HK、相同updatedAt08:00及createdAt07:00/07:30/07:30经真实HTTP按3/2/1返回；brokerId=FUTU匹配三条，ib与US市场过滤为空，缺单404/ORDER_NOT_FOUND且没有创建订单。",
+        "底层查询修复为updated_at/created_at/internal_order_id降序；重开后保留3/2/1，新增较旧createdAt但较新updatedAt的4号订单优先。HTTP读取不新增生命周期事件。"
       ],
-      "uncoveredAssertions": [
-        "Rust 存储 `list_orders` 以 `updated_at DESC, created_at DESC, internal_order_id DESC` 排序（该用例覆盖读写回环），但没有 broker/market 过滤参数，过滤在 engine 读端口/路由层完成，缺少等价过滤与 tie-break 的显式断言。",
-        "缺口 owner：crates/jftrade-engine 执行读端口；",
-        "回归要求：补 broker/market 过滤、同 updatedAt 下 created_at/id 降序、缺单 not-found 三条断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/store/trading/ledger_test.go:65:TestExecutionOrderStorePlacedOrderPreservesMissingBrokerAndRepairsSparseSummary": {
@@ -285276,8 +285270,8 @@
     "internal/store/trading/submission_safety_test.go:13:TestExecutionSubmissionLedgerDeduplicatesAndNeverRetriesUnknown": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_order_reservation_replays_identity_without_retrying_unknown_submission; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_unknown_order_is_durable_and_idempotent; crates/jftrade-engine/src/product_production_ports_execution_reconciliation_order_state_tests.rs::reconciliation_does_not_guess_an_identity_for_an_uncertain_submission",
-      "conclusion": "partial：Go 断言提交账本按身份去重且绝不重试未知提交。Rust 三处证据：sqlite 预留按身份重放（不重试未知提交）、未知订单持久化幂等、不确定提交不猜测身份且保持 UNKNOWN + EXECUTION_STATE_AMBIGUOUS；缺口：缺少“同一身份重复提交只产生一次外呼”的计数断言（owner：`ExecutionOrderStore::reserve_order` + `reconciliation_unknown_order_is_durable_and_idempotent`）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked",
+      "conclusion": "partial：现有SQLite reserve按身份复用原订单，未知提交不再次预留；engine未知订单持久化幂等，不确定身份保留UNKNOWN/EXECUTION_STATE_AMBIGUOUS和一个错误事件。本批重新执行三处原owner证据。 原还断言accepted重放状态BROKER_ACCEPTED及两个事件，另一个client-unknown-1重放状态SUBMISSION_UNKNOWN、两个事件且COMMAND_SUBMISSION_UNKNOWN payload含retryAllowed=false。现有证据未闭合该完整prepared/accepted/unknown事件链。原Go测试未统计外呼，删除旧mapping将外呼计数当原缺口的错误描述。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/store/trading/submission_safety_test.go",
@@ -285322,11 +285316,10 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言提交账本按身份去重且绝不重试未知提交。",
-          "Rust 三处证据：sqlite 预留按身份重放（不重试未知提交）、未知订单持久化幂等、不确定提交不猜测身份且保持 UNKNOWN + EXECUTION_STATE_AMBIGUOUS；"
+          "现有SQLite reserve按身份复用原订单，未知提交不再次预留；engine未知订单持久化幂等，不确定身份保留UNKNOWN/EXECUTION_STATE_AMBIGUOUS和一个错误事件。本批重新执行三处原owner证据。"
         ],
         "uncovered": [
-          "缺口：缺少“同一身份重复提交只产生一次外呼”的计数断言（owner：`ExecutionOrderStore::reserve_order` + `reconciliation_unknown_order_is_durable_and_idempotent`）。"
+          "原还断言accepted重放状态BROKER_ACCEPTED及两个事件，另一个client-unknown-1重放状态SUBMISSION_UNKNOWN、两个事件且COMMAND_SUBMISSION_UNKNOWN payload含retryAllowed=false。现有证据未闭合该完整prepared/accepted/unknown事件链。原Go测试未统计外呼，删除旧mapping将外呼计数当原缺口的错误描述。"
         ],
         "source": "reviewed"
       },
@@ -285337,25 +285330,30 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)"
         ],
         "testFilter": [
           "execution_order_reservation_replays_identity_without_retrying_unknown_submission",
           "reconciliation_unknown_order_is_durable_and_idempotent",
           "reconciliation_does_not_guess_an_identity_for_an_uncertain_submission"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+        "verifiedAt": "2026-10-08T05:30:53Z",
+        "receiptDigest": "sha256:4f9299f8df75d9a7c809c9052604da0ad2308e9a7d5a32f4093d5e4c758980f2"
       },
       "risk": "normal",
       "owner": "storage_sqlite",
@@ -285366,11 +285364,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言提交账本按身份去重且绝不重试未知提交。",
-        "Rust 三处证据：sqlite 预留按身份重放（不重试未知提交）、未知订单持久化幂等、不确定提交不猜测身份且保持 UNKNOWN + EXECUTION_STATE_AMBIGUOUS；"
+        "现有SQLite reserve按身份复用原订单，未知提交不再次预留；engine未知订单持久化幂等，不确定身份保留UNKNOWN/EXECUTION_STATE_AMBIGUOUS和一个错误事件。本批重新执行三处原owner证据。"
       ],
       "uncoveredAssertions": [
-        "缺口：缺少“同一身份重复提交只产生一次外呼”的计数断言（owner：`ExecutionOrderStore::reserve_order` + `reconciliation_unknown_order_is_durable_and_idempotent`）。"
+        "原还断言accepted重放状态BROKER_ACCEPTED及两个事件，另一个client-unknown-1重放状态SUBMISSION_UNKNOWN、两个事件且COMMAND_SUBMISSION_UNKNOWN payload含retryAllowed=false。现有证据未闭合该完整prepared/accepted/unknown事件链。原Go测试未统计外呼，删除旧mapping将外呼计数当原缺口的错误描述。"
       ],
       "boundaryReason": null
     },
@@ -340651,6 +340648,38 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_production_ports_execution_http_scope_tests.rs::execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/ledger_test.go:12:TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs::reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs::reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/ledger_lifecycle_test.go:73:TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_sort_updated_created_and_identity_after_reopening": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/store/trading/ledger_test.go:12:TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
     "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -346536,15 +346565,14 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_push_worker_tests.rs::test_tc_d5_01_sequential_partial_fills_and_fees_monotonic": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/app/apiserver/servercore/product_lifecycle_closure_test.go:14:TestProductLifecycleFeeUpdatesPersistOnlyOnLiveOrderLedger",
-        "internal/integration/futu/order_updates_test.go:59:TestOrderUpdatesAdapterConvertsPushesAndStopsOnce",
-        "internal/store/trading/ledger_lifecycle_test.go:73:TestExecutionStorePersistsParentBrokerFeesWithoutInventingLegAllocation"
+        "internal/integration/futu/order_updates_test.go:59:TestOrderUpdatesAdapterConvertsPushesAndStopsOnce"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation. 2026-10-08仅移除本批交易费用/排序引用；其他断言范围与原审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_replays_history_fill_and_fee_once_after_restart": {
       "referenceCount": 4,
@@ -348031,18 +348059,17 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-store-sqlite/tests/execution_order_store_contracts.rs::execution_orders_lifecycle_events_and_restart_durability": {
-      "referenceCount": 6,
+      "referenceCount": 5,
       "referenceKeys": [
         "internal/app/apiserver/tradingapp/order_updates_test.go:114:TestExecutionOrderUpdatesPersistBrokerLifecycleFields",
         "internal/store/trading/execution_composition_test.go:70:TestExecutionOrderStorePersistsOrdersEventsAndFillKeys",
         "internal/store/trading/ledger_lifecycle_test.go:131:TestExecutionStoreRemainingPersistenceLifecycleBoundaries",
-        "internal/store/trading/ledger_test.go:12:TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries",
         "internal/store/trading/order_leg_merge_test.go:10:TestExecutionLegSnapshotsMergeAppendAndNormalizeLifecycle",
         "internal/store/trading/resource_test.go:10:TestConstructorsReturnExecutionResourcesWithIdempotentClose"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 6 referenceKeys against the shared Rust owner (status mix {'[~]': 6}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-02 bounded reuse review: compared all 6 referenceKeys against the shared Rust owner (status mix {'[~]': 6}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation. 2026-10-08仅移除本批交易费用/排序引用；其他断言范围与原审批不扩大。"
     },
     "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::password_change_during_login_rejects_the_stale_verification": {
       "referenceCount": 1,
@@ -361144,20 +361171,18 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_fee_amount_falls_back_to_fee_items": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批交易费用/排序引用；其他断言范围与原审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_tests.rs::reconciliation_retries_fees_after_terminal_order_projection": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/store/trading/broker_ledger_test.go:65:TestBrokerFeeNilAndMissingOrderBoundaries"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批交易费用/排序引用；其他断言范围与原审批不扩大。"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_provider_tests.rs::reconciliation_deduplicates_same_fill_from_active_and_history": {
       "referenceCount": 1,

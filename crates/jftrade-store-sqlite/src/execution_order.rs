@@ -572,7 +572,7 @@ impl ExecutionOrderStore {
                         submitted_at, updated_at, created_at, order_kind, product_class,
                         quantity_mode, client_order_id, preview_id, normalized_request,
                         requested_amount, payout, fees
-                 FROM execution_orders ORDER BY created_at DESC",
+                 FROM execution_orders ORDER BY updated_at DESC, created_at DESC, internal_order_id DESC",
             )
             .map_err(ExecutionOrderStoreError::Query)?;
         let rows = statement

@@ -631,6 +631,51 @@ fn concurrent_order(index: usize) -> StoredExecutionOrder {
     }
 }
 
+// Parity: go:452dea11:internal/store/trading/ledger_test.go:12 TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries
+#[test]
+fn execution_orders_sort_updated_created_and_identity_after_reopening() {
+    let directory = tempfile::tempdir().expect("directory");
+    let path = directory.path().join("orders.db");
+    seed_go_execution_orders_schema(&path);
+    let store = open_store(&path);
+    for (index, created, updated) in [
+        (1, "2026-07-03T07:00:00Z", "2026-07-03T08:00:00Z"),
+        (2, "2026-07-03T07:30:00Z", "2026-07-03T08:00:00Z"),
+        (3, "2026-07-03T07:30:00Z", "2026-07-03T08:00:00Z"),
+        (4, "2026-07-03T06:00:00Z", "2026-07-03T09:00:00Z"),
+    ] {
+        let mut order = concurrent_order(index);
+        order.internal_order_id = format!("exec-{index:06}");
+        order.created_at = created.to_owned();
+        order.updated_at = updated.to_owned();
+        store.save_order(order, updated).expect("seed order");
+    }
+    drop(store);
+    let reopened = open_store(&path);
+    let orders = reopened.list_orders().expect("reopened orders");
+    assert_eq!(
+        orders
+            .iter()
+            .map(|order| order.internal_order_id.as_str())
+            .collect::<Vec<_>>(),
+        ["exec-000004", "exec-000003", "exec-000002", "exec-000001"]
+    );
+    assert!(
+        reopened
+            .get_order("missing-order")
+            .expect("missing order")
+            .is_none()
+    );
+    for order in orders {
+        assert!(
+            reopened
+                .list_order_events(&order.internal_order_id)
+                .expect("read-only events")
+                .is_empty()
+        );
+    }
+}
+
 // Parity: go:452dea11:internal/store/trading/maintenance_concurrency_test.go:43 TestExecutionStoreConcurrentReadsWritesAndDurableReload
 #[test]
 fn execution_order_concurrent_writes_and_reads_survive_reopen() {

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged) or test(reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs) or test(reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation) or test(execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties) or test(execution_http_orders_filter_original_opaque_accounts_and_environment) or test(execution_http_orders_default_to_real_from_production_settings) or test(execution_orders_sort_updated_created_and_identity_after_reopening) or test(execution_order_concurrent_writes_and_reads_survive_reopen) or test(execution_order_reservation_replays_identity_without_retrying_unknown_submission) or test(reconciliation_unknown_order_is_durable_and_idempotent) or test(reconciliation_does_not_guess_an_identity_for_an_uncertain_submission) or test(reconciliation_deduplicates_same_fill_from_active_and_history)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T05:30:53Z",
+  "sourceState": {
+    "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+    "trackedDiffSha256": "dd2f6337573490ec8f88204cd58859f052b3bc8c03826a861cbc1cf9bc42b4db",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs",
+        "sha256": "7dc1119423150f623d754f1a502ce05673005eb4d44c12dcb214d280496c41ca"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-fee-ledger-owner-first-2026-10-08.json",
+        "sha256": "dc993a577c8518e5c4030815229807a2c2f69d198cf59bbf95d35551b789394a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-fee-ledger-owner-verified-2026-10-08.json",
+        "sha256": "a10c55dfe90a389992b4af6e4309455c8e89d69dee16a371cd1c3be5fd64804c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-ledger-store-ordering-red-2026-10-08.json",
+        "sha256": "fd7d5875bceac2e7559acb43d31e0afbdc0c9b031718ebbf6977f433f596cda9"
+      }
+    ]
+  },
+  "rawOutputSha256": "d6f87b788399c264e6975478dff586cb6545c100d24aaacc2b2218f7fac515df",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_http_scope_tests::execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_http_scope_tests::execution_http_orders_default_to_real_from_production_settings",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_http_scope_tests::execution_http_orders_filter_original_opaque_accounts_and_environment",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::fee_ledger_tests::reconciliation_empty_and_unknown_fees_leave_the_durable_ledger_unchanged",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::fee_ledger_tests::reconciliation_invalid_fee_amounts_reject_without_order_or_event_mutation",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::fee_ledger_tests::reconciliation_parent_fee_sum_and_duplicate_preserve_unallocated_combo_legs",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::reconciliation_does_not_guess_an_identity_for_an_uncertain_submission",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::provider_projection_tests::reconciliation_deduplicates_same_fill_from_active_and_history",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::reconciliation_unknown_order_is_durable_and_idempotent",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_concurrent_writes_and_reads_survive_reopen",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_reservation_replays_identity_without_retrying_unknown_submission",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_orders_sort_updated_created_and_identity_after_reopening"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "execution_order_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 11,
+      "exec_time": 0.528298416,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "execution_order_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1874,
+      "exec_time": 10.360868418,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

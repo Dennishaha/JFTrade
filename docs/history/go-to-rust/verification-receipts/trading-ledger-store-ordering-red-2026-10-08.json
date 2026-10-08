@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(execution_orders_sort_updated_created_and_identity_after_reopening)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T05:28:20Z",
+  "sourceState": {
+    "verifiedCommit": "fbf67c7add3632f3ac1f0e7ab8f0a687f296e6f7",
+    "trackedDiffSha256": "b626b7825c5f0557eb13457e29a2b4e6798cf079e4831920a7bd913b527c5908",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_execution_reconciliation_fee_ledger_tests.rs",
+        "sha256": "00a4ff40b61b9025d459e5aa4c8e5b2517c92fb95b3d0946d5d99f4749f230ad"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/trading-fee-ledger-owner-first-2026-10-08.json",
+        "sha256": "dc993a577c8518e5c4030815229807a2c2f69d198cf59bbf95d35551b789394a"
+      }
+    ]
+  },
+  "rawOutputSha256": "0bf100113eb14ad6be0e63d18e97913a60e7f9ae092a318d1164b242a04b6a62",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_orders_sort_updated_created_and_identity_after_reopening"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "execution_order_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 13,
+      "exec_time": 0.042127125,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "execution_order_store_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

@@ -1,5 +1,20 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 交易费用否定写入与持久化排序
+
+- 逐项复核冻结Go broker_ledger65、ledger_lifecycle73、ledger12、execution_composition153、submission_safety13五条partial。原65空费用/未知订单不产生事件和变更、原12过滤/三层降序/缺单断言闭合，净 **+2 exact / -2 partial / boundary 0**，当前 **1659 / 2154 / 638**。只更新五条mapping及八处必要reuse，不批量刷新报告。
+- 新增五个行为函数：实际fee read后的空ID、无金额或未知订单费用两轮no-op，全订单值/revision/事件保持，重开后仍无新增订单/事件；父单1.25+0.75=2与重复金额2的真实读取no-op；NaN/Inf/负费用拒绝；真实HTTP brokerId=FUTU/ib及HK/US过滤、三原订单3/2/1降序、missing-order 404/ORDER_NOT_FOUND；底层重开后三层降序。原单腿option combo输入由Rust实际投影拒绝，保持partial，不放宽公开契约。
+- 真实发现：HTTP owner已按updated/created/id排序，但底层 `ExecutionOrderStore::list_orders` 实际仅按created_at。原mapping关于底层三层排序的陈述不准确。重开后同时间ID得到2/3/1，较旧创建但较新更新的4号也排最后；修复单条SQL表达式为updated_at/created_at/internal_order_id降序。调用方复核：HTTP重复排序不变，对账candidate自己排序，取消匹配按完整身份消除歧义，无新增writer/schema/依赖/锁文件或冻结fixture修改。
+- 首 `trading-fee-ledger-owner-first-2026-10-08.json` **5 passed / 1 failed / 2295 filtered/skipped**，SHA `dc993a577c8518e5c4030815229807a2c2f69d198cf59bbf95d35551b789394a`：HTTP断言已过，失败为重开后底层排序。三份测试源码在 `/tmp/jftrade-trading-fee-ledger-first-source`。独立底层红 `trading-ledger-store-ordering-red-2026-10-08.json` **0 passed / 1 failed / 203 filtered/skipped**，SHA `fd7d5875bceac2e7559acb43d31e0afbdc0c9b031718ebbf6977f433f596cda9`，五份Rust源码在 `/tmp/jftrade-trading-ledger-store-ordering-red-source`。原失败receipt不删除/改写。
+- 首绿 `trading-fee-ledger-owner-verified-2026-10-08.json` **12 passed / 0 failed / 2493 filtered/skipped**，SHA `a10c55dfe90a389992b4af6e4309455c8e89d69dee16a371cd1c3be5fd64804c`。补单腿实际拒绝断言后，当前绿 `trading-fee-ledger-owner-closed-2026-10-08.json` **12 passed / 0 failed / 0 ignored / 2493 filtered/skipped**，SHA `4f9299f8df75d9a7c809c9052604da0ad2308e9a7d5a32f4093d5e4c758980f2`，五份当前Rust源码指纹在 `/tmp/jftrade-trading-fee-ledger-closed-source`。五条mapping引用当前绿。
+- 原153完整HK数量/均价与source/lastErrorSource/事件状态链仍未闭合；原13还缺prepared/accepted/unknown两个事件及retryAllowed=false完整原链。原Go13没有外呼计数，纠正旧mapping把该计数当原缺口的描述，未因此升级。原73单腿、coverage券商及非数值账户输入与Rust生产Futu路径不同，仍partial。
+- 定向绿不替代完整门禁：ordinary/strict、anchor、AI-context、quick及现场 `pnpm run check:rust` 待完成；当前整体goal保持active。
+- 本批ordinary/strict、anchor和AI-context已通过，anchor **2157 unique / 2109 recorded / 0 unrecorded / 0 stale / 48 unknown**；五份当前源码指纹与四份receipt SHA再次一致。现场quick明确退出0：**2535 passed / 0 failed / 0 skipped**，fmt、Clippy、七类replay、Pine **98 passed**、desktop **48 passed**，日志 `/tmp/jftrade-trading-fee-ledger-quick.log`。首次现场完整Rust明确退出1：target-health检测至少50000个rcgu.o，workspace测试未运行；原日志 `/tmp/jftrade-trading-fee-ledger-rust.log` 保留。确认没有Cargo/rustc/nextest进程后，按仓库clean命令清理编译产物再复跑，不修改门禁阈值。
+- 仓库clean明确退出0，移除 **135286 files / 34.7GiB**，日志 `/tmp/jftrade-trading-fee-ledger-clean.log`。清理后现场完整Rust已启动，日志 `/tmp/jftrade-trading-fee-ledger-rust-clean.log`；完成前不记通过，Rust源码保持定向绿receipt状态，后续交易API缺口只读定位。
+- 清理后full明确退出1：static通过，workspace **3916 passed / 0 failed / 2 skipped**，无LEAK；storage/backtest/assistant/api/desktop五类replay通过，provider-runtime与trading-strategy在并行冷编译等待时分别触发固定120秒超时。原日志保留，不把workspace成功记为完整门禁通过。确认无Cargo进程且target-health通过后顺序复跑两项，再运行完整命令；不放宽超时/阈值，Rust源码保持不变。
+- 两项顺序replay复跑均明确退出0，日志 `/tmp/jftrade-trading-fee-ledger-provider-retry.log`、`/tmp/jftrade-trading-fee-ledger-trading-retry.log`，固定超时未改。现场完整Rust再次启动，日志 `/tmp/jftrade-trading-fee-ledger-rust-verified.log`；以最终退出状态确认本批完整门禁。
+- 最终现场完整 `pnpm run check:rust` 明确退出0：workspace **3916 passed / 0 failed / 2 skipped**，static和七类replay全部通过，无LEAK；两条skipped不计通过。五份Rust源码指纹与owner-closed仍一致，四份receipt SHA不变，最终ordinary/strict、anchor、AI-context与diff检查通过。提交本批费用/排序修复后继续交易API真实错误传播、券商写入及旧风险exact复核，整体goal保持active。
+
 ## 2026-10-08 Pine 条件单类型与整批结构校验
 
 - 本批逐项复核冻结Go command原60/76/93/130/267五条partial，关联复核原180/194两条旧boundary。原93的净持仓7仍只退出1.5、原130四格类型/价格和原267完整拒绝表闭合，三条partial→exact；原180无组双价exit的OCO bracket错误/零写入闭合，boundary→exact。原194成功两腿展开仍缺，旧backtest matcher不能证明live命令层，纠正为partial。净 **+4 exact / -2 partial / -2 boundary**，当前 **1657 / 2156 / 638**；不把类别纠正算作行为实现。

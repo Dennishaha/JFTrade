@@ -51,6 +51,22 @@ async fn scope_fixture(
     real_market: &str,
     real_symbol: &str,
 ) -> (tempfile::TempDir, ProductionPortBundle, ProductHandle) {
+    let mut initial = vec![
+        seeded_order("SIMULATE", "HK", "HK.00700"),
+        seeded_order("REAL", real_market, real_symbol),
+    ];
+    if real_market == "HK" {
+        for order in &mut initial {
+            order.requested_quantity = Some(100.0);
+        }
+    }
+    seeded_scope_fixture(default_environment, initial).await
+}
+
+async fn seeded_scope_fixture(
+    default_environment: Option<&str>,
+    initial: Vec<StoredExecutionOrder>,
+) -> (tempfile::TempDir, ProductionPortBundle, ProductHandle) {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let directory = tempfile::tempdir().unwrap();
     let settings = directory.path().join("settings.json");
@@ -67,18 +83,13 @@ async fn scope_fixture(
     }
     // Seed before composition obtains the production writer lease.
     let store = ExecutionOrderStore::open(directory.path().join("execution-orders.db")).unwrap();
-    for mut order in [
-        seeded_order("SIMULATE", "HK", "HK.00700"),
-        seeded_order("REAL", real_market, real_symbol),
-    ] {
-        if real_market == "HK" {
-            order.requested_quantity = Some(100.0);
-        }
+    for order in initial {
         let id = order.internal_order_id.clone();
+        let timestamp = order.updated_at.clone();
         store
             .save_order_and_event(
                 order,
-                "2026-10-08T00:00:00Z",
+                &timestamp,
                 &StoredExecutionOrderEvent {
                     id: &format!("placed-{id}"),
                     internal_order_id: &id,
@@ -86,7 +97,7 @@ async fn scope_fixture(
                     previous_status: None,
                     next_status: "SUBMITTED",
                     payload_json: "{}",
-                    created_at: "2026-10-08T00:00:00Z",
+                    created_at: &timestamp,
                 },
             )
             .unwrap();
@@ -107,6 +118,96 @@ async fn scope_fixture(
         .with_execution_read_snapshot_port(bundle.execution_read.clone());
     let handle = start_product(http).await.unwrap();
     (directory, bundle, handle)
+}
+
+// Parity: go:452dea11:internal/store/trading/ledger_test.go:12 TestExecutionOrderStoreSortingFilteringAndMissingOrderBoundaries
+#[tokio::test]
+async fn execution_http_ledger_filters_broker_and_market_and_preserves_descending_ties() {
+    let initial = [
+        ("exec-000001", "2026-07-03T07:00:00Z"),
+        ("exec-000002", "2026-07-03T07:30:00Z"),
+        ("exec-000003", "2026-07-03T07:30:00Z"),
+    ]
+    .into_iter()
+    .map(|(id, created)| {
+        let mut order = seeded_order("SIMULATE", "HK", "HK.00700");
+        order.internal_order_id = id.to_owned();
+        order.account_id = "SIM-001".to_owned();
+        order.created_at = created.to_owned();
+        order.updated_at = "2026-07-03T08:00:00Z".to_owned();
+        order
+    })
+    .collect();
+    let (directory, bundle, handle) = seeded_scope_fixture(None, initial).await;
+    let all = orders(&handle, "?brokerId=FUTU").await;
+    let rows = all.as_array().expect("orders");
+    assert_eq!(rows.len(), 3);
+    assert_eq!(
+        rows.iter()
+            .map(|row| row["internalOrderId"].as_str().expect("id"))
+            .collect::<Vec<_>>(),
+        ["exec-000003", "exec-000002", "exec-000001"]
+    );
+    assert_eq!(rows[0]["createdAt"], "2026-07-03T07:30:00Z");
+    assert_eq!(rows[2]["createdAt"], "2026-07-03T07:00:00Z");
+    assert!(
+        rows.iter()
+            .all(|row| row["updatedAt"] == "2026-07-03T08:00:00Z")
+    );
+    assert_eq!(orders(&handle, "?brokerId=ib").await, json!([]));
+    assert_eq!(orders(&handle, "?market=US").await, json!([]));
+    assert_eq!(orders(&handle, "?brokerId=futu&market=hk").await, all);
+    let response = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .expect("client")
+        .get(format!(
+            "http://{}/api/v1/execution/orders/missing-order",
+            handle.startup_record().address
+        ))
+        .send()
+        .await
+        .expect("missing order HTTP");
+    assert_eq!(response.status().as_u16(), 404);
+    let absent: Value = response.json().await.expect("error envelope");
+    assert_eq!(absent["ok"], false);
+    assert_eq!(absent["error"]["code"], "ORDER_NOT_FOUND");
+    handle.shutdown().await.expect("HTTP shutdown");
+    bundle
+        .shutdown_adk_runtime()
+        .await
+        .expect("Assistant shutdown");
+    bundle
+        .shutdown_strategy_runtime()
+        .expect("strategy shutdown");
+    drop(bundle);
+    let reopened = ExecutionOrderStore::open(directory.path().join("execution-orders.db"))
+        .expect("reopen ledger");
+    let durable = reopened.list_orders().expect("persisted sorted orders");
+    assert_eq!(
+        durable
+            .iter()
+            .map(|row| row.internal_order_id.as_str())
+            .collect::<Vec<_>>(),
+        ["exec-000003", "exec-000002", "exec-000001"]
+    );
+    for row in durable {
+        assert_eq!(
+            reopened
+                .list_order_events(&row.internal_order_id)
+                .expect("events")
+                .len(),
+            1,
+            "reads must not add lifecycle events"
+        );
+    }
+    assert!(
+        reopened
+            .get_order("missing-order")
+            .expect("absent persisted order")
+            .is_none()
+    );
 }
 
 async fn orders(handle: &ProductHandle, query: &str) -> Value {
