@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T06:43:49Z",
+  "sourceState": {
+    "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+    "trackedDiffSha256": "ece94bd4569b7197ed3a0e92bb59e91f823d5354fe03e36b0bc373f5619a89c4",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+        "sha256": "4fe3dbed435cfc457d16a17dc4c9f1e60fefd684e2b519abe1470ded6d2ab0de"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+        "sha256": "e6658415afa9d88eaf77f0e47ebd69827221037601071d3a967e4765703b6549"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-auth-session-persistence-green-2026-10-08.json",
+        "sha256": "ed20bd2de2c8a593f9f7164b120852f313fad3dba17892affec72cf679c95f97"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-auth-session-persistence-red-2026-10-08.json",
+        "sha256": "7c090e5791217a00f6960fccaba9668e9ea3c5b9e784ffbe7792b937bf2d28ad"
+      }
+    ]
+  },
+  "rawOutputSha256": "c980e29deff582bae6222277a6b45d94bebf1818afa39dd272cac34127054de4",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::web_auth_http_tests::production_http_desktop_enables_password_web_and_keeps_password_material_private",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::web_auth_http_tests::production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1890,
+      "exec_time": 16.423143208,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

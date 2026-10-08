@@ -58516,11 +58516,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_security_test.go:37:TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port",
-      "conclusion": "partial（登录闭环缺失）：Go 断言桌面开启密码保护 web——响应 webAccessEnabled:true/passwordConfigured:true 且无 password/newPassword/passwordHash 明文、设置文件为 argon2id 且无明文与遗留字段、未登录 GET 返回 401、cookie 登录后 GET 返回 200 且无泄漏。Rust product_server_persists_ui_settings 用例断言 PUT 保存 web 密码后响应无 passwordHash/明文与启用标志（有锚点），但 web 密码的文件落盘哈希、401 与 cookie 登录往返均无断言（该用例内 argon2id 断言只针对 MCP token）。缺口与回归要求：在 jftrade-engine 补 web 密码保存->文件哈希->401->登录->200 的端到端用例后再升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_web_auth_http_tests.rs::production_http_desktop_enables_password_web_and_keeps_password_material_private",
+      "conclusion": "function_exact：原PUT JSON未改，经生产desktop listener和SecuritySettings owner返回200、webAccessEnabled/passwordConfigured=true；响应不含原password/newPassword/passwordHash/adminAuthRequired。设置文件无明文或legacy字段，持久化passwordHash以$argon2id$开头。真实Web listener匿名GET401，实际密码登录cookie后GET200且无hash/明文泄漏。native desktop/Web listener分离，启动前仅在disabled设置seed临时端口，原PUT没有补webPort。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/app/apiserver/servercore/settings_security_test.go",
         "line": 37,
@@ -58529,25 +58529,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_tests.rs",
-          "test": "product_server_persists_ui_settings_and_reports_actual_port",
+          "file": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+          "test": "production_http_desktop_enables_password_web_and_keeps_password_material_private",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/servercore/settings_security_test.go",
             "goLine": 37,
-            "rustFile": "crates/jftrade-engine/src/product_tests.rs",
-            "rustLine": 670
+            "rustFile": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+            "rustLine": 20
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（登录闭环缺失）：Go 断言桌面开启密码保护 web——响应 webAccessEnabled:true/passwordConfigured:true 且无 password/newPassword/passwordHash 明文、设置文件为 argon2id 且无明文与遗留字段、未登录 GET 返回 401、cookie 登录后 GET 返回 200 且无泄漏。",
-          "Rust product_server_persists_ui_settings 用例断言 PUT 保存 web 密码后响应无 passwordHash/明文与启用标志（有锚点），但 web 密码的文件落盘哈希、401 与 cookie 登录往返均无断言（该用例内 argon2id 断言只针对 MCP token）。"
+          "原PUT JSON未改，经生产desktop listener和SecuritySettings owner返回200、webAccessEnabled/passwordConfigured=true；响应不含原password/newPassword/passwordHash/adminAuthRequired。设置文件无明文或legacy字段，持久化passwordHash以$argon2id$开头。真实Web listener匿名GET401，实际密码登录cookie后GET200且无hash/明文泄漏。native desktop/Web listener分离，启动前仅在disabled设置seed临时端口，原PUT没有补webPort。"
         ],
-        "uncovered": [
-          "缺口与回归要求：在 jftrade-engine 补 web 密码保存->文件哈希->401->登录->200 的端到端用例后再升级。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -58557,39 +58554,37 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
         ],
         "testFilter": [
-          "product_server_persists_ui_settings_and_reports_actual_port"
+          "production_http_desktop_enables_password_web_and_keeps_password_material_private"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+        "verifiedAt": "2026-10-08T06:45:58Z",
+        "receiptDigest": "sha256:f7bd54135a871fc3dbabb524ed476a8ab97e14cef7ea3d693feddcaef3c6668d"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（登录闭环缺失）：Go 断言桌面开启密码保护 web——响应 webAccessEnabled:true/passwordConfigured:true 且无 password/newPassword/passwordHash 明文、设置文件为 argon2id 且无明文与遗留字段、未登录 GET 返回 401、cookie 登录后 GET 返回 200 且无泄漏。",
-        "Rust product_server_persists_ui_settings 用例断言 PUT 保存 web 密码后响应无 passwordHash/明文与启用标志（有锚点），但 web 密码的文件落盘哈希、401 与 cookie 登录往返均无断言（该用例内 argon2id 断言只针对 MCP token）。"
+        "原PUT JSON未改，经生产desktop listener和SecuritySettings owner返回200、webAccessEnabled/passwordConfigured=true；响应不含原password/newPassword/passwordHash/adminAuthRequired。设置文件无明文或legacy字段，持久化passwordHash以$argon2id$开头。真实Web listener匿名GET401，实际密码登录cookie后GET200且无hash/明文泄漏。native desktop/Web listener分离，启动前仅在disabled设置seed临时端口，原PUT没有补webPort。"
       ],
-      "uncoveredAssertions": [
-        "缺口与回归要求：在 jftrade-engine 补 web 密码保存->文件哈希->401->登录->200 的端到端用例后再升级。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/app/apiserver/servercore/settings_security_test.go:86:TestWebAccessCannotBeEnabledWithoutPassword": {
@@ -71245,8 +71240,8 @@
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
-      "conclusion": "partial：过期时间等于当前时刻的会话不通过 session/CSRF 校验；即使 snapshot 输入 browser_authenticated=true，仍为 authenticated=false、csrfToken/expiresAt=null。 未来有效会话仍通过校验；重启从持久化 session 文件清除过期条目，保留唯一有效 token hash。 冻结 Go 还要求未强制 disabled 的 trusted bypass、强制 disabled/不可用认证拒绝、public browser access 放行及显式 trusted request；新 owner 只闭合过期会话与恢复，尚无完整五种状态矩阵。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test auth_protects_logout --test expired_browser_sessions_fail_validation_and_are_pruned_on_restart --test production_default_security_exposes_no_web_listener_and_requires_desktop_token --test production_desktop_start_preserves_configured_web_security --test production_web_listener_rejects_legacy_admin_bearer --test production_desktop_http_and_websocket_require_the_same_private_capability --output docs/history/go-to-rust/verification-receipts/auth-capability-boundaries-verified-2026-10-07.json",
+      "conclusion": "partial：过期时刻等于当前时刻的cookie/session/CSRF拒绝与snapshot unauthenticated已通过真实会话owner重新执行；未来有效会话保留，重启清理过期token hash。 Go未enforced disabled trusted bypass、forced disabled/unavailable authenticate、公网BrowserAccessAllowed及显式trusted request同一Auth对象状态矩阵未闭合；native desktop/Web listener能力边界不能用会话snapshot输入标志代替。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
@@ -71263,17 +71258,16 @@
             "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
             "goLine": 101,
             "rustFile": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-            "rustLine": 464
+            "rustLine": 503
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "过期时间等于当前时刻的会话不通过 session/CSRF 校验；即使 snapshot 输入 browser_authenticated=true，仍为 authenticated=false、csrfToken/expiresAt=null。",
-          "未来有效会话仍通过校验；重启从持久化 session 文件清除过期条目，保留唯一有效 token hash。"
+          "过期时刻等于当前时刻的cookie/session/CSRF拒绝与snapshot unauthenticated已通过真实会话owner重新执行；未来有效会话保留，重启清理过期token hash。"
         ],
         "uncovered": [
-          "冻结 Go 还要求未强制 disabled 的 trusted bypass、强制 disabled/不可用认证拒绝、public browser access 放行及显式 trusted request；新 owner 只闭合过期会话与恢复，尚无完整五种状态矩阵。"
+          "Go未enforced disabled trusted bypass、forced disabled/unavailable authenticate、公网BrowserAccessAllowed及显式trusted request同一Auth对象状态矩阵未闭合；native desktop/Web listener能力边界不能用会话snapshot输入标志代替。"
         ],
         "source": "reviewed"
       },
@@ -71285,8 +71279,6 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-api",
-          "-p",
           "jftrade-engine",
           "--all-targets",
           "--locked",
@@ -71294,23 +71286,18 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(auth_protects_logout) or test(production_desktop_start_preserves_configured_web_security) or test(production_web_listener_rejects_legacy_admin_bearer) or test(production_default_security_exposes_no_web_listener_and_requires_desktop_token) or test(production_desktop_http_and_websocket_require_the_same_private_capability) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart)"
+          "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
         ],
         "testFilter": [
-          "auth_protects_logout",
-          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
-          "production_default_security_exposes_no_web_listener_and_requires_desktop_token",
-          "production_desktop_start_preserves_configured_web_security",
-          "production_web_listener_rejects_legacy_admin_bearer",
-          "production_desktop_http_and_websocket_require_the_same_private_capability"
+          "expired_browser_sessions_fail_validation_and_are_pruned_on_restart"
         ],
         "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "bcfc90ef455136531f0972916a71f9fca94dd60c",
-        "verifiedAt": "2026-10-07T04:10:10Z",
-        "receiptDigest": "sha256:b177620849815de016133d265bc257df159004bac5ac5a7f651dd6672c384978"
+        "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+        "verifiedAt": "2026-10-08T06:45:58Z",
+        "receiptDigest": "sha256:f7bd54135a871fc3dbabb524ed476a8ab97e14cef7ea3d693feddcaef3c6668d"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -71321,19 +71308,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "过期时间等于当前时刻的会话不通过 session/CSRF 校验；即使 snapshot 输入 browser_authenticated=true，仍为 authenticated=false、csrfToken/expiresAt=null。",
-        "未来有效会话仍通过校验；重启从持久化 session 文件清除过期条目，保留唯一有效 token hash。"
+        "过期时刻等于当前时刻的cookie/session/CSRF拒绝与snapshot unauthenticated已通过真实会话owner重新执行；未来有效会话保留，重启清理过期token hash。"
       ],
       "uncoveredAssertions": [
-        "冻结 Go 还要求未强制 disabled 的 trusted bypass、强制 disabled/不可用认证拒绝、public browser access 放行及显式 trusted request；新 owner 只闭合过期会话与恢复，尚无完整五种状态矩阵。"
+        "Go未enforced disabled trusted bypass、forced disabled/unavailable authenticate、公网BrowserAccessAllowed及显式trusted request同一Auth对象状态矩阵未闭合；native desktop/Web listener能力边界不能用会话snapshot输入标志代替。"
       ],
       "boundaryReason": null
     },
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:138:TestWebAuthRemainingLoginResponses": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_auth_session_tests.rs::auth_session_route_matches_go_fixture_in_cutover_only; crates/jftrade-engine/src/product_auth_session_write_port.rs",
-      "conclusion": "partial：Go 表驱动断言 login 的状态码矩阵（nil/禁用 403、unavailable 503、坏 JSON 400、桌面受信 200、默认校验器 401、取消 408、熵失败 500）。Rust 的写端口定义同一映射（WEB_ACCESS_DISABLED→403、Canceled→408、SettingsChanged→409 等）且路由语料测试冻结 403/503/400 形状；缺的是“熵失败 500 / 取消 408 / 桌面受信 200”逐项路由断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_web_auth_http_tests.rs::production_http_desktop_enables_password_web_and_keeps_password_material_private",
+      "conclusion": "partial：真实生产HTTP分别断言disabled browser login403、trusted desktop原{}登录200/authenticated=true/空CSRF、启用后bad JSON400、wrong password401，随后真实cookie登录闭环通过。 Go nil Auth403与不可用Auth503两个直接handler状态未通过同形生产输入验证；Go canceled verifier408及entropy500未闭合。native同步SecurityPasswordPort没有Go全局校验槽位或可取消verifier，native单次getrandom失败映射Unavailable503，与Go500不同。原GET session FixturePort语料不证明POST login状态矩阵，移除该旧证据引用，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
@@ -71343,25 +71329,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_auth_session_tests.rs",
-          "test": "auth_session_route_matches_go_fixture_in_cutover_only",
+          "file": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+          "test": "production_http_desktop_enables_password_web_and_keeps_password_material_private",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
             "goLine": 138,
-            "rustFile": "crates/jftrade-engine/src/product_auth_session_tests.rs",
-            "rustLine": 158
+            "rustFile": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+            "rustLine": 21
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 表驱动断言 login 的状态码矩阵（nil/禁用 403、unavailable 503、坏 JSON 400、桌面受信 200、默认校验器 401、取消 408、熵失败 500）。",
-          "Rust 的写端口定义同一映射（WEB_ACCESS_DISABLED→403、Canceled→408、SettingsChanged→409 等）且路由语料测试冻结 403/503/400 形状；",
-          "缺的是“熵失败 500 / 取消 408 / 桌面受信 200”逐项路由断言。"
+          "真实生产HTTP分别断言disabled browser login403、trusted desktop原{}登录200/authenticated=true/空CSRF、启用后bad JSON400、wrong password401，随后真实cookie登录闭环通过。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Go nil Auth403与不可用Auth503两个直接handler状态未通过同形生产输入验证；Go canceled verifier408及entropy500未闭合。native同步SecurityPasswordPort没有Go全局校验槽位或可取消verifier，native单次getrandom失败映射Unavailable503，与Go500不同。原GET session FixturePort语料不证明POST login状态矩阵，移除该旧证据引用，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -71372,23 +71356,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
         ],
         "testFilter": [
-          "auth_session_route_matches_go_fixture_in_cutover_only"
+          "production_http_desktop_enables_password_web_and_keeps_password_material_private"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+        "verifiedAt": "2026-10-08T06:45:58Z",
+        "receiptDigest": "sha256:f7bd54135a871fc3dbabb524ed476a8ab97e14cef7ea3d693feddcaef3c6668d"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -71399,12 +71386,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 表驱动断言 login 的状态码矩阵（nil/禁用 403、unavailable 503、坏 JSON 400、桌面受信 200、默认校验器 401、取消 408、熵失败 500）。",
-        "Rust 的写端口定义同一映射（WEB_ACCESS_DISABLED→403、Canceled→408、SettingsChanged→409 等）且路由语料测试冻结 403/503/400 形状；",
-        "缺的是“熵失败 500 / 取消 408 / 桌面受信 200”逐项路由断言。"
+        "真实生产HTTP分别断言disabled browser login403、trusted desktop原{}登录200/authenticated=true/空CSRF、启用后bad JSON400、wrong password401，随后真实cookie登录闭环通过。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Go nil Auth403与不可用Auth503两个直接handler状态未通过同形生产输入验证；Go canceled verifier408及entropy500未闭合。native同步SecurityPasswordPort没有Go全局校验槽位或可取消verifier，native单次getrandom失败映射Unavailable503，与Go500不同。原GET session FixturePort语料不证明POST login状态矩阵，移除该旧证据引用，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -71493,9 +71478,9 @@
     },
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:235:TestWebAuthRemainingSessionAndPruningErrors": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_auth_session_manager.rs; crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_session_store_corruption_fails_closed_without_rewrite",
-      "conclusion": "partial：Go 断言会话密钥生成的两次失败上抛、会话表达到上限时仍可创建（保持 maxWebSessions）、过期 attempts/sessions 被清理、熵读取失败报错。Rust 有 MAX_SESSIONS=128/MAX_LOGIN_ATTEMPTS=1024 与 prune_sessions/evict_oldest_session/prune_login_attempts/evict_oldest_login_attempt（引用实现），存储损坏 fail-closed 由引用测试覆盖；缺的是“上限驱逐后仍可登录”“过期条目被清理”的直接断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_login_failed_persistence_preserves_sessions_before_capacity_eviction; crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_login_failed_persistence_preserves_sessions_before_expired_pruning; crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_rate_limit_removes_attempts_at_the_expiry_boundary",
+      "conclusion": "partial：两条原红测证实failed persistence将128条内存表变成127；修复仅在持久化候选表成功后发布内存。两种故障下全表值、旧cookie/CSRF、备份文件原字节保持；恢复文件重开后成功login遵守128上限、只正常驱逐oldest或裁剪expired，新cookie/CSRF有效且durable表一致。另直接断言attempts WindowStart恰到期时prune、活跃限流条目保留。持久化失败回滚是native新增风险回归，不冒充Go原错误输入。 Go有session与CSRF两次可注入secret失败和randomSecretFrom reader失败；native只有单次getrandom及派生CSRF，没有相同两次熵入口。本批不添加未使用entropy抽象；该三分支尚未覆盖，整条partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
@@ -71505,25 +71490,45 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-          "test": "auth_session_store_corruption_fails_closed_without_rewrite",
+          "file": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+          "test": "auth_login_failed_persistence_preserves_sessions_before_capacity_eviction",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
             "goLine": 235,
-            "rustFile": "crates/jftrade-engine/src/product_auth_session_manager_tests.rs",
-            "rustLine": 448
+            "rustFile": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+            "rustLine": 15
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+          "test": "auth_login_failed_persistence_preserves_sessions_before_expired_pruning",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
+            "goLine": 235,
+            "rustFile": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+            "rustLine": 21
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+          "test": "auth_rate_limit_removes_attempts_at_the_expiry_boundary",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
+            "goLine": 235,
+            "rustFile": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+            "rustLine": 128
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言会话密钥生成的两次失败上抛、会话表达到上限时仍可创建（保持 maxWebSessions）、过期 attempts/sessions 被清理、熵读取失败报错。",
-          "Rust 有 MAX_SESSIONS=128/MAX_LOGIN_ATTEMPTS=1024 与 prune_sessions/evict_oldest_session/prune_login_attempts/evict_oldest_login_attempt（引用实现），存储损坏 fail-closed 由引用测试覆盖；",
-          "缺的是“上限驱逐后仍可登录”“过期条目被清理”的直接断言。"
+          "两条原红测证实failed persistence将128条内存表变成127；修复仅在持久化候选表成功后发布内存。两种故障下全表值、旧cookie/CSRF、备份文件原字节保持；恢复文件重开后成功login遵守128上限、只正常驱逐oldest或裁剪expired，新cookie/CSRF有效且durable表一致。另直接断言attempts WindowStart恰到期时prune、活跃限流条目保留。持久化失败回滚是native新增风险回归，不冒充Go原错误输入。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Go有session与CSRF两次可注入secret失败和randomSecretFrom reader失败；native只有单次getrandom及派生CSRF，没有相同两次熵入口。本批不添加未使用entropy抽象；该三分支尚未覆盖，整条partial。"
         ],
         "source": "reviewed"
       },
@@ -71534,23 +71539,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
         ],
         "testFilter": [
-          "auth_session_store_corruption_fails_closed_without_rewrite"
+          "auth_login_failed_persistence_preserves_sessions_before_capacity_eviction",
+          "auth_login_failed_persistence_preserves_sessions_before_expired_pruning",
+          "auth_rate_limit_removes_attempts_at_the_expiry_boundary"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+        "verifiedAt": "2026-10-08T06:45:58Z",
+        "receiptDigest": "sha256:f7bd54135a871fc3dbabb524ed476a8ab97e14cef7ea3d693feddcaef3c6668d"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -71561,12 +71571,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言会话密钥生成的两次失败上抛、会话表达到上限时仍可创建（保持 maxWebSessions）、过期 attempts/sessions 被清理、熵读取失败报错。",
-        "Rust 有 MAX_SESSIONS=128/MAX_LOGIN_ATTEMPTS=1024 与 prune_sessions/evict_oldest_session/prune_login_attempts/evict_oldest_login_attempt（引用实现），存储损坏 fail-closed 由引用测试覆盖；",
-        "缺的是“上限驱逐后仍可登录”“过期条目被清理”的直接断言。"
+        "两条原红测证实failed persistence将128条内存表变成127；修复仅在持久化候选表成功后发布内存。两种故障下全表值、旧cookie/CSRF、备份文件原字节保持；恢复文件重开后成功login遵守128上限、只正常驱逐oldest或裁剪expired，新cookie/CSRF有效且durable表一致。另直接断言attempts WindowStart恰到期时prune、活跃限流条目保留。持久化失败回滚是native新增风险回归，不冒充Go原错误输入。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Go有session与CSRF两次可注入secret失败和randomSecretFrom reader失败；native只有单次getrandom及派生CSRF，没有相同两次熵入口。本批不添加未使用entropy抽象；该三分支尚未覆盖，整条partial。"
       ],
       "boundaryReason": null
     },
@@ -71712,9 +71720,9 @@
     },
     "internal/app/apiserver/webaccess/auth_boundaries_test.go:319:TestWebAuthRemainingCanceledPasswordSlotAndStatus": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_auth_session_write_port.rs; crates/jftrade-api/tests/transport_contracts.rs::auth_rejects_untrusted_origin_before_authentication",
-      "conclusion": "partial：Go 断言密码校验槽位满时按 ctx 取消返回 Canceled、以及 /auth/session 对未受信 Origin 返回 403。Rust 定义 Canceled→408（引用写端口）并对未受信 Origin 在认证前 403（引用测试），但没有“槽位/并发上限 + 取消”的专门测试，登记为待补。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-engine/src/product_web_auth_http_tests.rs::production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf",
+      "conclusion": "partial：实际生产Web HTTP GET /api/v1/auth/session foreign Origin403；真实密码登录cookie后GET200、authenticated/browser=true，csrfToken精确等于该cookie登录返回值，没有密码material泄漏。 原Go饱和全局password slots且pre-canceled context的checkPasswordForLogin必须返回Canceled；native同步verifier没有对应slot/context seam，不能用预设Canceled写port错误声称闭合。保留partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
@@ -71724,23 +71732,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-api/tests/transport_contracts.rs",
-          "test": "auth_rejects_untrusted_origin_before_authentication",
-          "crate": "jftrade-api",
+          "file": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+          "test": "production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/webaccess/auth_boundaries_test.go",
             "goLine": 319,
-            "rustFile": "crates/jftrade-api/tests/transport_contracts.rs",
-            "rustLine": 1100
+            "rustFile": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+            "rustLine": 109
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言密码校验槽位满时按 ctx 取消返回 Canceled、以及 /auth/session 对未受信 Origin 返回 403。"
+          "实际生产Web HTTP GET /api/v1/auth/session foreign Origin403；真实密码登录cookie后GET200、authenticated/browser=true，csrfToken精确等于该cookie登录返回值，没有密码material泄漏。"
         ],
         "uncovered": [
-          "Rust 定义 Canceled→408（引用写端口）并对未受信 Origin 在认证前 403（引用测试），但没有“槽位/并发上限 + 取消”的专门测试，登记为待补。"
+          "原Go饱和全局password slots且pre-canceled context的checkPasswordForLogin必须返回Canceled；native同步verifier没有对应slot/context seam，不能用预设Canceled写port错误声称闭合。保留partial。"
         ],
         "source": "reviewed"
       },
@@ -71751,23 +71759,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
         ],
         "testFilter": [
-          "auth_rejects_untrusted_origin_before_authentication"
+          "production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+        "verifiedAt": "2026-10-08T06:45:58Z",
+        "receiptDigest": "sha256:f7bd54135a871fc3dbabb524ed476a8ab97e14cef7ea3d693feddcaef3c6668d"
       },
       "risk": "high",
       "owner": "api_transport",
@@ -71778,10 +71789,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言密码校验槽位满时按 ctx 取消返回 Canceled、以及 /auth/session 对未受信 Origin 返回 403。"
+        "实际生产Web HTTP GET /api/v1/auth/session foreign Origin403；真实密码登录cookie后GET200、authenticated/browser=true，csrfToken精确等于该cookie登录返回值，没有密码material泄漏。"
       ],
       "uncoveredAssertions": [
-        "Rust 定义 Canceled→408（引用写端口）并对未受信 Origin 在认证前 403（引用测试），但没有“槽位/并发上限 + 取消”的专门测试，登记为待补。"
+        "原Go饱和全局password slots且pre-canceled context的checkPasswordForLogin必须返回Canceled；native同步verifier没有对应slot/context seam，不能用预设Canceled写port错误声称闭合。保留partial。"
       ],
       "boundaryReason": null
     },
@@ -340635,6 +340646,52 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_login_failed_persistence_preserves_sessions_before_capacity_eviction": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/auth_boundaries_test.go:235:TestWebAuthRemainingSessionAndPruningErrors"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原Go断言复核：HTTP enable在37支持完整保护闭环、在138只支持明确四种login状态；session status只支持319的HTTP/CSRF分支，不宣称取消slot等价。持久化回滚是native真实红绿，235两次entropy缺口保留。expiry101只支持到期和重启清理，不扩大其他引用。"
+    },
+    "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_login_failed_persistence_preserves_sessions_before_expired_pruning": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/auth_boundaries_test.go:235:TestWebAuthRemainingSessionAndPruningErrors"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原Go断言复核：HTTP enable在37支持完整保护闭环、在138只支持明确四种login状态；session status只支持319的HTTP/CSRF分支，不宣称取消slot等价。持久化回滚是native真实红绿，235两次entropy缺口保留。expiry101只支持到期和重启清理，不扩大其他引用。"
+    },
+    "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs::auth_rate_limit_removes_attempts_at_the_expiry_boundary": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/auth_boundaries_test.go:235:TestWebAuthRemainingSessionAndPruningErrors"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原Go断言复核：HTTP enable在37支持完整保护闭环、在138只支持明确四种login状态；session status只支持319的HTTP/CSRF分支，不宣称取消slot等价。持久化回滚是native真实红绿，235两次entropy缺口保留。expiry101只支持到期和重启清理，不扩大其他引用。"
+    },
+    "crates/jftrade-engine/src/product_web_auth_http_tests.rs::production_http_desktop_enables_password_web_and_keeps_password_material_private": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/app/apiserver/servercore/settings_security_test.go:37:TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword",
+        "internal/app/apiserver/webaccess/auth_boundaries_test.go:138:TestWebAuthRemainingLoginResponses"
+      ],
+      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原Go断言复核：HTTP enable在37支持完整保护闭环、在138只支持明确四种login状态；session status只支持319的HTTP/CSRF分支，不宣称取消slot等价。持久化回滚是native真实红绿，235两次entropy缺口保留。expiry101只支持到期和重启清理，不扩大其他引用。"
+    },
+    "crates/jftrade-engine/src/product_web_auth_http_tests.rs::production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/webaccess/auth_boundaries_test.go:319:TestWebAuthRemainingCanceledPasswordSlotAndStatus"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项原Go断言复核：HTTP enable在37支持完整保护闭环、在138只支持明确四种login状态；session status只支持319的HTTP/CSRF分支，不宣称取消slot等价。持久化回滚是native真实红绿，235两次entropy缺口保留。expiry101只支持到期和重启清理，不扩大其他引用。"
+    },
     "crates/jftrade-engine/src/product_production_ports_execution_http_error_tests.rs::broker_http_writes_validate_original_bodies_resolve_cancel_and_forward_unlock": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -340824,7 +340881,8 @@
         "internal/app/apiserver/webaccess/auth_boundaries_test.go:101:TestWebAuthRemainingAuthenticationStates"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08逐项原Go断言复核：HTTP enable在37支持完整保护闭环、在138只支持明确四种login状态；session status只支持319的HTTP/CSRF分支，不宣称取消slot等价。持久化回滚是native真实红绿，235两次entropy缺口保留。expiry101只支持到期和重启清理，不扩大其他引用。"
     },
     "crates/jftrade-engine/src/product_production_assembly_tests.rs::production_default_security_exposes_no_web_listener_and_requires_desktop_token": {
       "referenceCount": 1,
@@ -342696,14 +342754,14 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-api/tests/transport_contracts.rs::auth_rejects_untrusted_origin_before_authentication": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/api/middleware/auth_test.go:119:TestAuthRejectsUntrustedOrigin",
-        "internal/api/middleware/security_boundaries_test.go:17:TestAuthenticationBoundaryDecisions",
-        "internal/app/apiserver/webaccess/auth_boundaries_test.go:319:TestWebAuthRemainingCanceledPasswordSlotAndStatus"
+        "internal/api/middleware/security_boundaries_test.go:17:TestAuthenticationBoundaryDecisions"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批Web认证旧引用，其他断言范围及reuse审批不扩大。"
     },
     "crates/jftrade-api/tests/transport_contracts.rs::auth_requires_origin_and_csrf_for_session_writes": {
       "referenceCount": 1,
@@ -343053,7 +343111,7 @@
       "reviewNote": "2026-10-07：本批五条转到各自production HTTP/file owner，仅移除本批旧引用并保留其它条目的allowed和审核范围；Pine required绑定、通知归一和缺host分类残余继续partial。"
     },
     "crates/jftrade-engine/src/product_tests.rs::product_server_persists_ui_settings_and_reports_actual_port": {
-      "referenceCount": 12,
+      "referenceCount": 11,
       "referenceKeys": [
         "internal/api/settings/routes_failure_boundaries_test.go:164:TestSettingsAndDataManagementRoutesExposeOperationalFailureContracts",
         "internal/api/settings/routes_test.go:376:TestCreateManagedAccountRejectsMissingAccountID",
@@ -343062,7 +343120,6 @@
         "internal/api/settings/routes_test.go:468:TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows",
         "internal/api/settings/routes_test.go:589:TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation",
         "internal/api/system/routes_test.go:19:TestSystemRoutesReturnEnvelopes",
-        "internal/app/apiserver/servercore/settings_security_test.go:37:TestDesktopCanEnablePasswordProtectedWebWithoutExposingPassword",
         "internal/app/apiserver/servercore/settings_security_test.go:86:TestWebAccessCannotBeEnabledWithoutPassword",
         "internal/app/apiserver/servercoretest/frontend_test.go:246:TestStartForRunArgsUsesInterfaceSettingsForAPIBindWhileWebIsDisabled",
         "internal/settings/service_managed_accounts_test.go:58:TestServiceSystemNotificationTestUsesNarrowPublisherAndFailsClosed",
@@ -343070,7 +343127,7 @@
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07：本批五条转到各自production HTTP/file owner，仅移除本批旧引用并保留其它条目的allowed和审核范围；Pine required绑定、通知归一和缺host分类残余继续partial。"
+      "reviewNote": "2026-10-07：本批五条转到各自production HTTP/file owner，仅移除本批旧引用并保留其它条目的allowed和审核范围；Pine required绑定、通知归一和缺host分类残余继续partial。 2026-10-08仅移除本批Web认证旧引用，其他断言范围及reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_tests.rs::live_provider_http_route_applies_each_selection_once": {
       "referenceCount": 1,
@@ -346368,14 +346425,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_auth_session_tests.rs::auth_session_route_matches_go_fixture_in_cutover_only": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "internal/app/apiserver/servercore/desktop_token_test.go:101:TestDesktopDevelopmentWebListenerStillRequiresPasswordSession",
-        "internal/app/apiserver/webaccess/auth_boundaries_test.go:138:TestWebAuthRemainingLoginResponses",
         "internal/app/apiserver/webaccess/security_integration_test.go:379:TestWebLogoutClearsSessionCookie"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批Web认证旧引用，其他断言范围及reuse审批不扩大。"
     },
     "crates/jftrade-engine/src/product_auth_session_tests.rs::auth_session_route_is_not_registered_without_snapshot_port": {
       "referenceCount": 1,
@@ -348105,12 +348162,11 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_auth_session_manager_tests.rs::auth_session_store_corruption_fails_closed_without_rewrite": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "internal/app/apiserver/webaccess/auth_boundaries_test.go:235:TestWebAuthRemainingSessionAndPruningErrors"
-      ],
+      "referenceCount": 0,
+      "referenceKeys": [],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批Web认证旧引用，其他断言范围及reuse审批不扩大。"
     },
     "crates/jftrade-api/src/router.rs::forwarded_client_identity_uses_the_proxy_appended_address": {
       "referenceCount": 1,

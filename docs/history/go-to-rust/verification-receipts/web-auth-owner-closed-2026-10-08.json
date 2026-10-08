@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_http_desktop_enables_password_web_and_keeps_password_material_private) or test(production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf) or test(auth_login_failed_persistence_preserves_sessions_before_capacity_eviction) or test(auth_login_failed_persistence_preserves_sessions_before_expired_pruning) or test(auth_rate_limit_removes_attempts_at_the_expiry_boundary) or test(expired_browser_sessions_fail_validation_and_are_pruned_on_restart) or test(password_change_during_login_rejects_the_stale_verification) or test(password_restore_during_login_rejects_aba_stale_verification) or test(session_revocation_is_published_only_after_persistence_succeeds) or test(auth_sessions_are_cookie_bound_hashed_and_restart_durable)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T06:45:58Z",
+  "sourceState": {
+    "verifiedCommit": "0eca640cd86d60e4b0a71ebafbc4947900aa9805",
+    "trackedDiffSha256": "ece94bd4569b7197ed3a0e92bb59e91f823d5354fe03e36b0bc373f5619a89c4",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_auth_session_persistence_tests.rs",
+        "sha256": "52fa0ede0464f3784daed8994b3b207b9654d90ce9120736f9401c2dd7ad537c"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_web_auth_http_tests.rs",
+        "sha256": "e6658415afa9d88eaf77f0e47ebd69827221037601071d3a967e4765703b6549"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-auth-http-first-2026-10-08.json",
+        "sha256": "0827120d675ce7cd16bd95c409ccc269c7821e659d37e9ea9d30d625bf52c171"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-auth-owner-reviewed-2026-10-08.json",
+        "sha256": "b5ea47d66e988c84784d35a607a507dce40c8e94c8581f551cec9d5c09e9587d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-auth-session-persistence-green-2026-10-08.json",
+        "sha256": "ed20bd2de2c8a593f9f7164b120852f313fad3dba17892affec72cf679c95f97"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-auth-session-persistence-red-2026-10-08.json",
+        "sha256": "7c090e5791217a00f6960fccaba9668e9ea3c5b9e784ffbe7792b937bf2d28ad"
+      }
+    ]
+  },
+  "rawOutputSha256": "64a61b2a916d4afe0d6bbad0c51f0d7e655490b236b8b03ef277c84c918c6c47",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::auth_sessions_are_cookie_bound_hashed_and_restart_durable",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::expired_browser_sessions_fail_validation_and_are_pruned_on_restart",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::password_change_during_login_rejects_the_stale_verification",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::password_restore_during_login_rejects_aba_stale_verification",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::persistence_tests::auth_login_failed_persistence_preserves_sessions_before_capacity_eviction",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::persistence_tests::auth_login_failed_persistence_preserves_sessions_before_expired_pruning",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::persistence_tests::auth_rate_limit_removes_attempts_at_the_expiry_boundary",
+    "jftrade-engine::jftrade_engine$product::product_auth_session_manager::tests::session_revocation_is_published_only_after_persistence_succeeds",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::web_auth_http_tests::production_http_desktop_enables_password_web_and_keeps_password_material_private",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::web_auth_http_tests::production_http_session_status_rejects_foreign_origin_and_returns_cookie_bound_csrf"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 10,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1882,
+      "exec_time": 26.296362374,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

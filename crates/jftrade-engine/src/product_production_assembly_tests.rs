@@ -1,4 +1,8 @@
 #[cfg(test)]
+#[path = "product_web_auth_http_tests.rs"]
+mod web_auth_http_tests;
+
+#[cfg(test)]
 mod product_production_assembly_tests {
     use std::collections::HashSet;
     use std::fs;
@@ -59,7 +63,7 @@ mod product_production_assembly_tests {
         StrategyRuntimeStore,
     };
 
-    fn setup_test_env() -> (TempDir, PathBuf, ProductConfig, SecuritySettingsService) {
+    pub(super) fn setup_test_env() -> (TempDir, PathBuf, ProductConfig, SecuritySettingsService) {
         let temp_dir = TempDir::new().expect("temp dir");
         let settings_path = temp_dir.path().join("settings.json");
         fs::write(&settings_path, b"{}").expect("write settings");
@@ -84,7 +88,7 @@ mod product_production_assembly_tests {
         (temp_dir, settings_path, config, security)
     }
 
-    fn seed_password_protected_web(security: &SecuritySettingsService) -> SocketAddr {
+    pub(super) fn seed_password_protected_web(security: &SecuritySettingsService) -> SocketAddr {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("reserve Web port");
         let address = listener.local_addr().expect("Web address");
         security

@@ -318,19 +318,15 @@ impl AuthSessionWritePort for ProductionAuthSessionManager {
                                 "Web session state lock is poisoned".to_owned(),
                             )
                         })?;
-                        prune_sessions(&mut guard);
-                        while guard.len() >= MAX_SESSIONS {
-                            evict_oldest_session(&mut guard);
+                        let mut candidate = guard.clone();
+                        prune_sessions(&mut candidate);
+                        while candidate.len() >= MAX_SESSIONS {
+                            evict_oldest_session(&mut candidate);
                         }
-                        let previous = guard.insert(stored.token_hash.clone(), stored.clone());
-                        if let Err(error) = persist_sessions(&self.session_path, &guard) {
-                            if let Some(previous) = previous {
-                                guard.insert(stored.token_hash, previous);
-                            } else {
-                                guard.remove(&stored.token_hash);
-                            }
-                            return Err(AuthSessionWritePortError::Unavailable(error));
-                        }
+                        candidate.insert(stored.token_hash.clone(), stored.clone());
+                        persist_sessions(&self.session_path, &candidate)
+                            .map_err(AuthSessionWritePortError::Unavailable)?;
+                        *guard = candidate;
                         drop(guard);
 
                         let cookie =

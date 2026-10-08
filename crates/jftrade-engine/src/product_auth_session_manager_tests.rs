@@ -7,6 +7,9 @@ use jftrade_settings::{
 
 use super::*;
 
+#[path = "product_auth_session_persistence_tests.rs"]
+mod persistence_tests;
+
 struct MockSecurityStore(RwLock<Option<SecuritySettingsRecord>>);
 
 impl SecuritySettingsStorePort for MockSecurityStore {
