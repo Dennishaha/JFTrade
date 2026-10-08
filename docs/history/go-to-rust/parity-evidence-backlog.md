@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Pine 重复tuple别名与冻结helper诊断
+
+- 完整现场Rust明确退出0：workspace **3941 passed / 0 failed / 2 skipped**，无LEAK；static、冻结manifest与七类compatibility replay全部通过，日志`/tmp/jftrade-pine-semantic-rejections-rust.log`。两条skipped不计执行通过；红绿SHA、快照内部七份指纹和当前源码匹配已复核，五条mapping/十二处reuse范围保持。提交本批后继续Assistant默认内置agent配置：原允许provider/model/reasoning更新被PUT blanket409阻断，POST同ID却可覆盖保护字段，先建真实HTTP独立红，整体goal继续active。
+- 现场quick明确退出0：**2491 passed / 0 failed / 0 skipped**，无LEAK；fmt/Clippy、trading-strategy replay、Pine98、desktop48通过，日志`/tmp/jftrade-pine-semantic-rejections-quick.log`。ordinary/strict、anchor/context实际通过，anchor **2168 unique / 2120 recorded / 0 unrecorded / 0 stale / 48 unknown**；七份源码与canonical绿指纹一致，五条mapping/十二处reuse范围已核对。完整现场Rust待确认，不将定向或quick绿记作完整门禁。
+- 新增七个行为函数，逐项复核冻结parse54、semantic_helpers99、parser_loop63、validation_semantics29、runtime_parser94五条partial。parse54完整11原输入与原消息、line3/code/error/noIR直接闭合，升级function_exact；旧更大helper表不是该冻结函数的断言残余。净 **exact +1 / partial −1 / boundary 0**，当前 **1660 / 2153 / 638**；仅改五条mapping与十二处必要reuse，删除一处不再被引用的reuse，不批量刷新report。
+- 独立红 `pine-tuple-alias-owner-red-2026-10-08.json` **1 passed / 2 failed / 0 ignored / 139 filtered/skipped**，SHA `fb9eacabed750db5cb442d8959d7ee88c2d1c5bb8f490b3dce00f0214c5d0df2`；七份源码与diff于`/tmp/jftrade-pine-tuple-alias-red-source`。原MACD两别名的typed analyze没有重复诊断，有效宽度重复MACD被compile接受，失败均为真实owner行为；underscore/唯一名称正向控制已绿，红receipt不重写。
+- semantic owner按原顺序报告每次重复具体名称，code `PINE_SEMANTIC_TUPLE`，允许重复`_`及大小写不同名称；声明与重赋值均在lowering前拒绝，无IR。绿 `pine-semantic-rejections-owner-verified-2026-10-08.json`明确退出0：**11 passed / 0 failed / 0 ignored / 131 filtered/skipped**，SHA `a0c963ee0fc5d19ace6859f7399789add8e67c931aca6bb4ecbbf92a01c771ef`，七份源码指纹于`/tmp/jftrade-pine-semantic-rejections-verified-source`。另外完整五个call-result history原参数位置、四个security内层表达式及五个原畸形TA输入的源码保持/诊断均通过；没有公开wire/schema/依赖或冻结fixture修改。
+- 99仍缺原TupleBindings/ReturnCount summary、collection消息和method/import/label helper分支；63仍缺private statement=nil/handled=true与normalize直接helper返回；29及94仍有字符串helper/文本重写返回对象差异。全部明确保留partial。63冻结原文没有普通close[1]禁止断言，纠正旧错误归因并保留series history可执行正向控制。
+- 定向绿不替代完整门禁；ordinary/strict、anchor、context、quick计划/现场quick和完整`CARGO_INCREMENTAL=0 pnpm run check:rust`待执行。上一批Web Origin已提交`1150e2c6`，整体goal继续active。
+
 ## 2026-10-08 Web 重绑定 Origin 端口授权
 
 - 完整Rust现场明确退出0：workspace **3934 passed / 0 failed / 2 skipped**，无LEAK；static、冻结manifest与七类compatibility replay通过，日志`/tmp/jftrade-web-origin-rebind-rust.log`。两条skipped不计执行通过；九份当前源码与verified快照匹配，红绿快照各自指纹一致，两receipt SHA保持不变，六条mapping/七处reuse范围已复核。提交本批后继续Pine重复tuple别名及公共helper原输入诊断，整体goal保持active。

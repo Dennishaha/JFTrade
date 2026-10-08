@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-strategy",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T08:30:51Z",
+  "sourceState": {
+    "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+    "trackedDiffSha256": "64f1ac83dce34e83443eb52555d9540dd5e26308d9e09a1c18f4bd447bf30719",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+        "sha256": "cef5f6b1f8761ae5b2aff9d58f3a287ef5b51cbce22e75a284072fec68eb99a9"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-tuple-alias-owner-red-2026-10-08.json",
+        "sha256": "fb9eacabed750db5cb442d8959d7ee88c2d1c5bb8f490b3dce00f0214c5d0df2"
+      }
+    ]
+  },
+  "rawOutputSha256": "443af6a83b89a70cf21e73715e5145526e422ec07a0948a80e9d04ad09c1c29b",
+  "passedTests": [
+    "jftrade-strategy::jftrade_strategy$pine::public_helper_guard_tests::compile_rejects_public_internal_helper_calls",
+    "jftrade-strategy::pine_order_metadata_and_security_rejections$request_security_rejects_unsupported_inner_ta_contracts",
+    "jftrade-strategy::pine_semantic_rejection_contracts$duplicate_tuple_aliases_fail_for_declarations_and_reassignments",
+    "jftrade-strategy::pine_semantic_rejection_contracts$malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir",
+    "jftrade-strategy::pine_semantic_rejection_contracts$public_helpers_reject_each_frozen_input_with_its_original_message",
+    "jftrade-strategy::pine_semantic_rejection_contracts$security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta",
+    "jftrade-strategy::pine_semantic_rejection_contracts$tuple_discard_placeholders_and_unique_aliases_remain_executable",
+    "jftrade-strategy::pine_semantic_rejection_contracts$tuple_indicator_parameters_reject_call_result_history_in_each_original_position",
+    "jftrade-strategy::pine_semantic_rejection_contracts$tuple_semantics_report_the_original_duplicate_alias_before_lowering",
+    "jftrade-strategy::pine_tuple_contracts$malformed_tuple_and_switch_scripts_are_rejected",
+    "jftrade-strategy::pine_tuple_contracts$tuple_assignments_keep_the_go_alias_and_width_contract"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "jftrade_strategy",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_semantic_rejection_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_order_metadata_and_security_rejections",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.018842333,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_order_metadata_and_security_rejections",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_tuple_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 38,
+      "exec_time": 0.019339542,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "jftrade_strategy",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.02796375,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_tuple_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.113694374,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_semantic_rejection_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

@@ -191,6 +191,7 @@ impl SemanticContext<'_> {
             Statement::TupleAssignment {
                 names, expression, ..
             } => {
+                self.report_tuple_alias_diagnostics(names, expression.range.start_line);
                 self.visit_expr(expression);
                 for name in names {
                     self.symbols.insert(name.clone(), ValueType::Unknown);
@@ -301,6 +302,22 @@ impl SemanticContext<'_> {
                     .diagnostics
                     .push(Diagnostic::error(code, message, range.start_line));
             }
+        }
+    }
+
+    fn report_tuple_alias_diagnostics(&mut self, names: &[String], line: usize) {
+        let mut seen = BTreeSet::new();
+        let duplicates = names
+            .iter()
+            .filter(|name| name.as_str() != "_" && !seen.insert(name.as_str()))
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        if !duplicates.is_empty() {
+            self.summary.diagnostics.push(Diagnostic::error(
+                "PINE_SEMANTIC_TUPLE",
+                format!("tuple assignment repeats {}", duplicates.join(", ")),
+                line,
+            ));
         }
     }
 

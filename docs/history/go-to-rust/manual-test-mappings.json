@@ -315490,11 +315490,11 @@
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls": {
-      "status": "[~]",
-      "evidence_type": "partial",
-      "rust_entry": "crates/jftrade-strategy/src/pine/mod.rs::public_helper_guard_tests::compile_rejects_public_internal_helper_calls",
-      "conclusion": "partial：Rust compile_rejects_public_internal_helper_calls 现已逐项覆盖 Go 原测试的 ma、security_source、bollinger、barssince、valuewhen、history、ifelse、cross_over、cross_under、notify、ta.adx 11 个拒绝分支，并额外覆盖 highest/lowest；Go 更大的 publicDisabledHelperNames 矩阵仍有未逐项迁移项。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy -E 'test(public_helper_guard)'",
+      "status": "[x]",
+      "evidence_type": "function_exact",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::public_helpers_reject_each_frozen_input_with_its_original_message",
+      "conclusion": "function_exact：冻结原函数的11个输入逐字保持：ma、security_source(close, day)、bollinger、barssince、valuewhen、history、ifelse、cross_over、cross_under、notify、ta.adx全部拒绝，原要求的internal JFTrade helper或JFTrade-only shortcut消息逐项匹配。 附加断言原line3、error severity、对应PINE_INTERNAL_HELPER_PUBLIC/PINE_PUBLIC_TA_SHORTCUT代码及无可执行IR。旧结论把更大publicDisabledHelperNames表当作该函数残余不符合冻结原文；此次实际执行完整原输入和错误断言后升级，不单靠文案重解释。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)'",
       "source": {
         "file": "pkg/strategy/pine/parse_test.go",
         "line": 54,
@@ -315503,25 +315503,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "compile_rejects_public_internal_helper_calls",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "public_helpers_reject_each_frozen_input_with_its_original_message",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parse_test.go",
             "goLine": 54,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 196
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 21
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust compile_rejects_public_internal_helper_calls rejects all 11 Go named cases and includes the documented Pine v6 replacement or shortcut diagnostic.",
-          "Rust additionally rejects highest and lowest aliases."
+          "冻结原函数的11个输入逐字保持：ma、security_source(close, day)、bollinger、barssince、valuewhen、history、ifelse、cross_over、cross_under、notify、ta.adx全部拒绝，原要求的internal JFTrade helper或JFTrade-only shortcut消息逐项匹配。",
+          "附加断言原line3、error severity、对应PINE_INTERNAL_HELPER_PUBLIC/PINE_PUBLIC_TA_SHORTCUT代码及无可执行IR。旧结论把更大publicDisabledHelperNames表当作该函数残余不符合冻结原文；此次实际执行完整原输入和错误断言后升级，不单靠文案重解释。"
         ],
-        "uncovered": [
-          "Go publicDisabledHelperNames entries outside the 13 exercised aliases remain without individual Rust assertions."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -315531,39 +315529,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)"
         ],
         "testFilter": [
-          "compile_rejects_public_internal_helper_calls"
+          "public_helpers_reject_each_frozen_input_with_its_original_message"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+        "verifiedAt": "2026-10-08T08:30:51Z",
+        "receiptDigest": "sha256:a0c963ee0fc5d19ace6859f7399789add8e67c931aca6bb4ecbbf92a01c771ef"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "verification-receipt"
-      ],
+      "nextAction": "maintain_behavioral_regression",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust compile_rejects_public_internal_helper_calls rejects all 11 Go named cases and includes the documented Pine v6 replacement or shortcut diagnostic.",
-        "Rust additionally rejects highest and lowest aliases."
+        "冻结原函数的11个输入逐字保持：ma、security_source(close, day)、bollinger、barssince、valuewhen、history、ifelse、cross_over、cross_under、notify、ta.adx全部拒绝，原要求的internal JFTrade helper或JFTrade-only shortcut消息逐项匹配。",
+        "附加断言原line3、error severity、对应PINE_INTERNAL_HELPER_PUBLIC/PINE_PUBLIC_TA_SHORTCUT代码及无可执行IR。旧结论把更大publicDisabledHelperNames表当作该函数残余不符合冻结原文；此次实际执行完整原输入和错误断言后升级，不单靠文案重解释。"
       ],
-      "uncoveredAssertions": [
-        "Go publicDisabledHelperNames entries outside the 13 exercised aliases remain without individual Rust assertions."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "pkg/strategy/pine/parse_test.go:84:TestAnalyzeScriptReportsPublicInternalHelperDiagnostics": {
@@ -319026,9 +319023,9 @@
     },
     "pkg/strategy/pine/parser_loop_boundaries_test.go:63:TestTupleIndicatorsExposeUnsupportedCallHistory": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected",
-      "conclusion": "partial：Go 断言五类元组指标（bb/dmi/supertrend/kc/macd）在参数含历史引用（ta.sma(close, 2)[1]）时报 history references，normalizeTupleExpressions 同样拒绝。Rust 本轮已补元组 arity 与白名单校验，但探针显示 [value, aux] = ta.dmi(close[1], 14) 仍编译通过（Go 拒绝）。缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；回归要求：先加元组参数历史引用失败回归测试。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::tuple_indicator_parameters_reject_call_result_history_in_each_original_position",
+      "conclusion": "partial：五个原参数位置：bb第二/dmi第一/supertrend第一/kc第四/macd第二含ta.sma(close, 2)[1]，public compile全部拒绝，产生history references诊断及PINE_HISTORY_REF_UNSUPPORTED，无IR。 冻结原函数没有普通close[1]禁止断言；纠正旧mapping的错误归因，普通series history正向控制仍可执行，不扩大公开禁止范围。 原private tuple parser的statement=nil/handled=true对象及normalizeTupleExpressions直接helper seam仍没有同形逐项断言，保留partial，不把public compile投影冒称完整private返回契约。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/parser_loop_boundaries_test.go",
@@ -319038,25 +319035,24 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs",
-          "test": "malformed_tuple_and_switch_scripts_are_rejected",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "tuple_indicator_parameters_reject_call_result_history_in_each_original_position",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/parser_loop_boundaries_test.go",
             "goLine": 63,
-            "rustFile": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs",
-            "rustLine": 69
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 142
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言五类元组指标（bb/dmi/supertrend/kc/macd）在参数含历史引用（ta.sma(close, 2)[1]）时报 history references，normalizeTupleExpressions 同样拒绝。",
-          "Rust 本轮已补元组 arity 与白名单校验，但探针显示 [value, aux] = ta.dmi(close[1], 14) 仍编译通过（Go 拒绝）。"
+          "五个原参数位置：bb第二/dmi第一/supertrend第一/kc第四/macd第二含ta.sma(close, 2)[1]，public compile全部拒绝，产生history references诊断及PINE_HISTORY_REF_UNSUPPORTED，无IR。",
+          "冻结原函数没有普通close[1]禁止断言；纠正旧mapping的错误归因，普通series history正向控制仍可执行，不扩大公开禁止范围。"
         ],
         "uncovered": [
-          "缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；",
-          "回归要求：先加元组参数历史引用失败回归测试。"
+          "原private tuple parser的statement=nil/handled=true对象及normalizeTupleExpressions直接helper seam仍没有同形逐项断言，保留partial，不把public compile投影冒称完整private返回契约。"
         ],
         "source": "reviewed"
       },
@@ -319067,23 +319063,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)"
         ],
         "testFilter": [
-          "malformed_tuple_and_switch_scripts_are_rejected"
+          "tuple_indicator_parameters_reject_call_result_history_in_each_original_position"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+        "verifiedAt": "2026-10-08T08:30:51Z",
+        "receiptDigest": "sha256:a0c963ee0fc5d19ace6859f7399789add8e67c931aca6bb4ecbbf92a01c771ef"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -319094,12 +319093,11 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言五类元组指标（bb/dmi/supertrend/kc/macd）在参数含历史引用（ta.sma(close, 2)[1]）时报 history references，normalizeTupleExpressions 同样拒绝。",
-        "Rust 本轮已补元组 arity 与白名单校验，但探针显示 [value, aux] = ta.dmi(close[1], 14) 仍编译通过（Go 拒绝）。"
+        "五个原参数位置：bb第二/dmi第一/supertrend第一/kc第四/macd第二含ta.sma(close, 2)[1]，public compile全部拒绝，产生history references诊断及PINE_HISTORY_REF_UNSUPPORTED，无IR。",
+        "冻结原函数没有普通close[1]禁止断言；纠正旧mapping的错误归因，普通series history正向控制仍可执行，不扩大公开禁止范围。"
       ],
       "uncoveredAssertions": [
-        "缺口（P1）：owner crates/jftrade-strategy/src/pine/semantic.rs；",
-        "回归要求：先加元组参数历史引用失败回归测试。"
+        "原private tuple parser的statement=nil/handled=true对象及normalizeTupleExpressions直接helper seam仍没有同形逐项断言，保留partial，不把public compile投影冒称完整private返回契约。"
       ],
       "boundaryReason": null
     },
@@ -320412,9 +320410,9 @@
     },
     "pkg/strategy/pine/runtime_and_parser_boundaries_test.go:94:TestMalformedTAExpressionsRemainVisibleForValidation": {
       "status": "[~]",
-      "rust_entry": "",
-      "conclusion": "partial：Go 断言 5 个 TA 重写助手（replaceTASourceOptionalFunction/replaceTAAnchoredVWAP/replaceTAExtremaBarsFunction/replaceTAStoch）遇到畸形调用时保持原文以便校验报错。Rust 无文本重写层，畸形调用直接产生表达式诊断（探针：ta.vwap( → PINE_EXPRESSION_REQUIRED；ta.highestbars(close → PINE_EXPRESSION_INVALID；ta.stoch(close, high → PINE_EXPRESSION_INVALID），因此保持原文规则不迁移，属 Go 内部助手面。",
-      "command": "python3 - <<'PY'  # owner review: verify every remaining source-only/boundary row has explicit gap evidence\n...\nPY",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir",
+      "conclusion": "partial：原五个TA输入全部逐字保持在normalized_script：未闭合vwap、未闭合anchored vwap、timeframe.change()缺参数、未闭合highestbars与stoch；实际compile均拒绝、有line3 error且无IR。第三项语法括号完整，不误记为未闭合错误。 Rust无Go replaceTASourceOptionalFunction/replaceTAAnchoredVWAP/replaceTAExtremaBarsFunction/replaceTAStoch同形文本重写层，normalized_script保持与compiler拒绝不等价四个helper直接返回原text对象，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/runtime_and_parser_boundaries_test.go",
@@ -320422,40 +320420,55 @@
         "test": "TestMalformedTAExpressionsRemainVisibleForValidation",
         "blobSha": "34454e46a7bc858a33bd4f4a7affac4fe027f9c9"
       },
-      "rustEvidence": [],
+      "rustEvidence": [
+        {
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir",
+          "crate": "jftrade-strategy",
+          "anchor": {
+            "goFile": "pkg/strategy/pine/runtime_and_parser_boundaries_test.go",
+            "goLine": 94,
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 184
+          }
+        }
+      ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 5 个 TA 重写助手（replaceTASourceOptionalFunction/replaceTAAnchoredVWAP/replaceTAExtremaBarsFunction/replaceTAStoch）遇到畸形调用时保持原文以便校验报错。",
-          "Rust 无文本重写层，畸形调用直接产生表达式诊断（探针：ta.vwap( → PINE_EXPRESSION_REQUIRED；",
-          "ta.highestbars(close → PINE_EXPRESSION_INVALID；",
-          "ta.stoch(close, high → PINE_EXPRESSION_INVALID），因此保持原文规则不迁移，属 Go 内部助手面。"
+          "原五个TA输入全部逐字保持在normalized_script：未闭合vwap、未闭合anchored vwap、timeframe.change()缺参数、未闭合highestbars与stoch；实际compile均拒绝、有line3 error且无IR。第三项语法括号完整，不误记为未闭合错误。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Rust无Go replaceTASourceOptionalFunction/replaceTAAnchoredVWAP/replaceTAExtremaBarsFunction/replaceTAStoch同形文本重写层，normalized_script保持与compiler拒绝不等价四个helper直接返回原text对象，保持partial。"
         ],
         "source": "reviewed"
       },
       "verification": {
         "argv": [
-          "python3",
-          "scripts/compatibility/verify_manual_mapping_evidence.py",
-          "--mapping",
-          "docs/history/go-to-rust/manual-test-mappings.json",
-          "--workspace-receipt",
-          "docs/history/go-to-rust/verification-receipts/workspace-nextest-2026-10-03-final.json",
-          "--output",
-          "docs/history/go-to-rust/verification-receipts/manual-evidence-review-2026-10-03.json"
+          "env",
+          "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+          "node",
+          "scripts/quality/cargo-nextest.mjs",
+          "run",
+          "-p",
+          "jftrade-strategy",
+          "--all-targets",
+          "--locked",
+          "--message-format",
+          "libtest-json-plus",
+          "--no-fail-fast",
+          "-E",
+          "test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)"
         ],
         "testFilter": [
-          "owner_review_source_and_boundary_rows"
+          "malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir"
         ],
-        "runnerVersion": "manual-evidence-review.v1",
-        "toolchain": "repository evidence verifier",
+        "runnerVersion": "cargo-nextest 0.9.143",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-03T00:00:00Z",
-        "receiptDigest": "sha256:dabdaee2e19d689b2d81e39b431141ef5b34fb1ae09c5fe0feb8e30679a8e13e"
+        "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+        "verifiedAt": "2026-10-08T08:30:51Z",
+        "receiptDigest": "sha256:a0c963ee0fc5d19ace6859f7399789add8e67c931aca6bb4ecbbf92a01c771ef"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -320466,13 +320479,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 5 个 TA 重写助手（replaceTASourceOptionalFunction/replaceTAAnchoredVWAP/replaceTAExtremaBarsFunction/replaceTAStoch）遇到畸形调用时保持原文以便校验报错。",
-        "Rust 无文本重写层，畸形调用直接产生表达式诊断（探针：ta.vwap( → PINE_EXPRESSION_REQUIRED；",
-        "ta.highestbars(close → PINE_EXPRESSION_INVALID；",
-        "ta.stoch(close, high → PINE_EXPRESSION_INVALID），因此保持原文规则不迁移，属 Go 内部助手面。"
+        "原五个TA输入全部逐字保持在normalized_script：未闭合vwap、未闭合anchored vwap、timeframe.change()缺参数、未闭合highestbars与stoch；实际compile均拒绝、有line3 error且无IR。第三项语法括号完整，不误记为未闭合错误。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Rust无Go replaceTASourceOptionalFunction/replaceTAAnchoredVWAP/replaceTAExtremaBarsFunction/replaceTAStoch同形文本重写层，normalized_script保持与compiler拒绝不等价四个helper直接返回原text对象，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -320955,9 +320965,9 @@
     },
     "pkg/strategy/pine/semantic_helper_boundaries_test.go:99:TestSemanticHelpersReportMalformedScriptBoundaries": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::tuple_assignments_keep_the_go_alias_and_width_contract",
-      "conclusion": "partial：Go 断言 tuple 重复别名（tuple assignment repeats fast）、集合命名空间诊断、方法重复参数（repeats parameter value）、空白 import 别名。Rust 对齐面：tuple 宽度与别名契约由 pine_tuple_contracts 用例断言（缺别名/宽度不匹配拒绝）。缺口（P2）：重复别名 [fast, fast] = ta.macd(close, 12, 26, 9) 在 Rust 仍被接受（探针 ok=true），Go 报 tuple assignment repeats fast；修复位置：crates/jftrade-strategy/src/pine/parser.rs::split_assignment 或 semantic.rs tuple 校验；回归：重复别名用例。方法与 import 面为 Go 专有。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::tuple_semantics_report_the_original_duplicate_alias_before_lowering; crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::duplicate_tuple_aliases_fail_for_declarations_and_reassignments; crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::tuple_discard_placeholders_and_unique_aliases_remain_executable",
+      "conclusion": "partial：原[fast, fast] = ta.macd(close, 12, 26, 9)经typed parse/analyze直接产生PINE_SEMANTIC_TUPLE与tuple assignment repeats fast；public compile拒绝且无IR，非宽度校验替身。 有效宽度MACD与普通tuple的声明/重赋值同样拒绝重复具体别名，多次重复按原顺序报告；重复_、唯一名称和大小写不同名称保持可执行。独立红1 passed/2 failed，owner修复后直接通过。 原TupleBindings长度1/ReturnCount3 summary对象未实现；array.unknown的Pine collection namespaces原诊断、method重复参数、blank import alias nil、label receiver原helper分支仍未完整证明，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/semantic_helper_boundaries_test.go",
@@ -320967,27 +320977,46 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs",
-          "test": "tuple_assignments_keep_the_go_alias_and_width_contract",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "tuple_semantics_report_the_original_duplicate_alias_before_lowering",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/semantic_helper_boundaries_test.go",
             "goLine": 99,
-            "rustFile": "crates/jftrade-strategy/tests/pine_tuple_contracts.rs",
-            "rustLine": 28
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 80
+          }
+        },
+        {
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "duplicate_tuple_aliases_fail_for_declarations_and_reassignments",
+          "crate": "jftrade-strategy",
+          "anchor": {
+            "goFile": "pkg/strategy/pine/semantic_helper_boundaries_test.go",
+            "goLine": 99,
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 101
+          }
+        },
+        {
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "tuple_discard_placeholders_and_unique_aliases_remain_executable",
+          "crate": "jftrade-strategy",
+          "anchor": {
+            "goFile": "pkg/strategy/pine/semantic_helper_boundaries_test.go",
+            "goLine": 99,
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 127
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Go 断言 tuple 重复别名（tuple assignment repeats fast）、集合命名空间诊断、方法重复参数（repeats parameter value）、空白 import 别名。",
-          "Rust 对齐面：tuple 宽度与别名契约由 pine_tuple_contracts 用例断言（缺别名/宽度不匹配拒绝）。",
-          "修复位置：crates/jftrade-strategy/src/pine/parser.rs::split_assignment 或 semantic.rs tuple 校验；",
-          "回归：重复别名用例。",
-          "方法与 import 面为 Go 专有。"
+          "原[fast, fast] = ta.macd(close, 12, 26, 9)经typed parse/analyze直接产生PINE_SEMANTIC_TUPLE与tuple assignment repeats fast；public compile拒绝且无IR，非宽度校验替身。",
+          "有效宽度MACD与普通tuple的声明/重赋值同样拒绝重复具体别名，多次重复按原顺序报告；重复_、唯一名称和大小写不同名称保持可执行。独立红1 passed/2 failed，owner修复后直接通过。"
         ],
         "uncovered": [
-          "缺口（P2）：重复别名 [fast, fast] = ta.macd(close, 12, 26, 9) 在 Rust 仍被接受（探针 ok=true），Go 报 tuple assignment repeats fast；"
+          "原TupleBindings长度1/ReturnCount3 summary对象未实现；array.unknown的Pine collection namespaces原诊断、method重复参数、blank import alias nil、label receiver原helper分支仍未完整证明，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -320998,23 +321027,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)"
         ],
         "testFilter": [
-          "tuple_assignments_keep_the_go_alias_and_width_contract"
+          "tuple_semantics_report_the_original_duplicate_alias_before_lowering",
+          "duplicate_tuple_aliases_fail_for_declarations_and_reassignments",
+          "tuple_discard_placeholders_and_unique_aliases_remain_executable"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+        "verifiedAt": "2026-10-08T08:30:51Z",
+        "receiptDigest": "sha256:a0c963ee0fc5d19ace6859f7399789add8e67c931aca6bb4ecbbf92a01c771ef"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -321025,14 +321059,11 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Go 断言 tuple 重复别名（tuple assignment repeats fast）、集合命名空间诊断、方法重复参数（repeats parameter value）、空白 import 别名。",
-        "Rust 对齐面：tuple 宽度与别名契约由 pine_tuple_contracts 用例断言（缺别名/宽度不匹配拒绝）。",
-        "修复位置：crates/jftrade-strategy/src/pine/parser.rs::split_assignment 或 semantic.rs tuple 校验；",
-        "回归：重复别名用例。",
-        "方法与 import 面为 Go 专有。"
+        "原[fast, fast] = ta.macd(close, 12, 26, 9)经typed parse/analyze直接产生PINE_SEMANTIC_TUPLE与tuple assignment repeats fast；public compile拒绝且无IR，非宽度校验替身。",
+        "有效宽度MACD与普通tuple的声明/重赋值同样拒绝重复具体别名，多次重复按原顺序报告；重复_、唯一名称和大小写不同名称保持可执行。独立红1 passed/2 failed，owner修复后直接通过。"
       ],
       "uncoveredAssertions": [
-        "缺口（P2）：重复别名 [fast, fast] = ta.macd(close, 12, 26, 9) 在 Rust 仍被接受（探针 ok=true），Go 报 tuple assignment repeats fast；"
+        "原TupleBindings长度1/ReturnCount3 summary对象未实现；array.unknown的Pine collection namespaces原诊断、method重复参数、blank import alias nil、label receiver原helper分支仍未完整证明，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -321998,9 +322029,9 @@
     },
     "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_unsupported_inner_ta_contracts",
-      "conclusion": "部分覆盖：request.security 内层 TA 白名单和关键参数拒绝已有 executable Rust owner；旧 helper/lowering 结构差异及其余纯度细节仍保留为明确缺口。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta",
+      "conclusion": "partial：原四个内层表达式逐字通过request.security wrapper验证：close + open及ta.sma(close, 20) + ta.ema(close, 10)可执行；ta.not_supported(close)和ta.sma(close, 20拒绝、有line3 error且无IR，归一化源码保留原输入。 原字符串helper直接返回unsupported布尔值，Rust经parser/semantic公开pipeline投影，未实现同形字符串helper及原未闭合输入直接helper分类，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-strategy --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)'",
       "evidence_type": "partial",
       "source": {
         "file": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
@@ -322010,48 +322041,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-strategy/src/pine/mod.rs",
-          "test": "validate_script_rejects_unsupported_pine_runtime_feature",
+          "file": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+          "test": "security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta",
           "crate": "jftrade-strategy",
           "anchor": {
             "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
             "goLine": 29,
-            "rustFile": "crates/jftrade-strategy/src/pine/mod.rs",
-            "rustLine": 1173
-          }
-        },
-        {
-          "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
-          "test": "request_security_rejects_unsupported_inner_ta_contracts",
-          "crate": "jftrade-strategy",
-          "anchor": {
-            "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
-            "goLine": 29,
-            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
-            "rustLine": 49
-          }
-        },
-        {
-          "file": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
-          "test": "request_security_rejects_unsupported_inner_ta_contracts",
-          "crate": "jftrade-strategy",
-          "anchor": {
-            "goFile": "pkg/strategy/pine/validation_semantics_boundaries_test.go",
-            "goLine": 29,
-            "rustFile": "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs",
-            "rustLine": 49
+            "rustFile": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+            "rustLine": 168
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "partial（本批修复）：Rust request.security owner 已拒绝 ta.sum，并由 semantic.rs 递归校验 advanced TA 参数；",
-          "新增 public compile 回归覆盖 ta.sum、ta.bb、ta.correlation、ta.obv。",
-          "保留 partial：Go 测试还直接覆盖字符串 helper 的 ta.not_supported 与未闭合输入，Rust 对应行为由 parser/compile pipeline 表达，断言对象不同。",
-          "Rust rejects unsupported/invalid request.security inner TA forms, including ta.sum whitelist violations, malformed ta.bb, invalid correlation source, and unsupported ta.obv timeframe."
+          "原四个内层表达式逐字通过request.security wrapper验证：close + open及ta.sma(close, 20) + ta.ema(close, 10)可执行；ta.not_supported(close)和ta.sma(close, 20拒绝、有line3 error且无IR，归一化源码保留原输入。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "原字符串helper直接返回unsupported布尔值，Rust经parser/semantic公开pipeline投影，未实现同形字符串helper及原未闭合输入直接helper分类，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -322062,54 +322068,40 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-strategy",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(public_helpers_reject_each_frozen_input_with_its_original_message) or test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable) or test(tuple_indicator_parameters_reject_call_result_history_in_each_original_position) or test(security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta) or test(malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir) or test(tuple_assignments_keep_the_go_alias_and_width_contract) or test(malformed_tuple_and_switch_scripts_are_rejected) or test(compile_rejects_public_internal_helper_calls) or test(request_security_rejects_unsupported_inner_ta_contracts)"
         ],
         "testFilter": [
-          "advanced_band_cycle_and_sar_indicators_keep_requirement_keys",
-          "advanced_indicator_parameters_fail_closed_before_requirement_keys",
-          "broker_lot_size_initializes_minimum_and_step_quantity",
-          "compile_supports_framework_language_features",
-          "compile_supports_v12_advanced_indicators_in_static_intraday_security",
-          "compile_supports_v13_indicators_in_static_intraday_security",
-          "history_reference_overflow_is_rejected",
-          "legacy_and_explicit_sources_keep_the_planned_keys",
-          "live_order_below_market_lot_step_is_skipped_without_submission",
-          "negative_history_lookback_is_rejected_inside_request_security",
-          "request_security_common_ta_keys_keep_the_inner_family_and_time_unit",
-          "request_security_rejects_impure_member_and_visual_side_effects",
-          "request_security_rejects_unsupported_inner_ta_contracts",
-          "test_execute_strategy_intents_close_short_maps_to_buy",
-          "test_execute_strategy_intents_unknown_kind_fails_before_broker_side_effects",
-          "validate_script_rejects_unsupported_pine_runtime_feature",
-          "window_and_oscillator_keys_keep_the_requested_source"
+          "security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+        "verifiedAt": "2026-10-08T08:30:51Z",
+        "receiptDigest": "sha256:a0c963ee0fc5d19ace6859f7399789add8e67c931aca6bb4ecbbf92a01c771ef"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_remaining_request_security_contracts",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "partial（本批修复）：Rust request.security owner 已拒绝 ta.sum，并由 semantic.rs 递归校验 advanced TA 参数；",
-        "新增 public compile 回归覆盖 ta.sum、ta.bb、ta.correlation、ta.obv。",
-        "保留 partial：Go 测试还直接覆盖字符串 helper 的 ta.not_supported 与未闭合输入，Rust 对应行为由 parser/compile pipeline 表达，断言对象不同。",
-        "Rust rejects unsupported/invalid request.security inner TA forms, including ta.sum whitelist violations, malformed ta.bb, invalid correlation source, and unsupported ta.obv timeframe."
+        "原四个内层表达式逐字通过request.security wrapper验证：close + open及ta.sma(close, 20) + ta.ema(close, 10)可执行；ta.not_supported(close)和ta.sma(close, 20拒绝、有line3 error且无IR，归一化源码保留原输入。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "原字符串helper直接返回unsupported布尔值，Rust经parser/semantic公开pipeline投影，未实现同形字符串helper及原未闭合输入直接helper分类，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -340700,6 +340692,69 @@
     }
   },
   "reuse": {
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::duplicate_tuple_aliases_fail_for_declarations_and_reassignments": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/semantic_helper_boundaries_test.go:99:TestSemanticHelpersReportMalformedScriptBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::malformed_ta_inputs_remain_visible_in_normalized_source_and_fail_before_ir": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/runtime_and_parser_boundaries_test.go:94:TestMalformedTAExpressionsRemainVisibleForValidation"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::public_helpers_reject_each_frozen_input_with_its_original_message": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::security_inner_expressions_accept_prices_and_averages_but_reject_unknown_or_unclosed_ta": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::tuple_discard_placeholders_and_unique_aliases_remain_executable": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/semantic_helper_boundaries_test.go:99:TestSemanticHelpersReportMalformedScriptBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::tuple_indicator_parameters_reject_call_result_history_in_each_original_position": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/parser_loop_boundaries_test.go:63:TestTupleIndicatorsExposeUnsupportedCallHistory"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
+    "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs::tuple_semantics_report_the_original_duplicate_alias_before_lowering": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "pkg/strategy/pine/semantic_helper_boundaries_test.go:99:TestSemanticHelpersReportMalformedScriptBoundaries"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核冻结Pine原输入：新函数仅证明各mapping明确列出的断言。tuple/helper/文本返回对象差异保持partial，未扩大任何旧reuse批准。"
+    },
     "crates/jftrade-engine/src/product_server_tests.rs::web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -362460,14 +362515,13 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::malformed_tuple_and_switch_scripts_are_rejected": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/strategy/pine/parser_loop_boundaries_test.go:63:TestTupleIndicatorsExposeUnsupportedCallHistory",
         "pkg/strategy/pine/tuple_switch_reject_test.go:8:TestCompileRejectsMalformedSwitchAndTupleContracts"
       ],
       "allowed": false,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-02 bounded reuse review: compared all 3 referenceKeys against the shared Rust owner (status mix {'[~]': 3}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation. 2026-10-08移除本批旧通用证据引用，剩余引用的批准保持原值。"
     },
     "crates/jftrade-strategy/tests/pine_expression_and_security_boundaries.rs::window_family_defaults_keep_the_go_source_and_period": {
       "referenceCount": 2,
@@ -362520,14 +362574,14 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/tests/pine_tuple_contracts.rs::tuple_assignments_keep_the_go_alias_and_width_contract": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "pkg/strategy/pine/language_execution_boundaries_test.go:179:TestTupleLoweringHelpersMaintainAliasAndArityContracts",
-        "pkg/strategy/pine/semantic_helper_boundaries_test.go:99:TestSemanticHelpersReportMalformedScriptBoundaries",
         "pkg/strategy/pine/tuple_assignment_contracts_test.go:11:TestGeneralTupleAssignmentsKeepPineAliasContract"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08移除本批旧通用证据引用，剩余引用的批准保持原值。"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_framework_language_features": {
       "referenceCount": 43,
@@ -362590,15 +362644,14 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-strategy/tests/pine_order_metadata_and_security_rejections.rs::request_security_rejects_unsupported_inner_ta_contracts": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
         "pkg/strategy/pine/language_failure_contracts_test.go:149:TestRequestSecurityAndTupleContractsRejectUnsafeExpressions",
-        "pkg/strategy/pine/request_security_diagnostics_test.go:52:TestRequestSecurityLoweringRetainsOnlyPureStaticExpressions",
-        "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation"
+        "pkg/strategy/pine/request_security_diagnostics_test.go:52:TestRequestSecurityLoweringRetainsOnlyPureStaticExpressions"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "Inner TA whitelist rejection is covered by the targeted request.security nextest receipt."
+      "reviewNote": "Inner TA whitelist rejection is covered by the targeted request.security nextest receipt. 2026-10-08移除本批旧通用证据引用，剩余引用的批准保持原值。"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::compile_supports_multi_bar_history_references": {
       "referenceCount": 2,
@@ -362734,14 +362787,6 @@
       "allowed": true,
       "reviewStatus": "single"
     },
-    "crates/jftrade-strategy/src/pine/mod.rs::compile_rejects_public_internal_helper_calls": {
-      "referenceCount": 1,
-      "referenceKeys": [
-        "pkg/strategy/pine/parse_test.go:54:TestCompileRejectsPublicInternalHelperCalls"
-      ],
-      "allowed": true,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-strategy/src/pine/mod.rs::analyze_script_reports_public_internal_helper_diagnostics": {
       "referenceCount": 2,
       "referenceKeys": [
@@ -362787,14 +362832,13 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::validate_script_rejects_unsupported_pine_runtime_feature": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/strategy/pine/parse_test.go:202:TestValidateScriptRejectsUnsupportedPineRuntimeFeature",
-        "pkg/strategy/pine/validation_semantics_boundaries_test.go:29:TestRequestSecurityExpressionTASubsetValidation"
+        "pkg/strategy/pine/parse_test.go:202:TestValidateScriptRejectsUnsupportedPineRuntimeFeature"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 Strategy/Pine parse owner review: compile/analyze/validate assertions were compared with the shared Rust owner; fan-out capped at six, framework-language high fan-out remains backlog."
+      "reviewStatus": "single",
+      "reviewNote": "2026-09-30 Strategy/Pine parse owner review: compile/analyze/validate assertions were compared with the shared Rust owner; fan-out capped at six, framework-language high fan-out remains backlog. 2026-10-08移除本批旧通用证据引用，剩余引用的批准保持原值。"
     },
     "crates/jftrade-strategy/src/pine/mod.rs::validate_script_reports_unsupported_history_references": {
       "referenceCount": 1,

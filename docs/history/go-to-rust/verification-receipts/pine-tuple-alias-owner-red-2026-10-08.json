@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-strategy",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(tuple_semantics_report_the_original_duplicate_alias_before_lowering) or test(duplicate_tuple_aliases_fail_for_declarations_and_reassignments) or test(tuple_discard_placeholders_and_unique_aliases_remain_executable)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T08:29:16Z",
+  "sourceState": {
+    "verifiedCommit": "1150e2c683db8c585b9a519a66b9fbf19579147e",
+    "trackedDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-strategy/tests/pine_semantic_rejection_contracts.rs",
+        "sha256": "cef5f6b1f8761ae5b2aff9d58f3a287ef5b51cbce22e75a284072fec68eb99a9"
+      }
+    ]
+  },
+  "rawOutputSha256": "a7bd96588199477e227877236a4d157e8a132bd095d093602da4d54060b01741",
+  "passedTests": [
+    "jftrade-strategy::pine_semantic_rejection_contracts$tuple_discard_placeholders_and_unique_aliases_remain_executable"
+  ],
+  "failedTests": [
+    "jftrade-strategy::pine_semantic_rejection_contracts$duplicate_tuple_aliases_fail_for_declarations_and_reassignments",
+    "jftrade-strategy::pine_semantic_rejection_contracts$tuple_semantics_report_the_original_duplicate_alias_before_lowering"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_semantic_rejection_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 1,
+      "failed": 2,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.039453542,
+      "nextest": {
+        "crate": "jftrade-strategy",
+        "test_binary": "pine_semantic_rejection_contracts",
+        "kind": "test"
+      }
+    }
+  ]
+}

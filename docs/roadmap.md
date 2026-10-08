@@ -4,7 +4,15 @@
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
 
-## 当前批次：Web 重绑定与 Origin 生命周期
+## 当前批次：Pine tuple重复别名与公共helper诊断
+
+Web Origin批次已提交`1150e2c6`，现场完整Rust为3934 passed、0 failed、2 skipped。Codex整体目标继续active。
+
+- [x] 原MACD重复别名和有效宽度重复tuple建立独立红，允许underscore/唯一名称正向控制；semantic owner修复后11条定向通过。
+- [x] 完整11个冻结公共helper输入与原错误断言闭合，parse54升级exact；其他四条按summary/private helper返回差异保留partial，净exact+1/partial−1。
+- [x] ordinary/strict/anchor/context通过；现场quick2491 passed/0 failed/0 skipped与完整Rust3941 passed/0 failed/2 skipped均明确退出0。源码指纹、红绿SHA及五条mapping/十二处reuse范围已复核，提交后继续Assistant内置agent配置的真实HTTP红绿。
+
+## 已验证批次：Web 重绑定与 Origin 生命周期
 
 Workflow 调度时间与行情错误批次已提交 `8efe40d5`，现场完整 Rust 为3930 passed、0 failed、2 skipped。Codex整体目标继续active。
 
