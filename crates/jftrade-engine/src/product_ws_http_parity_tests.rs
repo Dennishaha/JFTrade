@@ -9,6 +9,9 @@ mod depth_parity;
 #[path = "product_ws_security_http_parity_tests.rs"]
 mod security_parity;
 
+#[path = "product_ws_origin_rebind_tests.rs"]
+mod origin_rebind;
+
 const PROTOCOL: &[(&str, &str)] = &[(
     "Sec-WebSocket-Protocol",
     "jftrade.desktop.v1, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-08 Web 重绑定 Origin 端口授权
+
+- 完整Rust现场明确退出0：workspace **3934 passed / 0 failed / 2 skipped**，无LEAK；static、冻结manifest与七类compatibility replay通过，日志`/tmp/jftrade-web-origin-rebind-rust.log`。两条skipped不计执行通过；九份当前源码与verified快照匹配，红绿快照各自指纹一致，两receipt SHA保持不变，六条mapping/七处reuse范围已复核。提交本批后继续Pine重复tuple别名及公共helper原输入诊断，整体goal保持active。
+- quick现场明确退出0：**2349 passed / 0 failed / 0 skipped**，无LEAK；fmt/Clippy、七类compatibility replay、Pine98与desktop48通过，日志`/tmp/jftrade-web-origin-rebind-quick.log`。完整`CARGO_INCREMENTAL=0 pnpm run check:rust`已现场启动，日志`/tmp/jftrade-web-origin-rebind-rust.log`；尚未结束，不提前记通过，Rust源码保持冻结。
+- 当前绿receipt `web-origin-rebind-owner-verified-2026-10-08.json`明确退出0：**13 passed / 0 failed / 0 ignored / 2416 filtered/skipped**，SHA `d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8`；九份当前源码/指纹/diff于`/tmp/jftrade-web-origin-rebind-verified-source`。两种retired hostname login均403且无cookie、WS均403且无upgrade；新端口login/WS101/heartbeat及冲突后现有cookie有效直接通过。已有configured development grant、foreign Origin、监听器bind/独立desktop隔离、热重绑及原端口冲突回归同批通过。
+- 六条逐项mapping复核/七处reuse：五条既有partial保持明确差异；331旧exact纠正为partial，新owner已闭合非nil lifecycle同bind/public/disable/重复shutdown，nil manager与invalid helper原分支仍缺，旧Origin测试不证明原表。移除310非测试canonical_origin引用，不扩大旧reuse批准。净 **exact −1 / partial +1 / boundary 0**，当前 **1659 / 2154 / 638**；真实生产缺陷修复不抵消旧证据错误。strict、anchor、AI-context与diff实际通过，quick计划已查看，现场quick及完整Rust待确认；整体goal继续active。
+- 真实production composition同时使用动态Origin provider和启动端口静态授权；重绑定后dynamic撤销旧端口，但static仍接受。三条owner回归经过实际设置PUT和新端口登录：独立login红为200/期望403，独立WS红为101/期望403；后续端口冲突的409、设置文件原字节回滚、当前会话仍有效及未启用端口Origin拒绝已绿。无真实外部Provider依赖。
+- 红receipt `web-origin-rebind-owner-red-2026-10-08.json` **1 passed / 2 failed / 0 ignored / 2315 filtered/skipped**，SHA `c8ee45f23f2c2f9ec08f20349ec8b7683d080c6fc618b17ca66c124f29f58f16`；九份源码、指纹与diff于`/tmp/jftrade-web-origin-rebind-red-source`，红日志`/tmp/jftrade-web-origin-rebind-red.log`保留。两条失败均在实际Origin断言，不是错误fixture或调用顺序断言。
+- 修复生产router只依赖runtime当前bind授予监听器端口；保留原security settings启动读取校验与当前配置的development grants。额外补same-bind/public host切换/disable/重复shutdown真实owner状态测试。13条定向验证运行中，尚不记通过；公开wire/schema/依赖/冻结fixture未改。下一步如实复核五条partial和旧exact331原断言，quick与完整Rust收口后提交，整体goal继续active。
+
 ## 2026-10-08 Workflow 调度时间与行情读取诊断
 
 - 完整Rust现场明确退出0：workspace **3930 passed / 0 failed / 2 skipped**，无LEAK；static、冻结manifest和七类compatibility replay通过，日志`/tmp/jftrade-workflow-scheduler-rust.log`。两条skipped不计已执行通过。提交前strict/anchor/context/diff与九份源码指纹、canonical receipt已核对。本批净exact/partial/boundary均0，整体goal继续active；下一批调查production Web路由的启动端口静态Origin授权绕过动态撤销，按真实HTTP/WS红绿修复，不因冻结Go要求拒绝开发Origin就改写当前配置策略。

@@ -1,8 +1,17 @@
 # JFTrade 活动路线图
 
-更新时间：2026-10-07。
+更新时间：2026-10-08。
 
 当前活动包括迁移行为核验、产品质量和发布资格工作。迁移历史与证据位于 `docs/history/go-to-rust`；历史阶段完成声明不能代替全部映射的逐项审查。
+
+## 当前批次：Web 重绑定与 Origin 生命周期
+
+Workflow 调度时间与行情错误批次已提交 `8efe40d5`，现场完整 Rust 为3930 passed、0 failed、2 skipped。Codex整体目标继续active。
+
+- [x] 真实HTTP登录红测为200而非403，WebSocket红测为101而非403；独立失败receipt为1 passed/2 failed，源码九份已保存。
+- [x] 修复生产composition，使监听器端口授权由当前动态bind持有；新端口成功、旧Origin拒绝、冲突后原监听器/设置/会话保持的13条定向验证通过。
+- [x] 逐项复核相关五条partial及旧exact lifecycle331；331原文不含Origin断言，补非nil生命周期表后仍缺nil/invalid helper，纠正为partial，净exact−1/partial+1。
+- [x] 定向nextest13、现场quick2349与完整check:rust3934 passed/0 failed/2 skipped均明确退出0；源码指纹、红绿receipt及六条mapping/七处reuse范围已复核。缺少原行为的条目如实保留，提交后继续Pine重复别名与公共helper诊断。
 
 ## 下一轮：Go → Rust 全量行为审查
 

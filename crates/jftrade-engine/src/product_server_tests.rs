@@ -217,6 +217,45 @@ fn dynamic_origin_allowlist_tracks_the_current_web_port() {
     runtime.shutdown_blocking().expect("shutdown Web runtime");
 }
 
+// Parity: go:452dea11:internal/app/apiserver/lifecycle/lifecycle_test.go:331 TestWebAccessServerManagerCoversLiveReconfigurationLifecycle
+#[test]
+fn web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently() {
+    let runtime = ProductWebServerRuntime::new();
+    runtime.install_router(router());
+    let port = available_port();
+    let local = enabled_record(port);
+    runtime.apply(&local).expect("initial bind");
+    runtime.apply(&local).expect("same-bind reconfigure");
+    assert!(runtime.status(&local).expect("local status"));
+    assert!(web_response(port).starts_with("HTTP/1.1 200"));
+
+    let public = SecuritySettingsRecord::new(true, true, port, "fixture-verifier");
+    runtime
+        .apply(&public)
+        .expect("same-port public host switch");
+    assert!(runtime.status(&public).expect("public status"));
+    assert_eq!(
+        runtime.inner.lock().unwrap().bind.as_deref(),
+        Some(format!("0.0.0.0:{port}").as_str())
+    );
+    assert!(web_response(port).starts_with("HTTP/1.1 200"));
+
+    runtime
+        .apply(&SecuritySettingsRecord::default())
+        .expect("disable");
+    {
+        let state = runtime.inner.lock().unwrap();
+        assert!(state.server.is_none());
+        assert!(state.bind.is_none());
+    }
+    assert!(!runtime.allows_origin(&format!("http://127.0.0.1:{port}")));
+    assert!(StdTcpListener::bind(("127.0.0.1", port)).is_ok());
+    runtime
+        .shutdown_blocking()
+        .expect("shutdown disabled runtime");
+    runtime.shutdown_blocking().expect("repeat shutdown");
+}
+
 #[test]
 fn web_shutdown_does_not_hold_runtime_lock_while_joining_server() {
     let runtime = ProductWebServerRuntime::new();

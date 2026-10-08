@@ -33759,8 +33759,8 @@
     "internal/app/apiserver/lifecycle/lifecycle_test.go:222:TestWebAccessListenerBindUsesIndependentConfiguredPort": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::web_bind_matrix_preserves_independent_local_and_public_ports",
-      "conclusion": "partial：Web disabled/local/public 精确 bind 矩阵已补齐；Go desktop bind coercion 与 Rust fail-closed rejection 不同，保留 partial，不引入未使用 helper。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --package jftrade-api --test web_bind_matrix_preserves_independent_local_and_public_ports --output docs/history/go-to-rust/verification-receipts/reconnect-listener-reviewed-2026-10-07.json",
+      "conclusion": "partial：重新执行原disabled为空、local7443为127.0.0.1:7443、public7443为0.0.0.0:7443的真实runtime bind派生。 原loopbackBind将0.0.0.0:6699转127.0.0.1:6699；Rust公开desktop入口直接拒绝此输入，原行为仍不同，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
@@ -33777,17 +33777,16 @@
             "goFile": "internal/app/apiserver/lifecycle/lifecycle_test.go",
             "goLine": 222,
             "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 36
+            "rustLine": 34
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "直接断言禁用无 bind、本地 127.0.0.1:7443、公开 0.0.0.0:7443，Web 端口独立。",
-          "ProductConfig 对非 loopback desktop bind 明确返回 NonLoopbackBind。"
+          "重新执行原disabled为空、local7443为127.0.0.1:7443、public7443为0.0.0.0:7443的真实runtime bind派生。"
         ],
         "uncovered": [
-          "Go loopbackBind 将 0.0.0.0:6699 转为 127.0.0.1:6699；Rust 拒绝该 desktop 输入，行为不同。"
+          "原loopbackBind将0.0.0.0:6699转127.0.0.1:6699；Rust公开desktop入口直接拒绝此输入，原行为仍不同，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -33808,7 +33807,7 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) or test(active_web_chat_does_not_block_listener_disable_or_rebind) or test(adk_read_streams_preserve_event_ids_and_payloads) or test(adk_read_success_sse_fixture_matches_go_wire_in_cutover_only) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(pull_body_advances_only_on_demand_and_releases_remaining_iterator) or test(web_listener_rebind_closes_browser_websocket_and_preserves_desktop_hub) or test(password_change_cancels_active_web_chat_stream_on_unchanged_listener) or test(password_change_revokes_browser_websocket_and_keeps_desktop_capability) or test(revoked_idle_sse_drops_its_producer_without_waiting_for_a_frame) or test(session_owner_disappearance_ends_pending_sse) or test(ws_live_transport_rejects_untrusted_origin_before_upgrade) or test(ws_live_transport_accepts_trusted_origin_and_streams_heartbeat_first)"
+          "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
           "web_bind_matrix_preserves_independent_local_and_public_ports"
@@ -33817,30 +33816,31 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "15844e4cbbbe7b5ec08e3f6e111d03a55d5d62fc",
-        "verifiedAt": "2026-10-07T05:23:19Z",
-        "receiptDigest": "sha256:9665a84257262cb6a7534358d4e75aa8dc2a0a96ccc30969da62721a13821b03"
+        "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+        "verifiedAt": "2026-10-08T08:08:15Z",
+        "receiptDigest": "sha256:d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "preserve_partial_and_track_residual",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "直接断言禁用无 bind、本地 127.0.0.1:7443、公开 0.0.0.0:7443，Web 端口独立。",
-        "ProductConfig 对非 loopback desktop bind 明确返回 NonLoopbackBind。"
+        "重新执行原disabled为空、local7443为127.0.0.1:7443、public7443为0.0.0.0:7443的真实runtime bind派生。"
       ],
       "uncoveredAssertions": [
-        "Go loopbackBind 将 0.0.0.0:6699 转为 127.0.0.1:6699；Rust 拒绝该 desktop 输入，行为不同。"
+        "原loopbackBind将0.0.0.0:6699转127.0.0.1:6699；Rust公开desktop入口直接拒绝此输入，原行为仍不同，保持partial。"
       ],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports",
-      "conclusion": "partial：production desktop和独立Web listener共存，两端分别经Cookie/Origin和desktop capability升级读heartbeat。shutdown关闭两连接1001，两端口拒绝连接且可重绑。原始0.0.0.0:0仍被NonLoopbackBind拒绝，未装embedded assets的fixture Web根404而非Go200；补共存编排证据不消除这些差异。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-api --package jftrade-engine --test production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports --output docs/history/go-to-rust/verification-receipts/websocket-production-http-verified-2026-10-07.json",
+      "conclusion": "partial：重新执行production独立Web/desktop监听器、desktop capability隔离、浏览器认证与shutdown释放两端口。 冻结原0.0.0.0:0 desktop输入在Rust被拒绝；原Go stub Web root200与Rust未配置assets root404仍不同，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
@@ -33857,16 +33857,16 @@
             "goFile": "internal/app/apiserver/lifecycle/lifecycle_test.go",
             "goLine": 243,
             "rustFile": "crates/jftrade-engine/src/product_ws_http_parity_tests.rs",
-            "rustLine": 153
+            "rustLine": 162
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Production composition serves authenticated desktop and separate browser WebSockets concurrently; shutdown closes both and releases both ports."
+          "重新执行production独立Web/desktop监听器、desktop capability隔离、浏览器认证与shutdown释放两端口。"
         ],
         "uncovered": [
-          "Original 0.0.0.0:0 is rejected by desktop loopback fence; unconfigured Web root is 404 instead of Go stub 200."
+          "冻结原0.0.0.0:0 desktop输入在Rust被拒绝；原Go stub Web root200与Rust未配置assets root404仍不同，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -33878,16 +33878,16 @@
           "scripts/quality/cargo-nextest.mjs",
           "run",
           "-p",
-          "jftrade-api",
-          "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_websocket_missing_provider_closes_and_releases_connection) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_websocket_replays_preconnection_notification_and_receives_live_successor_once) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(ws_live_depth_subscription_receives_updated_opend_book_payloads) or test(notification_replay_is_bounded_ordered_and_retries_do_not_acknowledge_without_clients) or test(concurrent_notification_publish_and_connect_replay_each_event_once) or test(test_notification_projector_advances_cursors_and_is_idempotent)"
+          "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
           "production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports"
@@ -33896,21 +33896,23 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "bb80a578748fa29ba9e96776accac5a8227f1898",
-        "verifiedAt": "2026-10-07T11:11:34Z",
-        "receiptDigest": "sha256:cec56d13b2c5bc4ea190315c0091a4c177f1e5a227e62b6cefe2164e6e40b791"
+        "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+        "verifiedAt": "2026-10-08T08:08:15Z",
+        "receiptDigest": "sha256:d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "preserve_partial_and_reaudit",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Production composition serves authenticated desktop and separate browser WebSockets concurrently; shutdown closes both and releases both ports."
+        "重新执行production独立Web/desktop监听器、desktop capability隔离、浏览器认证与shutdown释放两端口。"
       ],
       "uncoveredAssertions": [
-        "Original 0.0.0.0:0 is rejected by desktop loopback fence; unconfigured Web root is 404 instead of Go stub 200."
+        "冻结原0.0.0.0:0 desktop输入在Rust被拒绝；原Go stub Web root200与Rust未配置assets root404仍不同，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -34005,11 +34007,11 @@
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:331:TestWebAccessServerManagerCoversLiveReconfigurationLifecycle": {
-      "status": "[x]",
-      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::dynamic_origin_allowlist_tracks_the_current_web_port",
-      "conclusion": "function_exact：Go 断言配置切换时监听器/来源白名单随当前端口热更新；Rust 断言 rebind 后白名单只接受当前 webPort 的来源、旧端口来源被拒绝。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -E 'test(dynamic_origin_allowlist_tracks_the_current_web_port)'",
-      "evidence_type": "function_exact",
+      "status": "[~]",
+      "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently",
+      "conclusion": "partial：新真实runtime测试逐步执行initial与same-bind reconfigure、同端口切public host、200可服务、disable后server/bind为空及端口释放、disabled shutdown和重复shutdown成功。 纠正旧exact：冻结原331并没有Origin断言，旧dynamic_origin_allowlist测试没有执行same-bind/public/disable整组。新测试仍缺nil manager Reconfigure/Shutdown及bindPort/loopbackBind invalid helper两分支，恢复partial；不以Rust类型差异或Origin辅助测试替代原断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
         "line": 331,
@@ -34019,21 +34021,23 @@
       "rustEvidence": [
         {
           "file": "crates/jftrade-engine/src/product_server_tests.rs",
-          "test": "dynamic_origin_allowlist_tracks_the_current_web_port",
+          "test": "web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/app/apiserver/lifecycle/lifecycle_test.go",
             "goLine": 331,
             "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 129
+            "rustLine": 220
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言配置切换时监听器/来源白名单随当前端口热更新；Rust 断言 rebind 后白名单只接受当前 webPort 的来源、旧端口来源被拒绝。"
+          "新真实runtime测试逐步执行initial与same-bind reconfigure、同端口切public host、200可服务、disable后server/bind为空及端口释放、disabled shutdown和重复shutdown成功。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "纠正旧exact：冻结原331并没有Origin断言，旧dynamic_origin_allowlist测试没有执行same-bind/public/disable整组。新测试仍缺nil manager Reconfigure/Shutdown及bindPort/loopbackBind invalid helper两分支，恢复partial；不以Rust类型差异或Origin辅助测试替代原断言。"
+        ],
         "source": "reviewed"
       },
       "verification": {
@@ -34043,43 +34047,50 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
-          "dynamic_origin_allowlist_tracks_the_current_web_port"
+          "web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+        "verifiedAt": "2026-10-08T08:08:15Z",
+        "receiptDigest": "sha256:d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "record_receipt_and_review_assertions",
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
       "blockedBy": [
-        "verification-receipt"
+        "behavioral-parity-review"
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言配置切换时监听器/来源白名单随当前端口热更新；Rust 断言 rebind 后白名单只接受当前 webPort 的来源、旧端口来源被拒绝。"
+        "新真实runtime测试逐步执行initial与same-bind reconfigure、同端口切public host、200可服务、disable后server/bind为空及端口释放、disabled shutdown和重复shutdown成功。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "纠正旧exact：冻结原331并没有Origin断言，旧dynamic_origin_allowlist测试没有执行same-bind/public/disable整组。新测试仍缺nil manager Reconfigure/Shutdown及bindPort/loopbackBind invalid helper两分支，恢复partial；不以Rust类型差异或Origin辅助测试替代原断言。"
+      ],
       "boundaryReason": null
     },
     "internal/app/apiserver/lifecycle/lifecycle_test.go:378:TestWebAccessServerManagerRestoresOldBindAfterHostSwitchFailure": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_server_tests.rs::port_conflict_keeps_the_previous_listener_running",
-      "conclusion": "partial（收回过宽exact）：Go断言注入式监听失败恢复旧绑定、恢复失败全 teardown、空恢复no-op。Rust仅覆盖占位端口冲突下旧listener存活；注入/恢复失败路径无对应断言（原组合第二元为私有函数非测试），故降为partial。回归要求：补注入失败恢复矩阵断言后再升级。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：重新执行native端口冲突后原listener仍running；这支持监听器保持子行为，不是原same-port host-switch注入表。 原首listen失败必须errors.Is同一sentinel、第二listen恢复旧bind、两次listen均失败后server/bind清空及restoreLocked空输入仍缺同形owner证据。真实设置PUT端口冲突附加回归不能替代该host-switch矩阵，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/lifecycle/lifecycle_test.go",
@@ -34096,16 +34107,16 @@
             "goFile": "internal/app/apiserver/lifecycle/lifecycle_test.go",
             "goLine": 378,
             "rustFile": "crates/jftrade-engine/src/product_server_tests.rs",
-            "rustLine": 107
+            "rustLine": 178
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust conflict test preserves the old listener."
+          "重新执行native端口冲突后原listener仍running；这支持监听器保持子行为，不是原same-port host-switch注入表。"
         ],
         "uncovered": [
-          "No injected bind-failure recovery matrix for restore success, restore failure teardown, or empty restore no-op."
+          "原首listen失败必须errors.Is同一sentinel、第二listen恢复旧bind、两次listen均失败后server/bind清空及restoreLocked空输入仍缺同形owner证据。真实设置PUT端口冲突附加回归不能替代该host-switch矩阵，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -34116,23 +34127,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
           "port_conflict_keeps_the_previous_listener_running"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+        "verifiedAt": "2026-10-08T08:08:15Z",
+        "receiptDigest": "sha256:d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -34143,10 +34159,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust conflict test preserves the old listener."
+        "重新执行native端口冲突后原listener仍running；这支持监听器保持子行为，不是原same-port host-switch注入表。"
       ],
       "uncoveredAssertions": [
-        "No injected bind-failure recovery matrix for restore success, restore failure teardown, or empty restore no-op."
+        "原首listen失败必须errors.Is同一sentinel、第二listen恢复旧bind、两次listen均失败后server/bind清空及restoreLocked空输入仍缺同形owner证据。真实设置PUT端口冲突附加回归不能替代该host-switch矩阵，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -48472,9 +48488,9 @@
     },
     "internal/app/apiserver/server_test.go:310:TestDesktopTrustedOriginsDeriveDevelopmentPort": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-api/src/auth.rs::desktop_trusted_origins_cover_development_and_packaged_wails_hosts; crates/jftrade-api/src/auth.rs::canonical_origin",
-      "conclusion": "partial：Rust 断言静态开发/发行端口在白名单内且无关端口排除；Go 断言的按 FRONTEND_DEVSERVER_URL 动态派生端口（4317）、wails 方案四行与非桌面模式不信任开发端口，在 Rust 无对应（静态白名单，无 env 派生）；原引用的生产函数 canonical_origin 非测试，已移出。回归要求：动态派生或显式声明静态策略边界。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-store-sqlite -p jftrade-integration-pine -p jftrade-strategy -p jftrade-backtest -p jftrade-assistant -p jftrade-api --all-targets --locked --no-fail-fast -E 'not test(analyze_script_supports_trend_and_stateful_ta_functions)'",
+      "rust_entry": "crates/jftrade-api/src/auth.rs::desktop_trusted_origins_cover_development_and_packaged_wails_hosts",
+      "conclusion": "partial：重新执行现有desktop静态开发3003/3000/3008/6699和Tauri packaged origins集合；移除把非测试函数canonical_origin写作执行证据的引用。 原FRONTEND_DEVSERVER_URL=4317和JFTRADE_DESKTOP_MODE切换的四个wails方案来源、非desktop不信任派生端口无对应native配置路径；static集合不等价动态env派生，保持partial。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/server_test.go",
@@ -48491,18 +48507,16 @@
             "goFile": "internal/app/apiserver/server_test.go",
             "goLine": 310,
             "rustFile": "crates/jftrade-api/src/auth.rs",
-            "rustLine": 333
+            "rustLine": 336
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 断言静态开发/发行端口在白名单内且无关端口排除；",
-          "原引用的生产函数 canonical_origin 非测试，已移出。"
+          "重新执行现有desktop静态开发3003/3000/3008/6699和Tauri packaged origins集合；移除把非测试函数canonical_origin写作执行证据的引用。"
         ],
         "uncovered": [
-          "Go 断言的按 FRONTEND_DEVSERVER_URL 动态派生端口（4317）、wails 方案四行与非桌面模式不信任开发端口，在 Rust 无对应（静态白名单，无 env 派生）；",
-          "回归要求：动态派生或显式声明静态策略边界。"
+          "原FRONTEND_DEVSERVER_URL=4317和JFTRADE_DESKTOP_MODE切换的四个wails方案来源、非desktop不信任派生端口无对应native配置路径；static集合不等价动态env派生，保持partial。"
         ],
         "source": "reviewed"
       },
@@ -48513,23 +48527,28 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
           "desktop_trusted_origins_cover_development_and_packaged_wails_hosts"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+        "verifiedAt": "2026-10-08T08:08:15Z",
+        "receiptDigest": "sha256:d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8"
       },
       "risk": "normal",
       "owner": "api_transport",
@@ -48540,12 +48559,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 断言静态开发/发行端口在白名单内且无关端口排除；",
-        "原引用的生产函数 canonical_origin 非测试，已移出。"
+        "重新执行现有desktop静态开发3003/3000/3008/6699和Tauri packaged origins集合；移除把非测试函数canonical_origin写作执行证据的引用。"
       ],
       "uncoveredAssertions": [
-        "Go 断言的按 FRONTEND_DEVSERVER_URL 动态派生端口（4317）、wails 方案四行与非桌面模式不信任开发端口，在 Rust 无对应（静态白名单，无 env 派生）；",
-        "回归要求：动态派生或显式声明静态策略边界。"
+        "原FRONTEND_DEVSERVER_URL=4317和JFTRADE_DESKTOP_MODE切换的四个wails方案来源、非desktop不信任派生端口无对应native配置路径；static集合不等价动态env派生，保持partial。"
       ],
       "boundaryReason": null
     },
@@ -72868,8 +72885,8 @@
     "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_login_preserves_configured_development_origin_grant",
-      "conclusion": "partial（撤回过宽 exact）：旧 owner 是自定义 allowed_origins + GET settings/ui，不能证明 production POST login。真实红测发现 200/403 差异；保留配置化开发 Origin 策略与 counterexample，不通过改写 fixture 或继续宣称 exact 隐藏差异。",
-      "command": "pnpm run test:parity:receipt -- --package jftrade-engine --test production_web_login_preserves_configured_development_origin_grant --output docs/history/go-to-rust/verification-receipts/web-proxy-session-boundaries-reviewed-2026-10-07.json",
+      "conclusion": "partial：重新执行原development Origin localhost3003请求路径，确认当前明确配置grant实际200并发cookie。此次仅修复监听器端口动态撤销，未以另一个Origin请求消除此反例。 原Go要求403 ORIGIN_FORBIDDEN；Rust当前配置仍200，公开行为差异保持partial，不因额外retired-port修复升级。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/app/apiserver/webaccess/security_integration_test.go",
@@ -72886,17 +72903,16 @@
             "goFile": "internal/app/apiserver/webaccess/security_integration_test.go",
             "goLine": 362,
             "rustFile": "crates/jftrade-engine/src/product_security_proxy_tests.rs",
-            "rustLine": 92
+            "rustLine": 90
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "真实 production POST login 的 localhost:3003 Origin 200、authenticated=true 且发 session cookie，匹配当前装配的显式开发 Origin grant。",
-          "先按 Go 403 期待运行失败，receipt web-security-development-origin-red-2026-10-07.json 保留原始失败；旧测试只证明自定义策略 GET 读路由拒绝。"
+          "重新执行原development Origin localhost3003请求路径，确认当前明确配置grant实际200并发cookie。此次仅修复监听器端口动态撤销，未以另一个Origin请求消除此反例。"
         ],
         "uncovered": [
-          "Go production Web 原始 POST login 要求 403 ORIGIN_FORBIDDEN；Rust production 固定 grant localhost:3003，实际为 200。"
+          "原Go要求403 ORIGIN_FORBIDDEN；Rust当前配置仍200，公开行为差异保持partial，不因额外retired-port修复升级。"
         ],
         "source": "reviewed"
       },
@@ -72909,13 +72925,15 @@
           "run",
           "-p",
           "jftrade-engine",
+          "-p",
+          "jftrade-api",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(production_web_login_preserves_configured_development_origin_grant) or test(production_password_change_invalidates_browser_session_snapshot) or test(public_web_login_rejects_remote_https_scheme_spoofing) or test(private_web_proxy_login_preserves_origin_and_forwarded_client_boundaries) or test(production_web_network_admission_is_owned_by_the_listener_bind) or test(disabled_production_web_keeps_desktop_capability_and_rejects_browser_access) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
+          "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
         ],
         "testFilter": [
           "production_web_login_preserves_configured_development_origin_grant"
@@ -72924,22 +72942,23 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "31df7567a58f07063e1561b5bc64c792efdf2584",
-        "verifiedAt": "2026-10-07T05:54:27Z",
-        "receiptDigest": "sha256:709229962c0a61d8fdde7a1511f691b1508c9e946d6c5911458d541c78071cdf"
+        "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+        "verifiedAt": "2026-10-08T08:08:15Z",
+        "receiptDigest": "sha256:d0756da1b7b4f72ff51c90c75d8d2d017eeab7bba2d30d472df5a7cce6528ca8"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "preserve_partial_and_track_residual",
-      "blockedBy": [],
+      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
+      "blockedBy": [
+        "behavioral-parity-review"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "真实 production POST login 的 localhost:3003 Origin 200、authenticated=true 且发 session cookie，匹配当前装配的显式开发 Origin grant。",
-        "先按 Go 403 期待运行失败，receipt web-security-development-origin-red-2026-10-07.json 保留原始失败；旧测试只证明自定义策略 GET 读路由拒绝。"
+        "重新执行原development Origin localhost3003请求路径，确认当前明确配置grant实际200并发cookie。此次仅修复监听器端口动态撤销，未以另一个Origin请求消除此反例。"
       ],
       "uncoveredAssertions": [
-        "Go production Web 原始 POST login 要求 403 ORIGIN_FORBIDDEN；Rust production 固定 grant localhost:3003，实际为 200。"
+        "原Go要求403 ORIGIN_FORBIDDEN；Rust当前配置仍200，公开行为差异保持partial，不因额外retired-port修复升级。"
       ],
       "boundaryReason": null
     },
@@ -340681,6 +340700,15 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_server_tests.rs::web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/app/apiserver/lifecycle/lifecycle_test.go:331:TestWebAccessServerManagerCoversLiveReconfigurationLifecycle"
+      ],
+      "reviewStatus": "single",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核Web listener原始断言：仅支持mapping明确记录的bind/启动/保持/静态开发集合/当前开发Origin状态/非nil生命周期分支。保留所有原输入差异及nil/invalid-helper残余，不扩大其他引用的reuse批准。"
+    },
     "crates/jftrade-engine/src/product_workflow_threshold_parity_tests.rs::threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -345111,17 +345139,16 @@
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-07：本批改用独立 reconnect/listener/security owner；剩余共享引用只支持各自有限断言，未批准 exact reuse。"
+      "reviewNote": "2026-10-08逐项复核Web listener原始断言：仅支持mapping明确记录的bind/启动/保持/静态开发集合/当前开发Origin状态/非nil生命周期分支。保留所有原输入差异及nil/invalid-helper残余，不扩大其他引用的reuse批准。"
     },
     "crates/jftrade-engine/src/product_server_tests.rs::dynamic_origin_allowlist_tracks_the_current_web_port": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/app/apiserver/lifecycle/lifecycle_test.go:331:TestWebAccessServerManagerCoversLiveReconfigurationLifecycle",
         "internal/app/apiserver/servercoretest/runtime_defaults_test.go:48:TestAPIBaseURLForBindNormalizesWildcardHost"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-30 API remaining owner review: application, startup, lifecycle, status, settings, Futu probe, desktop and web-auth assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog."
+      "reviewStatus": "single",
+      "reviewNote": "2026-09-30 API remaining owner review: application, startup, lifecycle, status, settings, Futu probe, desktop and web-auth assertions were compared with the shared Rust owner; fan-out capped at six, high fan-out remains backlog. 2026-10-08仅移除本批非测试函数或不对应原331的Origin引用；其余审批不扩大。"
     },
     "crates/jftrade-engine/src/product_runtime_tests.rs::product_runtime_without_optional_workers_starts_and_stops_cleanly": {
       "referenceCount": 3,
@@ -346383,7 +346410,7 @@
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 4 referenceKeys against the shared Rust owner (status mix {'[~]': 4}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-08逐项复核Web listener原始断言：仅支持mapping明确记录的bind/启动/保持/静态开发集合/当前开发Origin状态/非nil生命周期分支。保留所有原输入差异及nil/invalid-helper残余，不扩大其他引用的reuse批准。"
     },
     "apps/desktop/src-tauri/src/native_tests.rs::native_runtime_events_append_to_the_existing_daily_log_contract": {
       "referenceCount": 2,
@@ -364192,7 +364219,8 @@
         "internal/app/apiserver/lifecycle/lifecycle_test.go:222:TestWebAccessListenerBindUsesIndependentConfiguredPort"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08逐项复核Web listener原始断言：仅支持mapping明确记录的bind/启动/保持/静态开发集合/当前开发Origin状态/非nil生命周期分支。保留所有原输入差异及nil/invalid-helper残余，不扩大其他引用的reuse批准。"
     },
     "crates/jftrade-engine/src/product_security_stream_tests.rs::active_web_chat_does_not_block_listener_disable_or_rebind": {
       "referenceCount": 1,
@@ -364264,7 +364292,8 @@
         "internal/app/apiserver/webaccess/security_integration_test.go:362:TestProductionWebDoesNotTrustDevelopmentOrigin"
       ],
       "allowed": true,
-      "reviewStatus": "single"
+      "reviewStatus": "single",
+      "reviewNote": "2026-10-08逐项复核Web listener原始断言：仅支持mapping明确记录的bind/启动/保持/静态开发集合/当前开发Origin状态/非nil生命周期分支。保留所有原输入差异及nil/invalid-helper残余，不扩大其他引用的reuse批准。"
     },
     "crates/jftrade-engine/src/product_security_proxy_tests.rs::production_web_network_admission_is_owned_by_the_listener_bind": {
       "referenceCount": 1,
@@ -364700,7 +364729,8 @@
         "internal/app/apiserver/lifecycle/lifecycle_test.go:243:TestSeparateWebListenerStartsAlongsideLoopbackDesktopSidecar"
       ],
       "reviewStatus": "single",
-      "allowed": true
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项复核Web listener原始断言：仅支持mapping明确记录的bind/启动/保持/静态开发集合/当前开发Origin状态/非nil生命周期分支。保留所有原输入差异及nil/invalid-helper残余，不扩大其他引用的reuse批准。"
     },
     "crates/jftrade-engine/src/product_ws_http_parity_tests.rs::production_websocket_replays_preconnection_notification_and_receives_live_successor_once": {
       "referenceCount": 1,

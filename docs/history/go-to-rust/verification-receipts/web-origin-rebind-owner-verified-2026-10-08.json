@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-api",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_web_rebind_rejects_retired_listener_origins_for_login) or test(production_web_rebind_rejects_retired_listener_origins_for_websocket) or test(production_web_rebind_conflict_keeps_current_origin_and_persisted_settings) or test(web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently) or test(web_bind_matrix_preserves_independent_local_and_public_ports) or test(production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports) or test(port_conflict_keeps_the_previous_listener_running) or test(desktop_trusted_origins_cover_development_and_packaged_wails_hosts) or test(production_web_login_preserves_configured_development_origin_grant) or test(dynamic_origin_allowlist_tracks_the_current_web_port) or test(web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict) or test(production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port) or test(production_web_login_rejects_foreign_origin_and_accepts_listener_origin)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T08:08:15Z",
+  "sourceState": {
+    "verifiedCommit": "8efe40d55b3cbbd5b153b59826aaa62a6eaab057",
+    "trackedDiffSha256": "791d7ab71c0b90d796ceaf06437cae6bec4406906bb77cb176baf7db4bee24b5",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_ws_origin_rebind_tests.rs",
+        "sha256": "433c18948f35dd01bd0dae0423d490d9982e229aa29d678af06ddfa3da9fcfaa"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/web-origin-rebind-owner-red-2026-10-08.json",
+        "sha256": "c8ee45f23f2c2f9ec08f20349ec8b7683d080c6fc618b17ca66c124f29f58f16"
+      }
+    ]
+  },
+  "rawOutputSha256": "489840e9b2d36bf4e4832bc96de49c5d09fe5a3800b2ca6e4c68363be439d55e",
+  "passedTests": [
+    "jftrade-api::jftrade_api$auth::tests::desktop_trusted_origins_cover_development_and_packaged_wails_hosts",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::dynamic_origin_allowlist_tracks_the_current_web_port",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::port_conflict_keeps_the_previous_listener_running",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::web_bind_matrix_preserves_independent_local_and_public_ports",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::web_listener_hot_rebind_preserves_service_and_rolls_back_port_conflict",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::web_runtime_reconfigures_same_bind_public_host_and_disable_idempotently",
+    "jftrade-engine::jftrade_engine$product::tests::security_proxy_tests::production_web_login_preserves_configured_development_origin_grant",
+    "jftrade-engine::jftrade_engine$product::tests::security_proxy_tests::production_web_login_rejects_foreign_origin_and_accepts_listener_origin",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::origin_rebind::production_web_rebind_conflict_keeps_current_origin_and_persisted_settings",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::origin_rebind::production_web_rebind_rejects_retired_listener_origins_for_login",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::origin_rebind::production_web_rebind_rejects_retired_listener_origins_for_websocket",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_websocket_accepts_authenticated_listener_origin_and_rejects_foreign_port"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 12,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 63,
+      "exec_time": 0.021105709,
+      "nextest": {
+        "crate": "jftrade-api",
+        "test_binary": "jftrade_api",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1885,
+      "exec_time": 86.840557498,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

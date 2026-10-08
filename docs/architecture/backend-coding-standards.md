@@ -18,7 +18,9 @@ iterator body 只随 HTTP 消费推进逐帧编码，释放 body 即释放剩余
 不代表上游历史查询已经分页。HTTP listener owner 在 graceful join 前发出该 listener
 的连接取消信号，结束未完成 handler、SSE 和升级后的 WebSocket；Web listener
 重配置不关闭共享 desktop live hub。浏览器 HTTP 与 WebSocket 使用同一 Origin
-策略，包括当前 Web listener 的动态端口校验。
+策略，包括当前 Web listener 的动态端口校验。监听器端口授权只来自当前
+runtime bind，不能把启动端口复制到静态 Origin 清单；重绑定成功后旧端口授权
+撤销，重绑定失败时保持当前监听器授权。
 
 ADK GET 重连 body 由 HTTP 消费者持有，无后台 producer task。SQLite adapter 固定
 重连时的 sequence watermark，每页最多向 Rust 解码 64 条历史/新事件；watermark

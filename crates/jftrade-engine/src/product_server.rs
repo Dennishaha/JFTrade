@@ -671,21 +671,15 @@ pub(crate) async fn prepare_product_with_runtime_state(
         // Production Web security settings are part of the composition
         // contract.  A corrupt/unreadable settings file must abort startup,
         // rather than silently changing the allowed-origin set to defaults.
-        let web_settings = security_service_for_runtime
+        security_service_for_runtime
             .settings()
             .map_err(|error| ProductError::SecurityRuntime {
                 message: format!("could not load Web access settings: {error}"),
             })?;
         let mut web_state = state.clone();
+        // Listener-port grants must be revoked on rebind. A static startup
+        // port would keep allowing retired origins after the runtime moves.
         let web_access = AccessPolicy::web()
-            .with_allowed_origins([
-                "http://127.0.0.1:3003".to_owned(),
-                "http://localhost:3003".to_owned(),
-                "http://127.0.0.1:3000".to_owned(),
-                "http://localhost:3000".to_owned(),
-                format!("http://127.0.0.1:{}", web_settings.web_port),
-                format!("http://localhost:{}", web_settings.web_port),
-            ])
             .with_dynamic_origin_provider(
                 Arc::clone(web_runtime) as Arc<dyn jftrade_api::AccessOriginProvider>
             );
