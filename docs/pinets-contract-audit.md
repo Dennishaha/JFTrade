@@ -27,9 +27,9 @@ This protocol removes the repeated full-history calculation from the long-runnin
 
 ## Atomic protective-order contract
 
-A same-bar entry and its protective exit are emitted with one atomic group. The exit references the parent entry, is reduce-only, and a limit-plus-stop bracket carries one OCO group. Rust expands a dual-price exit into separate limit and stop legs, preflights the entire bar before any order side effect, and submits the complete group only through the atomic execution port.
+A same-bar entry and its protective exit are emitted with one atomic group. The exit references the parent entry, is reduce-only, and a limit-plus-stop bracket carries one OCO group. The backtest matcher owns atomic bracket execution. The production live strategy execution port has no atomic group capability: the engine preflights the entire worker response and rejects parent/atomic/OCO relationships and dual-price exits before placing any entry. It does not expand or submit protective legs sequentially. A dual-price entry or order is a stop-limit order; a stop-only intent remains stop-market.
 
-An execution backend implementing that interface promises all-or-none acceptance, child activation only after the parent fill, OCO sibling cancellation and reduce-only enforcement at match time. A backend that cannot make all four promises is not allowed to emulate the group with sequential `SubmitOrders`: the complete group is rejected before the entry is placed. The current Futu live adapter does not claim this atomic capability, so same-bar protective groups fail closed rather than opening an unprotected position. This protocol is narrower than general TradingView OCA/partial-fill parity, which remains outside the current broker-emulator score.
+An atomic execution backend would have to guarantee all-or-none acceptance, child activation only after the parent fill, OCO sibling cancellation and reduce-only enforcement at match time. A backend that cannot guarantee all four must reject the complete group before placing its entry. The current Futu live adapter has no such capability. General TradingView OCA/partial-fill parity remains outside the current broker-emulator score.
 
 ## PineTS capability alignment
 

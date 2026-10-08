@@ -17,6 +17,9 @@ use crate::product::product_execution_write_port::{
 use crate::product::{ProductNotificationPort, ProductNotificationRequest};
 use jftrade_integration_pine::PineOrderIntent;
 
+#[path = "strategy_runtime_order_validation.rs"]
+mod order_validation;
+
 pub(super) struct StrategyExecutionContext<'a> {
     pub execution: Option<&'a dyn ExecutionWritePort>,
     pub execution_store: Option<&'a jftrade_store_sqlite::ExecutionOrderStore>,
@@ -85,21 +88,7 @@ pub(super) fn execute_strategy_intents(
     }
     let risk_settings = risk_settings.normalize();
 
-    for (index, intent) in intents.iter().enumerate() {
-        let kind = intent.kind.trim().to_ascii_lowercase();
-        if !matches!(
-            kind.as_str(),
-            "order" | "entry" | "close" | "close_all" | "exit" | "cancel" | "cancel_all"
-        ) {
-            return Err(format!(
-                "unsupported strategy order intent kind at index {index}: {}",
-                intent.kind
-            ));
-        }
-        if kind == "cancel" && intent.id.trim().is_empty() && intent.from_entry.trim().is_empty() {
-            return Err(format!("cancel command id is required at index {index}"));
-        }
-    }
+    order_validation::validate_strategy_intents(intents)?;
 
     let now_utc = OffsetDateTime::now_utc();
     let today_midnight_ms = strategy_market_day_start_ms(ctx.market, now_utc);
@@ -107,15 +96,6 @@ pub(super) fn execute_strategy_intents(
     let mut submitted_count = 0_i64;
     for (index, intent) in intents.iter().enumerate() {
         let kind = intent.kind.trim().to_ascii_lowercase();
-        if !matches!(
-            kind.as_str(),
-            "order" | "entry" | "close" | "close_all" | "exit" | "cancel" | "cancel_all"
-        ) {
-            return Err(format!(
-                "unsupported strategy order intent kind at index {index}: {}",
-                intent.kind
-            ));
-        }
         if kind == "cancel" || kind == "cancel_all" {
             if let Some(exec) = execution {
                 let cancelled = dispatch_cancel_intent(
@@ -635,7 +615,9 @@ fn dispatch_place_order(
     index: usize,
     reservation_key: Option<&str>,
 ) -> Result<(), String> {
-    let order_type = if intent.has_limit_price {
+    let order_type = if intent.has_limit_price && intent.has_stop_price {
+        "STOP_LIMIT"
+    } else if intent.has_limit_price {
         "LIMIT"
     } else if intent.has_stop_price {
         "STOP"

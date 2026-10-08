@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T04:21:35Z",
+  "sourceState": {
+    "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+    "trackedDiffSha256": "2ac8c15fcef5b05a6aaedb37f75324f7b380c02882016591a044e72376067816",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+        "sha256": "bf4c509d4e5beb6a9e6735026fba453873fa70b1c9d3713886df5c2295ec9bd9"
+      }
+    ]
+  },
+  "rawOutputSha256": "3de544a2a2d210b6bd007b02d26112e73923fb4ed5cae66d07d34c88286da96a",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_real_entry_still_requires_explicit_quantity_after_conditional_validation",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_real_entry_still_requires_explicit_quantity_after_conditional_validation",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_real_entry_still_requires_explicit_quantity_after_conditional_validation",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 4,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1871,
+      "exec_time": 0.962921083,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 4,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 79,
+      "exec_time": 0.808999583,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 4,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 37,
+      "exec_time": 0.706830292,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    }
+  ]
+}

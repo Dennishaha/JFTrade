@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-08T04:25:50Z",
+  "sourceState": {
+    "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+    "trackedDiffSha256": "4dca921a94c4d11c38fe816d8ba798626b8e0bfe205928655c25fa1cfcaa6632",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+        "sha256": "ed801a8c78029f95f4595660b79c3dc134837e41a5b0d4f122f60d2e2b585c04"
+      },
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_order_validation.rs",
+        "sha256": "2314e142f2a0ba93ebc666ff8dc076cc38f3870d0c25ff9f7df7f6a8f5087c8a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-dispatch-original-2026-10-08.json",
+        "sha256": "b0cd7b7ef198d61da5c6ab93a7e1fbe8410391486d54a2bd50cda17cc1726f1b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-dispatch-owner-verified-2026-10-08.json",
+        "sha256": "9459652ede0d579da7f1da395c772627fcef111d6b7c4a648d991d1fa3152a1d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-preflight-original-2026-10-08.json",
+        "sha256": "8b49b4f56638fa2b937ae40405b8bf89b6d25bba056eaa92bdae8bd61a65841e"
+      }
+    ]
+  },
+  "rawOutputSha256": "26c951f844d107c41c22275f1f5945376a090ec43c9a986e9c2540f688ba825d",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_order_validation_tests::parsed_order_type_matches_the_opend_wire_enum",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_real_entry_still_requires_explicit_quantity_after_conditional_validation",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_real_entry_still_requires_explicit_quantity_after_conditional_validation",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_real_entry_still_requires_explicit_quantity_after_conditional_validation",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 9,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 8,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 8,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1870,
+      "exec_time": 1.8860552080000001,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 79,
+      "exec_time": 1.715720666,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 37,
+      "exec_time": 1.538137083,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    }
+  ]
+}

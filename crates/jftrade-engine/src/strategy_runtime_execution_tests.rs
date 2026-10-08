@@ -7,6 +7,9 @@ use jftrade_store_sqlite::{
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
+#[path = "strategy_runtime_order_type_parity_tests.rs"]
+mod order_type_parity_tests;
+
 #[derive(Debug, Default)]
 struct MockNotificationPort {
     delivered: Mutex<Vec<ProductNotificationRequest>>,

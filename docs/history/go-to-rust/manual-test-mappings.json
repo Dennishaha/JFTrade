@@ -295586,9 +295586,9 @@
     },
     "internal/strategy/pine_live_command_test.go:60:TestCommandFromOrderIntentPreservesShortDirection": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy",
-      "conclusion": "partial：参考实现断言做空方向（short）不被改写成买。Rust 的等价断言是“平掉空头映射为买入”（本行引用用例），方向归一在意图解析层；没有与参考实现逐字段同形的命令结构断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
+      "conclusion": "partial：原short entry、id=short、qty2经实际intent owner成功发出一条SELL/MARKET/qty2，输入direction仍为short。 Rust没有原command DTO的输出Direction字段；输入未变不能代替输出字段断言。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
@@ -295598,24 +295598,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-          "test": "test_execute_strategy_intents_close_short_maps_to_buy",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_short_entry_dispatches_sell_without_mutating_the_source_direction",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 60,
-            "rustFile": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-            "rustLine": 966
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 103
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言做空方向（short）不被改写成买。",
-          "Rust 的等价断言是“平掉空头映射为买入”（本行引用用例），方向归一在意图解析层；"
+          "原short entry、id=short、qty2经实际intent owner成功发出一条SELL/MARKET/qty2，输入direction仍为short。"
         ],
         "uncovered": [
-          "没有与参考实现逐字段同形的命令结构断言。"
+          "Rust没有原command DTO的输出Direction字段；输入未变不能代替输出字段断言。"
         ],
         "source": "reviewed"
       },
@@ -295626,23 +295625,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "test_execute_strategy_intents_close_short_maps_to_buy"
+          "pine_short_entry_dispatches_sell_without_mutating_the_source_direction"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -295653,19 +295655,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言做空方向（short）不被改写成买。",
-        "Rust 的等价断言是“平掉空头映射为买入”（本行引用用例），方向归一在意图解析层；"
+        "原short entry、id=short、qty2经实际intent owner成功发出一条SELL/MARKET/qty2，输入direction仍为short。"
       ],
       "uncoveredAssertions": [
-        "没有与参考实现逐字段同形的命令结构断言。"
+        "Rust没有原command DTO的输出Direction字段；输入未变不能代替输出字段断言。"
       ],
       "boundaryReason": null
     },
     "internal/strategy/pine_live_command_test.go:76:TestCommandFromOrderIntentMapsShortExitToBuy": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy",
-      "conclusion": "partial：参考实现断言空头退出映射为买入方向。Rust 由本行引用用例同样覆盖（平空 → 买入），但断言落在执行结果而非命令 DTO，故记 partial。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price",
+      "conclusion": "partial：原short-stop/fromEntry=short/stop110的exit成功发出一条BUY/STOP，stopPrice110、reduceOnly=true。 Rust没有原command DTO的输出Direction字段；实际执行BUY/STOP不证明该输出字段。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
@@ -295675,24 +295676,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-          "test": "test_execute_strategy_intents_close_short_maps_to_buy",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_short_stop_exit_dispatches_buy_with_the_original_stop_price",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 76,
-            "rustFile": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-            "rustLine": 966
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 117
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言空头退出映射为买入方向。",
-          "Rust 由本行引用用例同样覆盖（平空 → 买入），但断言落在执行结果而非命令 DTO，故记 partial。"
+          "原short-stop/fromEntry=short/stop110的exit成功发出一条BUY/STOP，stopPrice110、reduceOnly=true。"
         ],
         "uncovered": [
-          "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+          "Rust没有原command DTO的输出Direction字段；实际执行BUY/STOP不证明该输出字段。"
         ],
         "source": "reviewed"
       },
@@ -295703,23 +295703,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "test_execute_strategy_intents_close_short_maps_to_buy"
+          "pine_short_stop_exit_dispatches_buy_with_the_original_stop_price"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -295730,20 +295733,19 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言空头退出映射为买入方向。",
-        "Rust 由本行引用用例同样覆盖（平空 → 买入），但断言落在执行结果而非命令 DTO，故记 partial。"
+        "原short-stop/fromEntry=short/stop110的exit成功发出一条BUY/STOP，stopPrice110、reduceOnly=true。"
       ],
       "uncoveredAssertions": [
-        "未从该结论中拆出独立 Rust 缺口；需按原始 Go 断言与 Rust 测试逐项复核。"
+        "Rust没有原command DTO的输出Direction字段；实际执行BUY/STOP不证明该输出字段。"
       ],
       "boundaryReason": null
     },
     "internal/strategy/pine_live_command_test.go:93:TestScopedExitQuantitySurvivesGoExecution": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent",
-      "conclusion": "partial：参考实现断言限定到某个入场 ID 的退出仍保留数量语义（不因作用域被清零）。Rust 的数量解析由本行引用用例覆盖（数量百分比与平仓意图），作用域（fromEntry/ID 路由）在意图解析层承担；缺少“作用域退出保留数量”的专用断言。缺口（P1，交易语义）：作用域退出的数量保留需要回归。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
+      "conclusion": "function_exact：原close-a-half/fromEntry=A/long/qty1.5/stop95在净持仓7时成功执行；恰一条SELL/STOP、qty1.5而非7，价格95且reduceOnly=true。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
         "line": 93,
@@ -295752,26 +295754,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-          "test": "test_execute_strategy_intents_resolves_quantity_pct_and_close_intent",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 93,
-            "rustFile": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-            "rustLine": 537
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 136
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言限定到某个入场 ID 的退出仍保留数量语义（不因作用域被清零）。",
-          "Rust 的数量解析由本行引用用例覆盖（数量百分比与平仓意图），作用域（fromEntry/ID 路由）在意图解析层承担；"
+          "原close-a-half/fromEntry=A/long/qty1.5/stop95在净持仓7时成功执行；恰一条SELL/STOP、qty1.5而非7，价格95且reduceOnly=true。"
         ],
-        "uncovered": [
-          "缺少“作用域退出保留数量”的专用断言。",
-          "缺口（P1，交易语义）：作用域退出的数量保留需要回归。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -295781,48 +295779,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "test_execute_strategy_intents_resolves_quantity_pct_and_close_intent"
+          "pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言限定到某个入场 ID 的退出仍保留数量语义（不因作用域被清零）。",
-        "Rust 的数量解析由本行引用用例覆盖（数量百分比与平仓意图），作用域（fromEntry/ID 路由）在意图解析层承担；"
+        "原close-a-half/fromEntry=A/long/qty1.5/stop95在净持仓7时成功执行；恰一条SELL/STOP、qty1.5而非7，价格95且reduceOnly=true。"
       ],
-      "uncoveredAssertions": [
-        "缺少“作用域退出保留数量”的专用断言。",
-        "缺口（P1，交易语义）：作用域退出的数量保留需要回归。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/pine_live_command_test.go:130:TestCommandFromOrderIntentMapsConditionalOrderTypes": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::parsed_order_type_matches_the_opend_wire_enum",
-      "conclusion": "partial：参考实现断言条件单四格矩阵（entry/exit 止损市价、entry/order 止损限价，价格原值透传）。Rust 的 wire 枚举解析由本行引用用例锁定（MARKET/STOP/STOP_MARKET/STOP_LIMIT 对码），但意图层映射疑有分歧：strategy_runtime_execution.rs 以 limit 优先，limit 加 stop 得 LIMIT，而参考实现同输入得 StopLimit（下游执行层是否把 LIMIT 加 stopPrice 等价处理尚未验证）。s06 复核登记该候选分歧：逐类型回归必须覆盖 limit 加 stop 的止损限价格，确认意图层映射与下游解释一致后再收敛。缺口（P1，订单类型语义）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
+      "conclusion": "function_exact：原四格无显式数量的entry stop101、exit stop95、entry limit102+stop101、order short limit98+stop99均成功；订单类型分别STOP/STOP/STOP_LIMIT/STOP_LIMIT，两个价格原值不变。STOP为下游已验证的StopMarket=10，STOP_LIMIT为11；缺省零价格在Rust wire中省略而非携带0。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
         "line": 130,
@@ -295831,26 +295826,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
-          "test": "parsed_order_type_matches_the_opend_wire_enum",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 130,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs",
-            "rustLine": 15
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 152
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "参考实现断言条件单四格矩阵（entry/exit 止损市价、entry/order 止损限价，价格原值透传）。",
-          "s06 复核登记该候选分歧：逐类型回归必须覆盖 limit 加 stop 的止损限价格，确认意图层映射与下游解释一致后再收敛。"
+          "原四格无显式数量的entry stop101、exit stop95、entry limit102+stop101、order short limit98+stop99均成功；订单类型分别STOP/STOP/STOP_LIMIT/STOP_LIMIT，两个价格原值不变。STOP为下游已验证的StopMarket=10，STOP_LIMIT为11；缺省零价格在Rust wire中省略而非携带0。"
         ],
-        "uncovered": [
-          "Rust 的 wire 枚举解析由本行引用用例锁定（MARKET/STOP/STOP_MARKET/STOP_LIMIT 对码），但意图层映射疑有分歧：strategy_runtime_execution.rs 以 limit 优先，limit 加 stop 得 LIMIT，而参考实现同输入得 StopLimit（下游执行层是否把 LIMIT 加 stopPrice 等价处理尚未验证）。",
-          "缺口（P1，订单类型语义）。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -295860,48 +295851,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "parsed_order_type_matches_the_opend_wire_enum"
+          "pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "参考实现断言条件单四格矩阵（entry/exit 止损市价、entry/order 止损限价，价格原值透传）。",
-        "s06 复核登记该候选分歧：逐类型回归必须覆盖 limit 加 stop 的止损限价格，确认意图层映射与下游解释一致后再收敛。"
+        "原四格无显式数量的entry stop101、exit stop95、entry limit102+stop101、order short limit98+stop99均成功；订单类型分别STOP/STOP/STOP_LIMIT/STOP_LIMIT，两个价格原值不变。STOP为下游已验证的StopMarket=10，STOP_LIMIT为11；缺省零价格在Rust wire中省略而非携带0。"
       ],
-      "uncoveredAssertions": [
-        "Rust 的 wire 枚举解析由本行引用用例锁定（MARKET/STOP/STOP_MARKET/STOP_LIMIT 对码），但意图层映射疑有分歧：strategy_runtime_execution.rs 以 limit 优先，limit 加 stop 得 LIMIT，而参考实现同输入得 StopLimit（下游执行层是否把 LIMIT 加 stopPrice 等价处理尚未验证）。",
-        "缺口（P1，订单类型语义）。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/pine_live_command_test.go:180:TestCommandFromOrderIntentRejectsUnsupportedExitBracket": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::input_and_atomic_bracket_validation_errors",
-      "conclusion": "boundary：参考实现断言不支持的退出括号组合被拒绝。Rust 不把括号组合作为命令层错误：括号单由 jftrade-backtest 的保守 K 线执行器校验并原子执行（本行引用用例断言输入与原子括号校验错误），拒绝点与错误归属都在撮合侧。属于对象迁移而非缺功能，按 boundary 保留。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
-      "evidence_type": "boundary",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+      "conclusion": "function_exact：原exit long limit110+stop90无组输入返回包含OCO bracket的错误，没有成功执行且broker/audit写入为零。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
         "line": 180,
@@ -295910,24 +295898,22 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-backtest/tests/conservative_bar_execution.rs",
-          "test": "input_and_atomic_bracket_validation_errors",
-          "crate": "jftrade-backtest",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 180,
-            "rustFile": "crates/jftrade-backtest/tests/conservative_bar_execution.rs",
-            "rustLine": 435
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 267
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust conservative backtest executor validates bracket inputs and executes atomic brackets."
+          "原exit long limit110+stop90无组输入返回包含OCO bracket的错误，没有成功执行且broker/audit写入为零。"
         ],
-        "uncovered": [
-          "Go command-layer unsupported exit bracket rejection has no Rust command layer; rejection belongs to backtest matcher."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -295937,46 +295923,45 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "input_and_atomic_bracket_validation_errors"
+          "pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust conservative backtest executor validates bracket inputs and executes atomic brackets."
+        "原exit long limit110+stop90无组输入返回包含OCO bracket的错误，没有成功执行且broker/audit写入为零。"
       ],
-      "uncoveredAssertions": [
-        "Go command-layer unsupported exit bracket rejection has no Rust command layer; rejection belongs to backtest matcher."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/pine_live_command_test.go:194:TestCommandsFromOrderIntentsExpandsAtomicOCOExit": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-backtest/tests/conservative_bar_execution.rs::parent_bracket_runs_atomically_with_stop_first_protection",
-      "conclusion": "boundary：参考实现断言 OCO 退出被展开为原子执行的命令集合。Rust 把括号单交给 jftrade-backtest 的撮合与执行器（本行引用用例断言父括号原子执行且止损优先保护），引擎侧不再展开 OCO；语义由撮合 owner 保证，按 boundary 保留并注明升级路径（若引擎需要在命令层展开，应在 jftrade-engine 增加对应展开用例）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-backtest --all-targets --locked",
-      "evidence_type": "boundary",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+      "conclusion": "partial：原protect/fromEntry=long/parent=long/limit110/stop95/qty1/atomic=bracket-1/oco=protect-oco/reduceOnly输入经实际live owner整组拒绝，零broker与audit写入；不再被降为普通LIMIT。 原两腿成功展开、ID/IntentID、父子/atomic/OCO元数据完整保留和reduceOnly同形断言未实现；当前live执行port没有原子OCO能力。原unsafe无组的requires oco and atomic group ids文案亦未对齐。Backtest matcher不能证明这些live命令语义，纠正旧boundary。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
         "line": 194,
@@ -295985,23 +295970,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-backtest/tests/conservative_bar_execution.rs",
-          "test": "parent_bracket_runs_atomically_with_stop_first_protection",
-          "crate": "jftrade-backtest",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders",
+          "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 194,
-            "rustFile": "crates/jftrade-backtest/tests/conservative_bar_execution.rs",
-            "rustLine": 860
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 268
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust backtest matcher executes parent bracket atomically with stop-first protection."
+          "原protect/fromEntry=long/parent=long/limit110/stop95/qty1/atomic=bracket-1/oco=protect-oco/reduceOnly输入经实际live owner整组拒绝，零broker与audit写入；不再被降为普通LIMIT。"
         ],
         "uncovered": [
-          "Go OCO expansion into command collection has no Rust engine expansion path; execution owner is matcher."
+          "原两腿成功展开、ID/IntentID、父子/atomic/OCO元数据完整保留和reduceOnly同形断言未实现；当前live执行port没有原子OCO能力。原unsafe无组的requires oco and atomic group ids文案亦未对齐。Backtest matcher不能证明这些live命令语义，纠正旧boundary。"
         ],
         "source": "reviewed"
       },
@@ -296012,23 +295997,26 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "parent_bracket_runs_atomically_with_stop_first_protection"
+          "pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
@@ -296039,10 +296027,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust backtest matcher executes parent bracket atomically with stop-first protection."
+        "原protect/fromEntry=long/parent=long/limit110/stop95/qty1/atomic=bracket-1/oco=protect-oco/reduceOnly输入经实际live owner整组拒绝，零broker与audit写入；不再被降为普通LIMIT。"
       ],
       "uncoveredAssertions": [
-        "Go OCO expansion into command collection has no Rust engine expansion path; execution owner is matcher."
+        "原两腿成功展开、ID/IntentID、父子/atomic/OCO元数据完整保留和reduceOnly同形断言未实现；当前live执行port没有原子OCO能力。原unsafe无组的requires oco and atomic group ids文案亦未对齐。Backtest matcher不能证明这些live命令语义，纠正旧boundary。"
       ],
       "boundaryReason": null
     },
@@ -296201,11 +296189,11 @@
       "boundaryReason": null
     },
     "internal/strategy/pine_live_command_test.go:267:TestCommandFromOrderIntentRejectsUnsupportedIntent": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_unknown_risk_mode_fails_closed",
-      "conclusion": "partial：参考实现断言不支持的类型/意图被拒绝而不是静默丢弃。Rust 的失败关闭由本行引用用例覆盖（未知风控模式即拒绝），但拒绝的枚举集合与错误码与参考实现不同形，故记 partial。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+      "conclusion": "function_exact：原bracket/unsupported类型错误包含unsupported、entry空方向包含requires long/short；Inf limit与NaN stop均拒绝。 原reduce-only entry、parent entry、无atomic的OCO exit、带atomic的cancel均拒绝；close limit101+stop99错误包含cannot combine；单条及有效首单加非法第二条均Err、零execution/audit写入，instance保持RUNNING。Rust Err不返回可执行命令集合，对应原转换失败时commands=nil。",
+      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/strategy/pine_live_command_test.go",
         "line": 267,
@@ -296214,24 +296202,23 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-          "test": "test_execute_strategy_intents_unknown_risk_mode_fails_closed",
+          "file": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+          "test": "pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/strategy/pine_live_command_test.go",
             "goLine": 267,
-            "rustFile": "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs",
-            "rustLine": 385
+            "rustFile": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+            "rustLine": 185
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust 的失败关闭由本行引用用例覆盖（未知风控模式即拒绝），但拒绝的枚举集合与错误码与参考实现不同形，故记 partial。"
+          "原bracket/unsupported类型错误包含unsupported、entry空方向包含requires long/short；Inf limit与NaN stop均拒绝。",
+          "原reduce-only entry、parent entry、无atomic的OCO exit、带atomic的cancel均拒绝；close limit101+stop99错误包含cannot combine；单条及有效首单加非法第二条均Err、零execution/audit写入，instance保持RUNNING。Rust Err不返回可执行命令集合，对应原转换失败时commands=nil。"
         ],
-        "uncovered": [
-          "参考实现断言不支持的类型/意图被拒绝而不是静默丢弃。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
@@ -296241,38 +296228,38 @@
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(pine_short_entry_dispatches_sell_without_mutating_the_source_direction) or test(pine_short_stop_exit_dispatches_buy_with_the_original_stop_price) or test(pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position) or test(pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices) or test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write) or test(pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders) or test(pine_same_bar_protective_group_rejects_before_the_parent_entry_is_submitted) or test(pine_real_entry_still_requires_explicit_quantity_after_conditional_validation) or test(parsed_order_type_matches_the_opend_wire_enum)"
         ],
         "testFilter": [
-          "test_execute_strategy_intents_unknown_risk_mode_fails_closed"
+          "pine_invalid_intents_reject_the_entire_batch_before_any_execution_write"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
+        "runnerVersion": "cargo-nextest 0.9.143",
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+        "verifiedAt": "2026-10-08T04:25:50Z",
+        "receiptDigest": "sha256:28e42435b7ee4197cf954bf4c99c8a7e758ac55c732860fa24c884db5e1ba45c"
       },
       "risk": "normal",
       "owner": "strategy_pine",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "maintain_behavioral_parity",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust 的失败关闭由本行引用用例覆盖（未知风控模式即拒绝），但拒绝的枚举集合与错误码与参考实现不同形，故记 partial。"
+        "原bracket/unsupported类型错误包含unsupported、entry空方向包含requires long/short；Inf limit与NaN stop均拒绝。",
+        "原reduce-only entry、parent entry、无atomic的OCO exit、带atomic的cancel均拒绝；close limit101+stop99错误包含cannot combine；单条及有效首单加非法第二条均Err、零execution/audit写入，instance保持RUNNING。Rust Err不返回可执行命令集合，对应原转换失败时commands=nil。"
       ],
-      "uncoveredAssertions": [
-        "参考实现断言不支持的类型/意图被拒绝而不是静默丢弃。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/strategy/pine_live_executor_test.go:14:TestNewLiveCommandExecutorRetainsInjectedControlPorts": {
@@ -340664,6 +340651,56 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_conditional_intents_dispatch_stop_and_stop_limit_without_changing_prices": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/pine_live_command_test.go:130:TestCommandFromOrderIntentMapsConditionalOrderTypes"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_exit_brackets_cannot_be_downgraded_to_unprotected_limit_orders": {
+      "referenceCount": 2,
+      "referenceKeys": [
+        "internal/strategy/pine_live_command_test.go:180:TestCommandFromOrderIntentRejectsUnsupportedExitBracket",
+        "internal/strategy/pine_live_command_test.go:194:TestCommandsFromOrderIntentsExpandsAtomicOCOExit"
+      ],
+      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewNote": "2026-10-08逐项审核：原180只引用无组双价exit的OCO bracket错误与零写入；原194只引用当前live保护组被拒绝的安全事实，仍partial，未批准其展开或原子成交等价。"
+    },
+    "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/pine_live_command_test.go:267:TestCommandFromOrderIntentRejectsUnsupportedIntent"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_scoped_stop_exit_preserves_explicit_quantity_instead_of_closing_the_net_position": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/pine_live_command_test.go:93:TestScopedExitQuantitySurvivesGoExecution"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_short_entry_dispatches_sell_without_mutating_the_source_direction": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/pine_live_command_test.go:60:TestCommandFromOrderIntentPreservesShortDirection"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
+    "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs::pine_short_stop_exit_dispatches_buy_with_the_original_stop_price": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/strategy/pine_live_command_test.go:76:TestCommandFromOrderIntentMapsShortExitToBuy"
+      ],
+      "reviewStatus": "single",
+      "allowed": true
+    },
     "crates/jftrade-engine/src/product_embedded_research_http_parity_tests.rs::embedded_calendar_macro_http_exposes_original_active_provider_scope": {
       "allowed": true,
       "reviewStatus": "single",
@@ -346697,7 +346734,7 @@
       "reviewNote": "2026-09-30 Strategy/Pine risk and order-boundary owner review: risk mode, qualified positions, order metadata and truncation assertions were compared with the Rust owner; low fan-out relation reviewed."
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_resolves_quantity_pct_and_close_intent": {
-      "referenceCount": 12,
+      "referenceCount": 11,
       "referenceKeys": [
         "internal/app/apiserver/servercore/runtime_trading_test.go:181:TestStrategyRuntimeLiveSizesEntryQuantityPctFromEquity",
         "internal/app/apiserver/servercore/runtime_trading_test.go:334:TestStrategyRuntimeLiveDefaultsCloseToFullPosition",
@@ -346708,13 +346745,12 @@
         "pkg/backtest/pineworker_runner_test.go:163:TestRunWithPineWorkerExecutesQuantityPctReplay",
         "pkg/backtest/replay_sizer_bounds_test.go:88:TestPineWorkerReplaySizerEntryEquityBoundaries",
         "internal/strategy/pine_live_command_test.go:36:TestCommandsFromOrderIntents",
-        "internal/strategy/pine_live_command_test.go:93:TestScopedExitQuantitySurvivesGoExecution",
         "internal/strategy/pine_live_command_test.go:257:TestCommandFromOrderIntentDefaultsEntryQuantity",
         "internal/strategy/pine_live_executor_test.go:66:TestLiveCommandExecutorRejectsQuantityPctWithoutSizing"
       ],
       "allowed": true,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-09-29 API/runtime quantity owner review: all 12 referenceKeys were compared. The two API function_exact rows retain the engine intent owner and their existing quantity/close assertions; ten backtest/strategy references remain partial with explicit equity-vs-cash, missing-sizer, replay, scope, default-quantity and live-adapter differences. Relation release does not upgrade those partial rows."
+      "reviewNote": "2026-09-29 API/runtime quantity owner review: all 12 referenceKeys were compared. The two API function_exact rows retain the engine intent owner and their existing quantity/close assertions; ten backtest/strategy references remain partial with explicit equity-vs-cash, missing-sizer, replay, scope, default-quantity and live-adapter differences. Relation release does not upgrade those partial rows. 2026-10-08仅移除本批Pine命令引用；其他引用的断言与原审核范围不扩大。"
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_prefers_explicit_quantity_over_quantity_pct": {
       "referenceCount": 1,
@@ -352228,7 +352264,7 @@
       "reviewStatus": "reviewed"
     },
     "crates/jftrade-backtest/tests/conservative_bar_execution.rs::input_and_atomic_bracket_validation_errors": {
-      "referenceCount": 11,
+      "referenceCount": 10,
       "referenceKeys": [
         "pkg/backtest/conservative_bar_executor_test.go:53:TestConservativeBarExecutorValidationErrors",
         "pkg/backtest/pineworker_adapter_test.go:161:TestCommandFromOrderIntentRejectsUnsupportedExitBracket",
@@ -352238,13 +352274,12 @@
         "pkg/backtest/short_replay_bounds_test.go:48:TestPineWorkerShortReplayExecutorSyntheticValidation",
         "internal/strategy/live_command_business_boundaries_test.go:57:TestCommandsFromOrderIntentsRejectsInvalidAtomicOCOLegs",
         "internal/strategy/live_command_business_boundaries_test.go:204:TestAtomicPineOrderValidationRejectsUnsafeGroupShapes",
-        "internal/strategy/pine_live_command_test.go:180:TestCommandFromOrderIntentRejectsUnsupportedExitBracket",
         "internal/strategy/pine_live_executor_test.go:462:TestLiveCommandExecutorRejectsAtomicBracketBeforeAnySubmission",
         "internal/strategy/pine_live_executor_test.go:508:TestLiveCommandExecutorRejectsMalformedAtomicBracket"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 11 referenceKeys against the shared Rust owner (status mix {'[~]': 11}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-02 bounded reuse review: compared all 11 referenceKeys against the shared Rust owner (status mix {'[~]': 11}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation. 2026-10-08仅移除本批Pine命令引用；其他引用的断言与原审核范围不扩大。"
     },
     "crates/jftrade-backtest/tests/conservative_bar_execution.rs::market_order_fills_on_next_open_with_liquidity_cap": {
       "referenceCount": 1,
@@ -352255,19 +352290,18 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-backtest/tests/conservative_bar_execution.rs::parent_bracket_runs_atomically_with_stop_first_protection": {
-      "referenceCount": 7,
+      "referenceCount": 6,
       "referenceKeys": [
         "pkg/backtest/conservative_bar_executor_test.go:147:TestConservativeBarExecutorRunsParentBracketAtomicallyAndStopFirst",
         "pkg/backtest/pineworker_adapter_test.go:175:TestCommandsFromOrderIntentsExpandsAtomicOCOExit",
         "pkg/backtest/pineworker_atomic_boundaries_test.go:67:TestPineWorkerAtomicExecutionFailureBoundaries",
         "pkg/backtest/pineworker_command_executor_test.go:452:TestPineWorkerCommandExecutorSubmitsParentOCOBracketAtomically",
         "internal/strategy/live_command_business_boundaries_test.go:362:TestAtomicPineOrderSubmissionIsAllOrNothing",
-        "internal/strategy/pine_live_command_test.go:194:TestCommandsFromOrderIntentsExpandsAtomicOCOExit",
         "internal/strategy/pine_live_executor_test.go:474:TestLiveCommandExecutorSubmitsParentOCOBracketAtomically"
       ],
       "allowed": false,
       "reviewStatus": "reviewed",
-      "reviewNote": "2026-10-02 bounded reuse review: compared all 7 referenceKeys against the shared Rust owner (status mix {'[~]': 7}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
+      "reviewNote": "2026-10-02 bounded reuse review: compared all 7 referenceKeys against the shared Rust owner (status mix {'[~]': 7}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation. 2026-10-08仅移除本批Pine命令引用；其他引用的断言与原审核范围不扩大。"
     },
     "crates/jftrade-backtest/tests/conservative_bar_execution.rs::atomic_child_without_parent_is_rejected": {
       "referenceCount": 1,
@@ -352804,7 +352838,7 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 7 referenceKeys against the shared Rust owner (status mix {'[~]': 7}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_close_short_maps_to_buy": {
-      "referenceCount": 14,
+      "referenceCount": 12,
       "referenceKeys": [
         "pkg/backtest/pineworker_adapter_test.go:41:TestCommandFromOrderIntentPreservesShortDirection",
         "pkg/backtest/pineworker_adapter_test.go:57:TestCommandFromOrderIntentMapsShortExitToBuy",
@@ -352814,15 +352848,14 @@
         "pkg/backtest/short_replay_test.go:12:TestPineWorkerShortReplayExecutorFillsShortEntryAndCover",
         "internal/strategy/live_command_business_boundaries_test.go:85:TestWorkerIntentDirectionAliasesPreserveTradingSide",
         "internal/strategy/live_command_business_boundaries_test.go:399:TestPositionAwareCloseNeverCrossesTheWrongSide",
-        "internal/strategy/pine_live_command_test.go:60:TestCommandFromOrderIntentPreservesShortDirection",
-        "internal/strategy/pine_live_command_test.go:76:TestCommandFromOrderIntentMapsShortExitToBuy",
         "internal/strategy/pine_live_command_test.go:227:TestCommandFromOrderIntentCanonicalizesSellEntryAsShort",
         "internal/strategy/pine_live_executor_test.go:180:TestLiveCommandExecutorTagsShortOrders",
         "internal/strategy/pine_live_executor_test.go:349:TestLiveCommandExecutorAutoCloseCoversShortPosition",
         "internal/strategy/pine_live_executor_test.go:383:TestLiveCommandExecutorHonorsExplicitShortCloseAndOptionalWarnings"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": " 2026-10-08仅移除本批Pine命令引用；其他引用的断言与原审核范围不扩大。"
     },
     "crates/jftrade-integration-pine/tests/pine_backtest_matcher_intents_e2e.rs::intent_with_has_quantity_pct_and_resolved_quantity_executes_successfully": {
       "referenceCount": 3,
@@ -354949,13 +354982,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_execution_order_validation_tests.rs::parsed_order_type_matches_the_opend_wire_enum": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "pkg/futu/exchange_mapping_boundaries_test.go:158:TestFutuTradeEnumMappingsCoverBrokerAndBBGOBoundaries",
-        "internal/strategy/pine_live_command_test.go:130:TestCommandFromOrderIntentMapsConditionalOrderTypes"
+        "pkg/futu/exchange_mapping_boundaries_test.go:158:TestFutuTradeEnumMappingsCoverBrokerAndBBGOBoundaries"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/product_production_ports_trade_tests.rs::generated_trade_enum_values_are_preserved": {
       "referenceCount": 1,
@@ -361675,13 +361707,12 @@
       "reviewStatus": "single"
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::test_execute_strategy_intents_unknown_risk_mode_fails_closed": {
-      "referenceCount": 2,
+      "referenceCount": 1,
       "referenceKeys": [
-        "internal/strategy/pine_live_command_test.go:267:TestCommandFromOrderIntentRejectsUnsupportedIntent",
         "internal/strategy/pine_live_executor_test.go:556:TestLiveCommandExecutorBusinessBoundaryErrors"
       ],
-      "allowed": false,
-      "reviewStatus": "reviewed",
+      "allowed": true,
+      "reviewStatus": "single",
       "reviewNote": "2026-10-02 bounded reuse review: compared all 2 referenceKeys against the shared Rust owner (status mix {'[~]': 2}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/strategy_runtime_execution_tests.rs::live_entry_without_quantity_is_rejected_before_any_broker_submission": {

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(pine_invalid_intents_reject_the_entire_batch_before_any_execution_write)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T04:22:33Z",
+  "sourceState": {
+    "verifiedCommit": "98b4d468b4d404e0a093738d5983a51480f58391",
+    "trackedDiffSha256": "2ac8c15fcef5b05a6aaedb37f75324f7b380c02882016591a044e72376067816",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/strategy_runtime_order_type_parity_tests.rs",
+        "sha256": "6765c697f80a520ba49e613cb349304a370934dc48ba365e8a1219e5e315d725"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/pine-conditional-dispatch-original-2026-10-08.json",
+        "sha256": "b0cd7b7ef198d61da5c6ab93a7e1fbe8410391486d54a2bd50cda17cc1726f1b"
+      }
+    ]
+  },
+  "rawOutputSha256": "5bddd50969811b59a39f0f9aeaf47b4f16e7b5ef76da1205d07b5e13ac112f88",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::order_type_parity_tests::pine_invalid_intents_reject_the_entire_batch_before_any_execution_write"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 85,
+      "exec_time": 0.758354583,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 43,
+      "exec_time": 0.765149542,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1877,
+      "exec_time": 0.783146958,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
