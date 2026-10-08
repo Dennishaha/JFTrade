@@ -87,6 +87,12 @@ pub trait AdkChatStreamPort: Send + Sync + std::fmt::Debug {
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError>;
 
+    /// Check the durable request identity before claiming or replaying a
+    /// transport record, including while model configuration is unavailable.
+    fn check_chat_request_conflict(&self, _input: &AdkChatInput) -> Result<(), AdkChatPortError> {
+        Ok(())
+    }
+
     /// Signals an active provider call to stop.  Implementations that do not
     /// own a live runtime may keep the default no-op behavior.
     fn cancel_run(&self, _run_id: &str) -> bool {

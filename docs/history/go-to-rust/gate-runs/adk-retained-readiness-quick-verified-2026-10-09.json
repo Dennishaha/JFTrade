@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T19:03:50.720997+00:00",
+  "verifiedCommit": "29729b52ee5c2697375c9235ffb59b3f09fa5784",
+  "rawOutputPath": "/Volumes/帆帆PM961-512/Github/JFTrade/.git/adk-retained-readiness-quick-20261009.log",
+  "rawOutputSha256": "6238b410f7f9d17dcdce4ed08248e75e7b5a8ebc9411e96180a7c40b8586f145",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2409,
+    "passed": 2409,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 107.896
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_chat_stream_port.rs": "99644bdcd672c488c64e8e98a4efa7b4c45ff072df68faf152a95800a50e26ca",
+    "crates/jftrade-engine/src/product_adk_model_runtime_adapters.rs": "378549e9ef89349a254b547495a0fa32c672055439bc3a2f93cfc6e31864da5b",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "f103cb1c99762a51a818836aa2c686b1f592f4353b6cd0d6d8380042d9d2c251",
+    "crates/jftrade-engine/src/product_adk_unavailable_stream.rs": "b0efafea2187ac1aeea2a5f552d36d57633fe4e11ec55b73473b2c7bad0935e5",
+    "crates/jftrade-engine/src/product_production_ports_adk_stream.rs": "c5fb1482cf8a8787ab46b0395bf5453510180abac06f68e640a7c567e2d18496",
+    "crates/jftrade-engine/src/product_adk_retained_stream_readiness_tests.rs": "ffc92286fd76d214a94e34464613c13c1bee5cc9b1d22c44300600c41ed356f4"
+  },
+  "rustSourceFingerprintSha256": "27e7a7df81532c1cceab34e2bdbbbf8054ce980f9a16a9bfdc40316100532478",
+  "frozenRustFiles": 1026,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Retained pre-run terminal error replays after actual runtime configuration becomes ready; durable conflict and storage read failures take precedence. Eight actual frozen tests reviewed; concurrent success execution48 was downgraded to partial because store admission/user-event assertions do not close provider count, dual final responses or native assistant content. Canonical request fingerprint, configured-runtime prepare errors and idle per-request pre-cancellation remain gaps. Two stable production reds, one compile fixture failure and one missing test TLS provider failure are preserved. Whole parity active.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopChecks": {
+    "runtimeNodeTestsPassed": 11,
+    "scriptNodeTestsPassed": 48
+  }
+}

@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 ADK 保留错误流在配置恢复后的请求所有权
+
+- 两条真实生产红证明：首次retry BrokenPipe后恢复同一runtime配置，重复POST绕过原终态记录而返回400；已安装但未就绪的runtime已有durable请求冲突时，保留记录掩盖冲突。`adk-retained-readiness-red-2026-10-09.json`明确0 passed/2 failed，运行前完整Rust源码指纹已保存。后续SHA格式夹具编译失败及漏安装TLS crypto provider的14 passed/1 failed分别留证，不作为生产红、不放宽断言。
+- `ProductionAdkPort`在runtime就绪检查前查找保留记录；已安装runtime由原store owner先做durable身份预检。冲突409、读取失败500 `ADK_CHAT_FAILED`，匹配的预检只读请求指纹，不解析run payload或制造第二写owner。真实HTTP、原retry失败socket、同runtime禁用→启用、同ID同非空error重放、after=1 EOF、不同body冲突、零provider连接及完整run/audit/session保持均验证；匹配身份的畸形durable payload和临时缺失adk_runs表为正反控制。公开契约、schema与依赖未改，原始字节指纹仍是明确差距。
+- 核对8条冻结原函数及blob SHA：helpers167/216、recovery41、disconnect55/110、routes301、identity17/48。recovery41的已知context不重新获取分支不能由session计数1替代；concurrent48的单lease/user事件不能替代双成功终态、单次模型调用及原生assistant消息content。两条既有exact纠正为partial，其余六条保持，当前1660 exact/2153 partial/638 boundary。此批不新增exact，不以通过门禁替代原断言闭合。
+- 最终定向25 passed/0 failed，无LEAK；canonical `verification-receipts/adk-retained-readiness-production-owner-verified-2026-10-09.json` SHA `5289c42bc10d2686a1519efcbc6525b6b8e796aab892e6d718e0c034a0b79d00`。查看计划后现场quick2409 Rust/98 Pine/desktop Node11+48通过；随后`CARGO_INCREMENTAL=0 pnpm run check:rust`4004 passed/0 failed/2 skipped，static与七类回放通过，无LEAK。1026个Rust文件从最终定向到完整门禁冻结；两条skipped不计执行通过。四份receipt、两份gate、raw SHA、原函数/anchor/reuse及diff逐项复核，strict/context通过，unrecorded/stale0、既有unknown48。
+- 新机器原始日志、源码指纹、冻结Go原函数及验证记录位于`.git/adk-retained-readiness-*`，内置盘备份`/Users/jiangfan/.cache/jftrade/parity-retained-readiness-recovery-20261009`。配置可用runtime的prepare失败仍直接JSON、canonical身份规范化、已知context、成功并发执行及idle request-context预取消仍未闭合；历史LEAK仍未定位。整体active，继续下一批生产owner修复。
+
 ## 2026-10-09 ADK 缺 runtime 的断连终态保留
 
 - 实际生产 POST/Hyper socket 建立红：缺 runtime 的有效 UUID 请求原本直接503 JSON，未尝试 retry。新的 `ProductionAdkPort` 内存 owner 在 HTTP 消费前保存 stream ID/sequence1/非空error；按访问清理30分钟终态，不创建 run、audit 或后台 worker。同步 chat 仍503；字段仅在现有 engine composition 注入默认 owner，公开契约和 SQLite schema 未改。

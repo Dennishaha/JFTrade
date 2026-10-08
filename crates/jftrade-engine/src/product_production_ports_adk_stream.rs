@@ -4,6 +4,12 @@ impl AdkChatStreamPort for ProductionAdkPort {
         route: AdkChatRoute,
         input: &AdkChatInput,
     ) -> Result<AdkChatPortOutput, AdkChatPortError> {
+        if route == AdkChatRoute::Stream {
+            self.check_chat_request_conflict(input)?;
+            if let Some(replay) = self.unavailable_streams.replay(input)? {
+                return Ok(replay);
+            }
+        }
         if let Some(runtime) = self
             .chat_runtime
             .as_deref()
@@ -17,6 +23,13 @@ impl AdkChatStreamPort for ProductionAdkPort {
         Err(AdkChatPortError::Unavailable(
             unavailable_stream::UNAVAILABLE.to_owned(),
         ))
+    }
+
+    fn check_chat_request_conflict(&self, input: &AdkChatInput) -> Result<(), AdkChatPortError> {
+        match self.chat_runtime.as_deref() {
+            Some(runtime) => runtime.check_chat_request_conflict(input),
+            None => Ok(()),
+        }
     }
 
     fn cancel_run(&self, run_id: &str) -> bool {

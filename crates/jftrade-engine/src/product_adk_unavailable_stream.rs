@@ -30,6 +30,22 @@ struct TerminalRecord {
 pub(crate) struct UnavailableStreams(Mutex<BTreeMap<String, TerminalRecord>>);
 
 impl UnavailableStreams {
+    pub(super) fn replay(
+        &self,
+        input: &AdkChatInput,
+    ) -> Result<Option<AdkChatPortOutput>, AdkChatPortError> {
+        let mut records = self.0.lock().map_err(|_| unavailable())?;
+        let now = Instant::now();
+        records.retain(|_, record| record.expires_at > now);
+        records
+            .get(&input.client_request_id)
+            .map(|record| {
+                check_identity(record, input)?;
+                Ok(output(record, true))
+            })
+            .transpose()
+    }
+
     pub(super) fn dispatch(
         &self,
         input: &AdkChatInput,
@@ -39,12 +55,7 @@ impl UnavailableStreams {
         records.retain(|_, record| record.expires_at > now);
         let (record, replay) = match records.entry(input.client_request_id.clone()) {
             std::collections::btree_map::Entry::Occupied(entry) => {
-                if entry.get().request_body != input.body {
-                    return Err(AdkChatPortError::Conflict(format!(
-                        "clientRequestId {} was already used with a different chat request",
-                        input.client_request_id
-                    )));
-                }
+                check_identity(entry.get(), input)?;
                 (entry.into_mut(), true)
             }
             std::collections::btree_map::Entry::Vacant(entry) => {
@@ -70,10 +81,7 @@ impl UnavailableStreams {
                 )
             }
         };
-        Ok(AdkChatPortOutput::LiveStream(AdkChatLiveStream {
-            headers: BTreeMap::from([("X-ADK-Stream-ID".to_owned(), record.id.clone())]),
-            stream: body(record, 0, replay),
-        }))
+        Ok(output(record, replay))
     }
 
     pub(super) fn open(
@@ -92,6 +100,23 @@ impl UnavailableStreams {
                 body: body(record, after, true),
             }))
     }
+}
+
+fn check_identity(record: &TerminalRecord, input: &AdkChatInput) -> Result<(), AdkChatPortError> {
+    if record.request_body != input.body {
+        return Err(AdkChatPortError::Conflict(format!(
+            "clientRequestId {} was already used with a different chat request",
+            input.client_request_id
+        )));
+    }
+    Ok(())
+}
+
+fn output(record: &TerminalRecord, replay: bool) -> AdkChatPortOutput {
+    AdkChatPortOutput::LiveStream(AdkChatLiveStream {
+        headers: BTreeMap::from([("X-ADK-Stream-ID".to_owned(), record.id.clone())]),
+        stream: body(record, 0, replay),
+    })
 }
 
 fn unavailable() -> AdkChatPortError {

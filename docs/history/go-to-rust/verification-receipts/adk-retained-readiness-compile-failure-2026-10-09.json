@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_retained_error) | test(production_unavailable_chat) | test(expired_unavailable_stream) | test(chat_dispatch_retains_error_stream) | test(production_malformed_chat_stops) | test(production_reconnect_) | test(adk_chat_idempotency_contract_matches_the_go_routes) | test(concurrent_first_delivery_creates_one_durable_run_and_event) | test(production_adk_and_plugin_and_alert_ports) | test(canonical_278_routes_table_driven_reachability_and_auth_matrix)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.143",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-08T18:57:03Z",
+  "sourceState": {
+    "verifiedCommit": "29729b52ee5c2697375c9235ffb59b3f09fa5784",
+    "trackedDiffSha256": "80f62c29ce3de0706571d4894dffcb42304ecc3795b849c597cd122c4521af01",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_retained_stream_readiness_tests.rs",
+        "sha256": "af25f1cbf77038e290b4c8dff85dcd95d9c3934d0a9cdfe9ded2eb1b7f7acbd1"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-retained-readiness-red-2026-10-09.json",
+        "sha256": "0659937ee4d00c45393ac5b169f74a774b316b26f69d44e65fc966d65d386757"
+      }
+    ]
+  },
+  "rawOutputSha256": "5ceb5b242ff252bf8d504268f3706270e9f9145747372f3fea4bc469d53eab21",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}
