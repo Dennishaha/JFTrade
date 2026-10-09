@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedCommit": "4981fcbe7e8ac38c4254a6e64966234f08dcd71f",
+  "command": [
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-stream-retention-quick-final-20261009.log",
+  "rawOutputSha256": "04932ebf2b57a42ac52a8234238b97ba901c21d92ccd5f26cdf0b77fa876fef5",
+  "rustSourceFingerprintSha256": "4cdc90f2bef0125244ec33b7dc286a592787cd93a89f456bd5eb4f40ce758237",
+  "frozenRustFiles": 1051,
+  "failure": "product_production_ports_adk_read.rs has 805 lines; limit 800",
+  "rustTests": "not_run",
+  "remainingRisk": "Responsibility split required; original behavior assertions stay unchanged."
+}

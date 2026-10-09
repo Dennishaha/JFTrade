@@ -14,7 +14,7 @@ use jftrade_settings::{AssistantRuntimeSettingsStorePort, normalize_assistant_ru
 use jftrade_store_settings_file::SettingsFileStore;
 
 /// Go `assistantmodel.DefaultRunTimeout`.
-pub(crate) const DEFAULT_RUN_TIMEOUT_MS: i64 = 1_800_000;
+pub(crate) use jftrade_assistant::DEFAULT_RUN_TIMEOUT_MS;
 
 /// The frozen `run.MaxDurationMs` for a new or resumed goal run.
 ///

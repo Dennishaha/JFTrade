@@ -548,3 +548,6 @@ async fn production_agent_templates_remain_available_without_chat_runtime() {
     );
     handle.shutdown().await.unwrap();
 }
+
+#[path = "product_adk_stream_retention_owner_tests.rs"]
+mod stream_retention;

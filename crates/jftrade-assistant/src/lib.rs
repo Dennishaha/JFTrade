@@ -14,6 +14,7 @@ mod persisted_run;
 mod ports;
 pub mod rig_adapter;
 mod runtime;
+mod stream_retention;
 mod workflow;
 mod workflow_canvas;
 
@@ -44,6 +45,7 @@ pub use ports::{
     ProviderFailureKind, ToolRequest,
 };
 pub use runtime::{AssistantRuntime, RuntimeError, TransitionResult};
+pub use stream_retention::{DEFAULT_RUN_TIMEOUT_MS, active_run_stream_retention_expired};
 pub use workflow::{TaskGraph, WorkflowError};
 pub use workflow_canvas::{
     CanvasCompiler, CanvasCompilerError, WorkflowCanvasEdge, WorkflowCanvasGraph,

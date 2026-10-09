@@ -22,21 +22,21 @@ pub struct AdkStreamProjection {
 }
 
 impl AdkStore {
+    /// Read run fields for reconnect policy without decoding embedded history.
+    pub fn read_stream_run_metadata(
+        &self,
+        run_id: &str,
+    ) -> Result<Option<StoredAdkRun>, AdkStoreError> {
+        let connection = self.lock_connection()?;
+        stream_run_metadata(&connection, run_id)
+    }
+
     pub fn read_stream_projection(
         &self,
         run_id: &str,
     ) -> Result<Option<AdkStreamProjection>, AdkStoreError> {
         let connection = self.lock_connection()?;
-        let run = connection
-            .query_row(
-                "SELECT id, session_id, agent_id, status, client_request_id, request_fingerprint,
-             json_remove(payload_json, '$.streamEvents', '$.providerEvents'), created_at, updated_at
-             FROM adk_runs WHERE id = ?1",
-                params![run_id],
-                stored_run,
-            )
-            .optional()
-            .map_err(AdkStoreError::Query)?;
+        let run = stream_run_metadata(&connection, run_id)?;
         let Some(run) = run else { return Ok(None) };
         let last: Option<(i64, String)> = connection.query_row(
             "SELECT sequence, value FROM (
@@ -141,4 +141,20 @@ impl AdkStore {
             .collect::<Result<Vec<_>, AdkStoreError>>()?;
         Ok(AdkStreamPage { status, events })
     }
+}
+
+fn stream_run_metadata(
+    connection: &Connection,
+    run_id: &str,
+) -> Result<Option<StoredAdkRun>, AdkStoreError> {
+    connection
+        .query_row(
+            "SELECT id, session_id, agent_id, status, client_request_id, request_fingerprint,
+             json_remove(payload_json, '$.streamEvents', '$.providerEvents'), created_at, updated_at
+             FROM adk_runs WHERE id = ?1",
+            params![run_id],
+            stored_run,
+        )
+        .optional()
+        .map_err(AdkStoreError::Query)
 }

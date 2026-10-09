@@ -5934,11 +5934,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/routes_resource_contracts_test.go:410:TestStreamReconnectAndSkillContracts": {
-      "status": "[x]",
+      "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_tests.rs::adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed；crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::replayed_stream_payloads_carry_the_go_replay_marker",
-      "conclusion": "function_exact：Go 断言 stream 与 run 两条重连路由按 ?after= 过滤 retained 帧、帧带 replay:true，并对未知 stream/run 返回 404。Rust 在生产 read adapter 与 durable replay projection 两处补上 replay 标记，一条测试断言 /streams/{id} 与 /runs/{id}/stream 的 after 过滤、replay 标记与 stream not found 关闭，另一条断言 replay 投影（含合成 final 帧）都带 replay:true。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(production_adk_public_sessions_use_main_store_and_support_crud) or test(adk_composer_state_truncates_trim_and_rejects_invalid_modes) or test(production_live_chat_stream_emits_session_run_and_final_events) or test(test_client_disconnect_returns_499_within_250ms) or test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) or test(replayed_stream_payloads_carry_the_go_replay_marker) or test(catalog_session_run_and_observability_routes_answer_ok) or test(session_timeline_failure_keeps_the_legacy_messages_error_code)'",
-      "evidence_type": "function_exact",
+      "conclusion": "partial：旧证据仅闭合retained帧after过滤、replay标记与未知流拒绝；未闭合完整原函数的真实POST、invalid-after及skill操作，撤销旧exact。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types)'",
+      "evidence_type": "partial",
       "source": {
         "file": "internal/api/assistant/routes_resource_contracts_test.go",
         "line": 410,
@@ -5971,53 +5971,61 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "function_exact：Go 断言 stream 与 run 两条重连路由按 ?after= 过滤 retained 帧、帧带 replay:true，并对未知 stream/run 返回 404。Rust 在生产 read adapter 与 durable replay projection 两处补上 replay 标记，一条测试断言 /streams/{id} 与 /runs/{id}/stream 的 after 过滤、replay 标记与 stream not found 关闭，另一条断言 replay 投影（含合成 final 帧）都带 replay:true。"
+          "既有生产read adapter闭合stream/run两路after=1过滤、retained帧replay=true及未知stream/run拒绝；durable replay投影保留replay标记。完整原函数的POST、invalid-after与skill操作仍缺专属证据。"
         ],
-        "uncovered": [],
+        "uncovered": [
+          "冻结原函数真实POST的非空streamId/final、after=-1的400，以及builtin/external skill列表、removed update404、非法FTP安装400、外部删除200及builtin禁止卸载500未由本函数所引用的两条Rust测试逐项闭合。"
+        ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T01:35:30Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types)"
         ],
         "testFilter": [
-          "production_adk_public_sessions_use_main_store_and_support_crud",
-          "adk_composer_state_truncates_trim_and_rejects_invalid_modes",
-          "production_live_chat_stream_emits_session_run_and_final_events",
-          "test_client_disconnect_returns_499_within_250ms",
           "adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed",
-          "replayed_stream_payloads_carry_the_go_replay_marker",
-          "catalog_session_run_and_observability_routes_answer_ok",
-          "session_timeline_failure_keeps_the_legacy_messages_error_code"
+          "replayed_stream_payloads_carry_the_go_replay_marker"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "4981fcbe7e8ac38c4254a6e64966234f08dcd71f",
+        "receiptDigest": "sha256:cd81aff64c9c160f220371f889e5cff14229833ec488110174459267071ef8c0"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "retain_receipt_and_reaudit",
-      "blockedBy": [],
+      "nextAction": "verify_stream_post_and_skill_contract_owner",
+      "blockedBy": [
+        "stream-post-and-skill-contract-owner"
+      ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "function_exact：Go 断言 stream 与 run 两条重连路由按 ?after= 过滤 retained 帧、帧带 replay:true，并对未知 stream/run 返回 404。Rust 在生产 read adapter 与 durable replay projection 两处补上 replay 标记，一条测试断言 /streams/{id} 与 /runs/{id}/stream 的 after 过滤、replay 标记与 stream not found 关闭，另一条断言 replay 投影（含合成 final 帧）都带 replay:true。"
+        "既有生产read adapter闭合stream/run两路after=1过滤、retained帧replay=true及未知stream/run拒绝；durable replay投影保留replay标记。完整原函数的POST、invalid-after与skill操作仍缺专属证据。"
       ],
-      "uncoveredAssertions": [],
+      "uncoveredAssertions": [
+        "冻结原函数真实POST的非空streamId/final、after=-1的400，以及builtin/external skill列表、removed update404、非法FTP安装400、外部删除200及builtin禁止卸载500未由本函数所引用的两条Rust测试逐项闭合。"
+      ],
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:29:TestCatalogSessionRunAndObservabilityContracts": {
@@ -6228,11 +6236,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection; crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id",
-      "conclusion": "partial：真实 Product HTTP GET 同连接历史 sequence1 replay=true，追加 sequence2/3 为 replay=false 并按顺序到达，终态排空后结束；双路由 canonical streamId、after 游标及 64/64/2 跨页无遗漏有直接断言。旧 Go 进程内 hub 的 run-timeout+retention 清理仍与 durable owner 不同，本批不删除历史数据、不升级 exact。",
-      "command": "env NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-api --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(responses_stream_final_model_result_retains_input_output_and_total_usage_metadata) or test(production_stream_final_run_retains_provider_input_and_output_usage) or test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) or test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_store_failure_ends_body_after_one_error) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) or test(tool_round_and_final_usage_accumulate_without_overwriting_prior_totals)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection；crates/jftrade-engine/src/product_adk_stream_retention_owner_tests.rs::production_reconnect_hides_expired_running_stream_without_mutating_the_run",
+      "conclusion": "function_exact：真实同连接watermark前replay=true、之后live=false；生产GET两路按冻结run时限加30分钟保留期隐藏过期RUNNING流，完整durable run/audit/会话保持，不删除历史。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/assistant/routes_test.go",
         "line": 136,
@@ -6252,25 +6260,34 @@
           }
         },
         {
-          "file": "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs",
-          "test": "reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id",
+          "file": "crates/jftrade-engine/src/product_adk_stream_retention_owner_tests.rs",
+          "test": "production_reconnect_hides_expired_running_stream_without_mutating_the_run",
           "crate": "jftrade-engine",
-          "anchor": null
+          "anchor": {
+            "goFile": "internal/api/assistant/routes_test.go",
+            "goLine": 136,
+            "rustFile": "crates/jftrade-engine/src/product_adk_stream_retention_owner_tests.rs",
+            "rustLine": 47
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
           "同一次 HTTP reconnect 固定 watermark；历史事件 replay=true，之后新写入事件 replay=false，sequence1/2/3 顺序到达同连接。",
-          "双 reconnect 路由返回真实 stream ID；after=7 的 130 个事件跨 3 页无重复遗漏，terminal reader 排空后结束。"
+          "生产prepared router的stream/run两路GET对非常旧startedAt及冻结maxDurationMs返回404；完整run/audit/main及native sessions保持。时限+30分钟严格边界归领域owner，不获得读owner写入权。"
         ],
-        "uncovered": [
-          "原 Go 过期 RUNNING stream 的 run timeout 与 retention 清理未闭合；Rust durable history 不能由此授权删除。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T01:35:30Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
@@ -6278,40 +6295,35 @@
           "-p",
           "jftrade-engine",
           "-p",
-          "jftrade-api",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(responses_stream_final_model_result_retains_input_output_and_total_usage_metadata) or test(production_stream_final_run_retains_provider_input_and_output_usage) or test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) or test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) or test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) or test(reconnect_store_failure_ends_body_after_one_error) or test(reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run) or test(stream_terminal_projection_trims_tool_outputs_from_final_response) or test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) or test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) or test(production_stream_missing_agent_emits_no_preview_frames) or test(production_live_chat_stream_emits_session_before_run_and_terminal_frame) or test(adk_chat_stream_replays_go_wire_fixture_for_leaf_owned_cases) or test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) or test(tool_round_and_final_usage_accumulate_without_overwriting_prior_totals)"
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types)"
         ],
         "testFilter": [
           "reconnect_http_replays_history_then_tails_live_events_on_the_same_connection",
-          "reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id"
+          "production_reconnect_hides_expired_running_stream_without_mutating_the_run"
         ],
-        "runnerVersion": "cargo-nextest 0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "15b65f07bacec817af5880cc3b56d42d4af65bcc",
-        "verifiedAt": "2026-10-07T14:00:13Z",
-        "receiptDigest": "sha256:913b352e9eb0856099d2559058d5cb7b3ea467cee2acf2d3750d4ff16cc99516"
+        "verifiedCommit": "4981fcbe7e8ac38c4254a6e64966234f08dcd71f",
+        "receiptDigest": "sha256:cd81aff64c9c160f220371f889e5cff14229833ec488110174459267071ef8c0"
       },
       "risk": "normal",
       "owner": "api_transport",
       "priority": "P2",
-      "nextAction": "preserve_partial_and_track_residual",
+      "nextAction": "retain_reviewed_exact_and_reaudit",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "同一次 HTTP reconnect 固定 watermark；历史事件 replay=true，之后新写入事件 replay=false，sequence1/2/3 顺序到达同连接。",
-        "双 reconnect 路由返回真实 stream ID；after=7 的 130 个事件跨 3 页无重复遗漏，terminal reader 排空后结束。"
+        "生产prepared router的stream/run两路GET对非常旧startedAt及冻结maxDurationMs返回404；完整run/audit/main及native sessions保持。时限+30分钟严格边界归领域owner，不获得读owner写入权。"
       ],
-      "uncoveredAssertions": [
-        "原 Go 过期 RUNNING stream 的 run timeout 与 retention 清理未闭合；Rust durable history 不能由此授权删除。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/routes_test.go:180:TestSessionTimelineFailureKeepsLegacyErrorCode": {
@@ -365795,14 +365807,6 @@
       "referenceCount": 1,
       "reviewStatus": "single"
     },
-    "crates/jftrade-engine/src/product_adk_reconnect_live_tests.rs::reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id": {
-      "allowed": true,
-      "referenceKeys": [
-        "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries"
-      ],
-      "referenceCount": 1,
-      "reviewStatus": "single"
-    },
     "crates/jftrade-engine/src/product_adk_stream_usage_tests.rs::responses_stream_final_model_result_retains_input_output_and_total_usage_metadata": {
       "allowed": true,
       "referenceKeys": [
@@ -366838,6 +366842,14 @@
       "allowed": true,
       "reviewStatus": "reviewed",
       "reviewNote": "2026-10-09: input773 cites the single-answer durable payload assertions; input802 cites matching function call identity/name, actual continuation wire, nonempty instruction and injected execution failure to FAILED. Distinct original assertions in one direct production owner test; full terminal-state retry equality is a control, not substitute coverage."
+    },
+    "crates/jftrade-engine/src/product_adk_stream_retention_owner_tests.rs::production_reconnect_hides_expired_running_stream_without_mutating_the_run": {
+      "allowed": false,
+      "referenceKeys": [
+        "internal/api/assistant/routes_test.go:136:TestChatStreamHubReplayAndCleanupBoundaries"
+      ],
+      "referenceCount": 1,
+      "reviewStatus": "single"
     }
   }
 }

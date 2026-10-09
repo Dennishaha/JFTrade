@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T01:43:04.584845+00:00",
+  "verifiedCommit": "4981fcbe7e8ac38c4254a6e64966234f08dcd71f",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-stream-retention-rust-final-20261009.log",
+  "rawOutputSha256": "8f862ba3c11f6a53d7d73cb20ebf5b6ffe1ae46fd727de818e4f3b6b0051ecef",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.145",
+    "gitHttpVersion": "HTTP/1.1"
+  },
+  "nextestSummary": {
+    "planned": 4060,
+    "passed": 4060,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 118.373
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-assistant/src/lib.rs": "d9d9a6899f7b74b640b5f61f57d52ef922d536e7b29daed01e8c14ae4e38b79d",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "ff8d4bb16c63ea25200c0786cdcea681aa67fc04e129b046416754bab3159eed",
+    "crates/jftrade-engine/src/product_adk_run_timeout.rs": "f8ad1b6055ea5673ee297574907a8fd54852eb60ca0b0b41aa977f53be5934f4",
+    "crates/jftrade-engine/src/product_production_ports_adk_read.rs": "3f919b0fd8880b66c104aa9da06d024fef27717aa75e69dfcae3df0d86d72f2f",
+    "crates/jftrade-store-sqlite/src/adk_stream_cursor.rs": "2cda3ec3bd703e2609c88e054d6315c7a6634ba679d1d12f72755fa8afb4aa59",
+    "crates/jftrade-assistant/src/stream_retention.rs": "2e9038d715fc4ef45659bb8925ab381cfe7c8034ab4bc70598a439b819df36e5",
+    "crates/jftrade-engine/src/product_adk_stream_retention_owner_tests.rs": "cc842f39c6499f5911823a0539d778699982534a0d19965afea5163160a122d7",
+    "crates/jftrade-engine/src/product_production_ports_adk_reconnect.rs": "9a72194f288e4a7f580cc80a5dc99dad2cb4f8b6caedccfef299636494b8f2ac"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "3102bb716df02966a710a69210e539d4236fac1e5a3236428beece3fb19ad962",
+  "frozenRustFiles": 1051,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Six frozen Go functions reviewed. RUNNING stream retention closes routes136 with real GET 404 on both routes and full durable state preserved. Original quick architecture failure at 805 lines retained; the reconnect owner has been split by responsibility. routes_resource410 old exact only covered reconnect assertions and is corrected to partial; skill/POST gaps remain. Terminal record TTL, missing-run and last-event fallback remain. Whole parity unfinished.",
+  "static": "passed"
+}

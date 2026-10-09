@@ -1,0 +1,868 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "-p",
+    "jftrade-assistant",
+    "-p",
+    "jftrade-store-sqlite",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T01:31:38Z",
+  "sourceState": {
+    "verifiedCommit": "4981fcbe7e8ac38c4254a6e64966234f08dcd71f",
+    "trackedDiffSha256": "9352e623d498669e6d3004273641d8f81d7f40264a842aa0cdc1ca64d2637075",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-assistant/src/stream_retention.rs",
+        "sha256": "2e9038d715fc4ef45659bb8925ab381cfe7c8034ab4bc70598a439b819df36e5"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_stream_retention_owner_tests.rs",
+        "sha256": "cc842f39c6499f5911823a0539d778699982534a0d19965afea5163160a122d7"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_adk_stream_retention.rs",
+        "sha256": "94ea9953d99b294ac865de08acc33462ce4c445a62a4062d53b955017ab6ef4d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-retention-owner-green-2026-10-09.json",
+        "sha256": "932049d9ff38c7786a7ccc4227216add1f7f62bf05983520e804e3f372d2106b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-retention-owner-red-2026-10-09.json",
+        "sha256": "78e4627da3e25af17eab8134bee081188d9bea81e563d596081d69ee0cbc87cd"
+      }
+    ]
+  },
+  "rawOutputSha256": "6b4e18ad5e3e0d5ff873406fe6382613355203437a540c8f2c037f1207d3b175",
+  "passedTests": [
+    "jftrade-assistant::assistant_claims_runtime_contracts$expired_tool_invocation_takeover_fences_old_ticket_with_live_run_lease",
+    "jftrade-assistant::assistant_claims_runtime_contracts$run_lease_expiry_fencing_and_stale_release_are_rejected",
+    "jftrade-assistant::assistant_claims_runtime_contracts$same_owner_heartbeat_renews_without_advancing_fence",
+    "jftrade-assistant::jftrade_assistant$claims::tests::stale_replay_safe_claim_takes_over_with_fencing",
+    "jftrade-assistant::jftrade_assistant$persisted_run::tests::persisted_run_types_accept_zero_values_and_unknown_runtime_extensions",
+    "jftrade-assistant::jftrade_assistant$persisted_run::tests::persisted_run_types_reject_nested_corruption_and_earlier_duplicate_errors",
+    "jftrade-assistant::jftrade_assistant$runtime::tests::cascade_deletion_fences_stale_writer_and_session_recovery",
+    "jftrade-assistant::jftrade_assistant$stream_retention::tests::active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$test_commit_tool_result_strictly_returns_lease_lost_on_unknown_expired_or_mismatched_token",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$test_fencing_token_monotonically_increases_across_takeovers",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$test_lease_expiration_boundary_before_and_after_expiry",
+    "jftrade-engine::backtests_write_compatibility$sqlite_test_cutover_preserves_rollback_duplicate_fencing_and_restart",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::catalog_policy_tests::blank_permission_mode_still_releases_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::catalog_policy_tests::released_calls_are_executed_by_the_tool_loop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::chat_turn_tests::a_released_optimizer_call_reaches_the_production_executor",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::expiry_tests::a_fresh_foreign_run_lease_shields_a_run_from_expiry",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_completion_barrier_high_concurrency_tokio_blocking",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_completion_barrier_task_panic_unwinds_cleanly_without_hanging",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_completion_barrier_timeout_expires_without_deadlock",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_cancellation_signal_propagates",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_claims_are_exclusive_and_released",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_rejects_new_work_once_stopping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_releases_claims_without_extra_initialization",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_shutdown_blocks_for_all_tasks",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail_closed_tool",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::takeover_worker_never_invokes_external_tool_for_expired_running_invocation",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::gate_tests::run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::canonical_identity::production_durable_chat_reuses_equivalent_payload_without_second_provider_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::canonical_identity::production_legacy_raw_chat_fingerprint_replays_without_rewriting_the_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::canonical_identity::production_retained_error_reuses_equivalent_chat_payload_after_configuration_change",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::durable_identity::production_stream_preflight_accepts_persisted_null_duplicate_and_extended_run_fields",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::durable_identity::production_stream_preflight_rejects_corrupt_durable_payload_before_conflict_or_cached_replay",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::durable_identity::production_stream_preflight_rejects_typed_run_corruption_before_replay_or_conflict",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::durable_identity::production_sync_chat_decodes_durable_fields_before_saved_response_or_conflict",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::production_created_stream_preparation_failure_retains_terminal_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::production_created_sync_context_failure_returns_stored_failed_projection_on_replay",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::production_live_failure_replays_final_projection_without_provisional_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::contracts::production_terminal_recovery_blank_id_is_none_and_empty_transcript_keeps_identifiers_without_reply",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::contracts::production_terminal_recovery_cursor_appends_once_after_full_page_and_marks_later_terminal_live",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::contracts::production_terminal_recovery_cursor_replaces_page_tail_error_and_does_not_repeat_final",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::contracts::production_terminal_recovery_missing_final_id_uses_latest_assistant_not_user_or_bookkeeping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::contracts::production_terminal_recovery_selects_final_message_reply_reasoning_and_native_timeline",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::production_failed_message_append_recovers_final_without_saved_response",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::production_reconnect_recovers_go_terminal_run_without_embedded_response",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_concurrent_prepare_errors_share_one_retained_identity",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_existing_identity_keeps_early_validation_with_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_keeps_existing_durable_payload_failure_out_of_memory_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_preserves_prepare_errors_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::production_configured_stream_terminalizes_post_creation_context_failure_with_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::private_reasoning::production_private_reasoning_snapshot_is_persisted_restored_and_hidden_in_http_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::private_reasoning::production_sync_running_replay_hides_private_reasoning_without_changing_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::private_reasoning::production_terminal_cancel_projection_hides_private_reasoning_snapshot",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_agent_templates_remain_available_without_chat_runtime",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_malformed_chat_stops_after_the_first_retry_write_failure",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_reconnect_precancelled_listener_writes_no_body_or_run_changes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_reconnect_retry_and_replay_write_failures_preserve_terminal_history",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_unavailable_chat_retains_terminal_error_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::production_unavailable_chat_reuses_retained_error_over_http_and_rejects_conflicts",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::provider_reasoning_matrix::production_provider_reasoning_http_persists_shared_values_and_resolver_matches_reference_matrix",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::provider_reasoning_matrix::production_provider_reasoning_http_rejects_all_invalid_reference_configs_without_writes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::request_cancellation::production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::request_cancellation::production_reconnect_request_cancel_drops_only_its_reader_and_keeps_sibling_live",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_does_not_mask_durable_lookup_failure",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_does_not_mask_durable_request_conflict_when_runtime_unready",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_replays_with_valid_matching_durable_identity_without_run_changes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::retained_readiness::production_retained_error_survives_runtime_readiness_change_after_retry_disconnect",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_retention::production_reconnect_hides_expired_running_stream_without_mutating_the_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_retention::production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::sync_responses::production_concurrent_sync_responses_reuse_one_run_and_link_one_native_assistant_answer",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::sync_responses::production_sync_responses_cancellation_ends_idle_body_and_preserves_cancelled_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::sync_responses::production_sync_responses_rejects_incomplete_malformed_and_failed_streams",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_http_replays_history_then_tails_live_events_on_the_same_connection",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_http_shutdown_closes_idle_connection_without_mutating_the_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_reader_drop_releases_idle_store_reference_without_background_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_store_failure_ends_body_after_one_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::tool_claim_heartbeat_is_live_then_becomes_fenced_takeover",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_recovery::health_tests::persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_recovery::health_tests::replayed_stream_payloads_carry_the_go_replay_marker",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::runtime_stream::stream_events::known_context_preview::production_known_context_preview_publishes_only_session_without_reloading_context",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_cancelled_run_audits_run_cancelled_and_terminates_once",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_completed_run_links_its_final_assistant_message_across_the_transcript",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_completed_run_persists_the_reply_and_audits_run_completed",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_continuation_for_a_missing_run_is_a_silent_no_op",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_failed_run_persists_its_terminal_state_and_audit_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_failed_run_persists_the_provider_error_and_audit_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_gated_call_parks_the_run_and_audits_awaiting_approval",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_pending_input_run_audits_awaiting_input_with_the_decision_kind",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_timed_out_run_audits_the_timed_out_lifecycle_kind",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_approved_tool_waits_for_the_existing_local_run_lease_to_release",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_concurrent_sibling_approvals_complete_with_one_execution_per_tool",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_duplicate_approval_returns_while_the_single_tool_execution_is_blocked",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_lease_wait_precancellation_preserves_the_existing_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::best_effort_audit_faults_are_reported_once_and_never_fail_the_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::best_effort_audit_reports_nothing_when_the_insert_succeeds_or_was_already_recorded",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::denied_approval_summary_renders_the_go_denial_reply_text",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_running_stream_owner_contacts_provider_and_persists_its_timeout",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_stopped_stream_owner_replays_terminal_frame_without_a_provider_request",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_stream_precancellation_and_body_disconnect_keep_one_durable_terminal_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::durable_completion::production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_normalized_keyed_mode_enforces_consumption_and_replays_the_original_outcome",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_checkpoint_replay_journal_failure_rolls_back_the_projection",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_failed_read_persists_its_false_output_and_failed_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_read_checkpoint_replay_restores_the_original_result_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_tool_claim_preserves_precancellation_and_allows_its_current_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::uncertain_write::production_catalog_invocation_policy_uses_descriptor_modes_and_read_permission_defaults",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::uncertain_write::production_fail_closed_structured_rejection_remains_a_completed_failed_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::uncertain_write::production_fail_closed_write_error_stays_unknown_and_replays_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::failure_projection::created_failure_owner_rejects_stale_fence_before_terminal_and_message_writes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::failure_projection::failed_message_transaction_retains_error_then_attaches_final_at_same_sequence",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::lifecycle_audit_helpers_match_the_reference_table",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_rejects_expired_durable_lease_without_changing_the_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_stream_waiting_for_headers_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_stream_waiting_for_json_body_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_waiting_sync_provider_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_an_idle_stream_provider_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_run_lease_defaults_use_thirty_second_ttl_and_join_on_drop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_run_lease_reuses_its_owner_and_rejects_a_foreign_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_background_shutdown_cancels_joins_and_rejects_new_work",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_lease_admission_rejects_closing_and_closed_without_persisting",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_shutdown_cancels_a_provider_token_registered_after_close_started",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_shutdown_waits_for_the_live_stream_lease_release",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_shutdown_waits_for_the_sync_chat_lease_release",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::snapshot::production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::snapshot::production_heartbeat_keeps_its_owner_live_beyond_the_initial_snapshot_expiry",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::snapshot::production_heartbeat_rejects_expired_caller_snapshot_before_attempting_a_write",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_terminal_state_classifies_unsupported_input_before_the_status_switch",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::terminal_failure_mapping_matches_the_reference_table",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::control_plane_hard_stop_release_is_single_shot",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::control_plane_hard_stops_block_until_every_entry_released",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::control_plane_kill_switch_release_is_idempotent_and_audited",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::port_release_missing_hard_stop_reports_not_found",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::disabled_runtime_has_stopped_status_and_releases_listener",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::replacement_disable_and_close_release_each_listener_owner",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_error_tests::execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::challenge_edge_case_3_broker_network_failure_does_not_mutate_or_release_quota",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::push_worker_tests::test_p1_02_single_writer_lease_and_concurrency_fencing",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_lease::tests::subscription_required_error_formats_channel_instrument_and_interval",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::clear_route_preserves_running_strategy_lease",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::consumer_only_release_keeps_other_consumer_entry",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::prediction_subscription_rejects_invalid_instrument_types_and_lease_ids",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::prediction_subscription_surfaces_a_provider_failure_without_retaining_a_lease",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::prediction_subscription_uses_reference_counted_leases",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::release_and_clear_map_snapshot_failure_after_logical_cleanup",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::failed_pine_warmup_releases_only_its_own_subscription_once",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::enabled_web_access_binds_and_shutdown_releases_port",
+    "jftrade-engine::jftrade_engine$product::tests::adk_chat_stream_product_tests::production_live_chat_stream_reuses_existing_session_preview_once",
+    "jftrade-engine::jftrade_engine$product::tests::adk_read_tests::adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::basic_quote_read_requires_a_lease_and_never_leaks_the_raw_opend_error",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::live_read_routes_require_a_logical_subscription_lease",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::poll_only_read_routes_prioritize_capabilities_and_preserve_leases",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_read_fences_provider_generation_switch_during_helper_query",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_drop_terminates_reconciliation_before_releasing_leases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_shutdown_stops_reconciliation_before_releasing_leases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_production_ports_without_trade_runtime_release_execution_lease",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_route_fence_discards_embedding_ports",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_startup_fails_closed_on_backtest_market_data_lease_conflict",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_startup_fails_closed_on_writer_lease_conflict",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::production_http_definition_delete_guard_releases_after_linked_instance_soft_delete",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::production_system_status_reports_real_database_lease_and_schema_state",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::system_status_reflects_fixture_opend_poll_and_reconnect_lifecycle",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::depth_parity::websocket_listener_shutdown_cancels_pending_initial_depth_read_and_releases_demand",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_websocket_missing_provider_closes_and_releases_connection",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_websocket_replays_preconnection_notification_and_receives_live_successor_once",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::security_parity::websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::ws_live_shutdown_closes_active_connection_and_releases_depth_subscription",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::ws_live_subscription_registry_drives_status_and_releases_on_disconnect",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::batch_atomic_startup_tests::startup_acquires_all_writer_leases_in_stable_order_before_migrating",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::production_database_startup_leases_before_creating_database",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_opend_listener_tests::provider_reconnect_publishes_resync_events_and_wakes_reconciliation",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_tests::product_runtime_composes_opend_provider_and_fences_shutdown_ownership",
+    "jftrade-engine::market_data_subscription_mutation_compatibility$sqlite_test_cutover_preserves_subscription_transactions_fencing_and_reopen",
+    "jftrade-engine::research_presets_write_compatibility$research_preset_write_leaf_replays_concurrent_fencing_and_recovery",
+    "jftrade-engine::strategy_definitions_write_compatibility$sqlite_test_cutover_writer_lease_rejects_a_second_owner",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::failed_pine_warmup_releases_only_its_own_subscription_once",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits",
+    "jftrade-engine::system_write_compatibility$system_write_release_routes_reject_malformed_optional_payload_before_port",
+    "jftrade-engine::watchlist_write_compatibility$sqlite_test_cutover_preserves_revision_fencing_import_commit_and_restart",
+    "jftrade-store-sqlite::adk_store_contracts$adk_store_fences_a_second_writer_and_serializes_concurrent_access",
+    "jftrade-store-sqlite::backtest_market_data_aggregation$production_store_rejects_a_second_writer_lease",
+    "jftrade-store-sqlite::backtest_market_data_failure_recovery$reopening_after_store_drop_releases_writer_and_preserves_empty_table",
+    "jftrade-store-sqlite::backtest_sync_task_store_contracts$sync_task_persists_across_reopen_and_uses_run_store_lease",
+    "jftrade-store-sqlite::execution_order_store_contracts$execution_order_preview_consumption_is_idempotent_and_expiry_fenced",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::run_lease_snapshot_tests::heartbeat_expired_sparse_snapshot_is_rejected_before_store_access",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::run_lease_snapshot_tests::heartbeat_near_expiry_caller_snapshot_uses_the_full_requested_ttl",
+    "jftrade-store-sqlite::jftrade_store_sqlite$adk::run_lease_snapshot_tests::heartbeat_snapshot_at_the_expiry_boundary_preserves_the_live_durable_row",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::backup_capacity_prunes_only_managed_snapshots_and_enforces_quota",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::backup_capacity_surfaces_a_removal_failure_without_reporting_success",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::backup_quota_floor_dominates_small_managed_databases",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::backup_retention_keeps_three_snapshots_and_prunes_the_oldest_of_one_database",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::backup_retention_keeps_three_snapshots_and_reports_an_over_quota_snapshot",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::backup_retention_never_evicts_snapshots_a_rebuild_marker_references",
+    "jftrade-store-sqlite::jftrade_store_sqlite$maintenance_backup_retention::tests::managed_backup_discovery_parses_only_canonical_filenames",
+    "jftrade-store-sqlite::maintenance_adk_resources$adk_maintenance_compacts_every_owned_database_and_requires_the_writer_lease",
+    "jftrade-store-sqlite::maintenance_backup_and_rebuild_contracts$a_held_lease_on_one_database_rolls_back_the_batch_rebuild_locks",
+    "jftrade-store-sqlite::maintenance_backup_and_rebuild_contracts$a_held_writer_lease_rejects_maintenance_before_any_snapshot_is_written",
+    "jftrade-store-sqlite::maintenance_backup_and_rebuild_contracts$rebuild_marker_snapshots_survive_later_retention_pressure",
+    "jftrade-store-sqlite::prediction_quote_ledger$prediction_rfq_consume_is_fenced_by_status_and_expiry_in_one_transaction",
+    "jftrade-store-sqlite::research_preset_store_contracts$preset_mutations_are_revision_fenced_and_survive_restart",
+    "jftrade-store-sqlite::watchlist_store_contracts$concurrent_group_updates_commit_with_revision_fence",
+    "jftrade-store-sqlite::watchlist_store_contracts$watchlist_group_mutations_are_revision_fenced_and_survive_restart"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-assistant",
+        "test_binary": "jftrade_assistant",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-assistant",
+        "test_binary": "assistant_claims_runtime_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 187,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 7,
+      "exec_time": 0.03234275,
+      "nextest": {
+        "crate": "jftrade-assistant",
+        "test_binary": "assistant_claims_runtime_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 29,
+      "exec_time": 0.051111541,
+      "nextest": {
+        "crate": "jftrade-assistant",
+        "test_binary": "jftrade_assistant",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_lease_fencing_takeover_edge_conditions",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "backtests_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 10,
+      "exec_time": 0.027927791,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "backtests_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "market_data_subscription_mutation_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.131567834,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_lease_fencing_takeover_edge_conditions",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "research_presets_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_definitions_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.005599167,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "research_presets_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.009835708,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "market_data_subscription_mutation_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 14,
+      "exec_time": 0.031387584,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_definitions_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "system_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 12,
+      "exec_time": 0.006159333,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "system_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "watchlist_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 44,
+      "exec_time": 0.017925542,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 10,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "jftrade_store_sqlite",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.02725125,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "watchlist_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 24,
+      "exec_time": 0.127517957,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "jftrade_store_sqlite",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 12,
+      "exec_time": 0.012791334,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_aggregation",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_failure_recovery",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.016685208,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_market_data_failure_recovery",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_sync_task_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 15,
+      "exec_time": 0.034355875,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "adk_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "execution_order_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.015544208,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "backtest_sync_task_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "maintenance_adk_resources",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 13,
+      "exec_time": 0.021669875,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "execution_order_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "maintenance_backup_and_rebuild_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1,
+      "exec_time": 0.0839585,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "maintenance_adk_resources",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "prediction_quote_ledger",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 12,
+      "exec_time": 0.105492458,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "maintenance_backup_and_rebuild_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "research_preset_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.031568917,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "prediction_quote_ledger",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "watchlist_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.018526334,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "research_preset_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 3,
+      "exec_time": 0.046229875,
+      "nextest": {
+        "crate": "jftrade-store-sqlite",
+        "test_binary": "watchlist_store_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 84,
+      "exec_time": 3.120827043,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 187,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1817,
+      "exec_time": 198.901005624,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -3377,6 +3377,8 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 
 ### 2026-10-09 request_user 真实 chat 与完整回答恢复
 
+后续过期RUNNING流批次详见[积压清单](parity-evidence-backlog.md)：两个生产GET红复现200→预期404后修复，定向231通过；routes136升级exact，routes_resource410完整原函数复核降为partial。首次quick的805行架构失败留证，重连职责拆分后quick2715 Rust/98 Pine/desktop11+48、现场完整Rust4060 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。四份receipt、三份gate、1051份源码指纹和六条原函数核验；记录级终态TTL与无合法时间回退保持缺口，当前1668/2146/637。整体未完成，继续真实POST/skill链路。
+
 真实chat/model工具调用返回两问、q1-o1推荐项与PENDING_INPUT；Balanced/q2-o1回答后同run COMPLETED、同inputRequest ANSWERED且两条answers完整相等。审计隐私、原生final回复、重复回答与恢复的完整终态保持、provider恰好两次闭合。单问控制的durable response与实际wire保留唯一Conservative answer、中文原请求、非空instruction和正确call身份/名称；执行错误明确FAILED，重复恢复不写入或调用模型。
 
 复核7条原函数input530/556/584/773/802、reasoning23、config65；584完整闭合后恢复exact，当前1668/2146/637。773/802的新共用owner按不同durable/wire断言审核，584新证据仅单引用；parent reasoning与timeline分组缺口保持。FAILED row早于同owner附件写入的夹具失败保留，capture在既有completion barrier后重新读取，最终定向282 passed/0 failed。quick2457 Rust/98 Pine与现场完整Rust4057 passed/0 failed/2 skipped、static/七类replay通过，无LEAK；desktop Node检查未安排。1048 Rust文件与runner源码冻结，四份receipt、两份gate、7条原函数及9处reuse/anchor/diff核验通过，strict/context/anchor通过。整体未完成，继续超时RUNNING stream的重连保留期控制，详见[积压清单](parity-evidence-backlog.md)。

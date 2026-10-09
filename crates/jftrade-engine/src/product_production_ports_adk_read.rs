@@ -8,6 +8,8 @@ pub(crate) mod context_window;
 pub(crate) mod notices;
 #[path = "product_production_ports_adk_read_helpers.rs"]
 pub(crate) mod read_helpers;
+#[path = "product_production_ports_adk_reconnect.rs"]
+mod stream_retention;
 
 use read_helpers::{
     estimate_context_tokens, is_context_user_event, protected_context_event_start,
@@ -32,27 +34,7 @@ impl AdkReadSnapshotPort for ProductionAdkPort {
         path: &str,
         query: &str,
     ) -> Result<Option<AdkReadLiveStream>, AdkReadSnapshotError> {
-        let id = dynamic_id(path, "/api/v1/adk/streams/", "")
-            .or_else(|| dynamic_id(path, "/api/v1/adk/runs/", "/stream"));
-        let Some(id) = id else { return Ok(None) };
-        let after = query_param(query, "after")
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0);
-        if path.starts_with("/api/v1/adk/streams/")
-            && let Some(stream) = self.unavailable_streams.open(&id, after).map_err(|_| {
-                AdkReadSnapshotError::Unavailable(unavailable_stream::UNAVAILABLE.to_owned())
-            })?
-        {
-            return Ok(Some(stream));
-        }
-        let cursor = self
-            .store
-            .open_stream_cursor(&id)?
-            .ok_or_else(|| not_found("stream not found"))?;
-        Ok(Some(AdkReadLiveStream {
-            headers: vec![("X-ADK-Stream-ID".to_owned(), cursor.stream_id.clone())],
-            body: reconnect_stream::body(self.store.clone(), self.session_store.clone(), cursor, after),
-        }))
+        stream_retention::open_retained_stream(self, path, query)
     }
 
     fn read(&self, path: &str, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {

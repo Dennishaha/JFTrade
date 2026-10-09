@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 过期 RUNNING 流的重连保留期
+
+- 真实prepared router两路GET复现非常旧startedAt的RUNNING流仍返回200，[红receipt](verification-receipts/adk-stream-retention-owner-red-2026-10-09.json)0 passed/1 failed及1051前的1049份源码快照保留；修复后[owner](verification-receipts/adk-stream-retention-owner-green-2026-10-09.json)1 passed。Assistant领域按冻结时限加30分钟保留期、严格纳秒边界判断；engine解析时间并使用不含streamEvents/providerEvents的元数据，GET只拒绝可见性、不改变完整run/audit/main及native sessions。
+- [定向](verification-receipts/adk-stream-retention-directed-final-2026-10-09.json)231 passed/0 failed，SHA `ae00170ba89ec5b8184f04255f0521a50a3552e043200edcd85400d5c1a8c7a5`。真实HTTP控制覆盖新流、自定义长时限、非正默认、PENDING_INPUT的createdAt回退、双无效时间、typed lookup失败和已终态不按startedAt清理。
+- 首次[quick失败](gate-runs/adk-stream-retention-quick-final-2026-10-09.json)停在read文件805行超过800行架构门禁，Rust测试尚未执行。原失败及拆分前源码保留，完整重连读取职责移入独立模块，不提高限制；[拆分后定向](verification-receipts/adk-stream-retention-directed-split-2026-10-09.json)231 passed/0 failed，SHA `cd81aff64c9c160f220371f889e5cff14229833ec488110174459267071ef8c0`，原行为及完整相等断言保持。
+- 复核6条冻结Go原函数：routes136、helpers87/151、disconnect110、routes_resource410、recovery41。routes136完整闭合后partial→exact；移除本函数不需要的无anchor分页补充关系，其专属HTTP replay/live owner和新expiry owner均单引用。routes_resource410旧exact只覆盖重连子断言，完整POST/invalid-after/skill操作缺口纠正为partial，当前1668 exact/2146 partial/637 boundary。helpers87/151仍boundary，终态记录TTL、无run与无合法时间的last-event回退/clone等缺口继续保留。
+- 查看计划后[quick](gate-runs/adk-stream-retention-quick-split-2026-10-09.json)2715 Rust/98 Pine/desktop11+48及七类replay通过；[现场完整Rust](gate-runs/adk-stream-retention-rust-final-2026-10-09.json)4060 passed/0 failed/2 skipped，static及七类replay通过，无LEAK。1051 Rust文件和runner源码冻结；四份receipt、三份gate（含失败）、六条冻结原函数及14处reuse/anchor/diff逐项核验，strict/context/anchor通过、unrecorded/stale0、既有unknown48。原日志、失败与源码快照留存于 `/Users/jiangfan/.cache/jftrade/parity-stream-retention-20261009`。整体未完成，继续routes_resource410的真实POST/skill完整链路。
+
 ## 2026-10-09 request_user 真实 chat 与完整回答恢复
 
 - 真实ProductionAdkChatRuntime消费模型返回的interaction.request_user，公开目录实际暴露该工具；chat返回PENDING_INPUT、两问、q1-o1与推荐项，等待时provider只调用一次。run.awaiting_input的subject/decisionKind与blockingReason隐私保持；真实RespondToInput提交Balanced/q2-o1后五秒内同run COMPLETED，同inputRequest ANSWERED且两条answers完整相等。重复回答/runtime恢复保持完整run/audit/native events，总provider调用恰好两次。

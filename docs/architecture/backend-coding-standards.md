@@ -27,6 +27,13 @@ ADK GET 重连 body 由 HTTP 消费者持有，无后台 producer task。SQLite 
 之前标记 replay，之后为 live。终态排空所有页后结束，连接释放即释放 reader 与 timer。
 事件仍保存在 run 的 JSON 数组中，SQLite 每页仍扫描该数组；这不承诺索引读取或固定查询成本。
 
+有合法 startedAt（解析失败时回退 createdAt）的非终态 ADK run，GET 重连按其冻结
+maxDurationMs 加 30 分钟保留期判断可见性；非正时限使用 30 分钟默认值，超过截止点
+返回 stream not found。时限规则归 Assistant 领域，engine 读取去除历史数组的元数据并
+装配时间；读取或类型验证失败时不由该保留期判断拒绝，仍沿用 cursor/body 原错误路径。
+这项读策略不删除 durable history、不修改 run 终态；记录级终态 TTL 与无合法时间的
+last-event 回退不在这一判断中。
+
 每个 HTTP 请求在 transport 中创建独立 `RequestCancellation`；上游 transport owner
 也可通过 Axum request extension 传入同一信号。SSE body owner 在首次和后续读取前
 检查该请求信号，预取消可在 retry 前结束为空 body，idle 取消唤醒并立即释放 reader。

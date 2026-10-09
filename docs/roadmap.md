@@ -6,6 +6,8 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
+过期RUNNING流重连已从两个生产GET的200红复现修复为404，读owner不写durable状态；拆分后定向231、quick2715 Rust/98 Pine/desktop11+48与现场完整Rust4060 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。首次quick的805行架构失败及源码快照留证，按重连职责拆分而不提高门禁限制。routes136完整闭合后exact，routes_resource410旧引用未闭合完整skill/POST断言，纠正为partial；当前1668/2146/637。四份receipt、三份gate、1051指纹及六条原函数核验，记录级TTL与无合法时间的last-event回退保留；整体未完成，继续routes_resource410的真实POST/skill链路。
+
 真实chat/model完成request_user两问、推荐项、审计隐私及Balanced/q2-o1回答恢复，input584完整闭合后恢复exact；单问durable/wire的原请求、非空instruction和FAILED终态控制补齐773/802。最终定向282、quick2457 Rust/98 Pine与现场完整Rust4057 passed/0 failed/2 skipped通过，static/七类replay通过，无LEAK；desktop Node检查未安排。四份receipt、两份gate、1048指纹、7条原函数及9处reuse/anchor/diff核验通过，当前1668/2146/637；parent reasoning及timeline分组等缺口保持。FAILED先于同owner附件写入的捕获夹具失败已保留，下一批验证超时RUNNING stream的重连保留期。
 
 workflow阻塞child在provider drift后由真实Canvas owner重放并保持durable reasoning快照；实际输入恢复发送旧MAX_V1恰好一次，终态重放保持完整状态。定向281、quick2455 Rust/98 Pine与现场完整Rust4055 passed/0 failed/2 skipped通过，static/七类replay通过、无LEAK，desktop Node检查未安排。五份receipt、两份gate、1047源码指纹、7条原函数和12处reuse/anchor/diff核验通过。Go parent workflowResumeContext语义仍partial；input584的旧exact仅闭合park/audit半，纠正为partial，当前1667/2147/637。公开字段、COMPLETED/audit同步与提前shutdown夹具失败均留证；下一批补齐input584真实chat两问与完整回答恢复。
