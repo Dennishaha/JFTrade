@@ -267,13 +267,15 @@ pub(super) fn uninstall_skill(
         ));
     }
     port.store
-        .delete_skill(id)
+        .delete_skill_with_cleanup(id, || {
+            if let Some(path) = payload.get("installPath").and_then(Value::as_str)
+                && let Some(parent) = std::path::Path::new(path).parent()
+            {
+                fs::remove_dir_all(parent)?;
+            }
+            Ok(())
+        })
         .map_err(|error| skill_uninstall_failed(&error.to_string()))?;
-    if let Some(path) = payload.get("installPath").and_then(Value::as_str)
-        && let Some(parent) = std::path::Path::new(path).parent()
-    {
-        let _ = fs::remove_dir_all(parent);
-    }
     Ok(json!({"id": id, "deleted": true}))
 }
 

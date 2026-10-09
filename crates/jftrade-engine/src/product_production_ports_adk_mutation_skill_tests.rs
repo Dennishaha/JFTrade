@@ -24,6 +24,9 @@ use super::install_skill_document;
 #[path = "product_adk_skill_install_registry_owner_tests.rs"]
 mod registry;
 
+#[path = "product_adk_skill_uninstall_owner_tests.rs"]
+mod uninstall;
+
 fn test_port(root: &Path) -> Arc<ProductionAdkPort> {
     let adk_path = root.join("adk.db");
     let session_path = root.join("adk-session.db");

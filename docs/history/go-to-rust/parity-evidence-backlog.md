@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 Skill 卸载失败与原 writer 事务回滚
+
+- 真实 DELETE 在目录内文件无删除权限时仍返回200，SQLite行已删除；[红receipt](verification-receipts/adk-skill-uninstall-owner-red-2026-10-09.json)1 passed/1 failed，SHA `34a8ae1b9a4afb781743ec5e2bf4589decb25a6347640023aeda3e6aa6772ccc`。SQL DELETE trigger拒绝控制同轮通过，完整rows/audit与文件bytes保持，排除修复时把文件删除提前到SQL执行之前。
+- 原SQLite writer新增有文件清理callback的删除事务：SQL执行失败不调用清理，清理失败回滚DELETE；原mutation owner仍执行remove_dir_all并映射500/ADK_SKILL_UNINSTALL_FAILED。新真实HTTP控制证明两类故障后的完整rows/audit/bytes保持，故障移除后200重试并删除目录、记录及列表项。无新写入者、schema或wire字段变化。[owner green](verification-receipts/adk-skill-uninstall-owner-green-2026-10-09.json)2 passed，当时有错误类型未从crate入口导出的unused import告警；补入口导出后最终定向与静态门禁通过。
+- [最终定向](verification-receipts/adk-skill-uninstall-directed-final-2026-10-09.json)261 passed/0 failed，SHA `cf337faae427ce0fe7bfd5f386c4c86e769418d008185b9630256b1d8a14c061`。九条冻结原函数/blob复核：routes_resource410、skill_reg_fs89、skill_reg162/235/286、lifecycle711/735、store_ops184/224。只更新现场receipt及移动后的anchor，分类与reuse权限完全保持；两个新失败控制作为补充生产owner证据，不用它们升级未闭合的Go原函数。当前1672 exact/2142 partial/637 boundary。
+- 查看计划后[quick](gate-runs/adk-skill-uninstall-quick-final-2026-10-09.json)2676 Rust/98 Pine/desktop11+48及七类replay通过；[现场完整Rust](gate-runs/adk-skill-uninstall-rust-final-2026-10-09.json)4073 passed/0 failed/2 skipped，static/七类replay通过，无LEAK。1059 Rust文件及三份runner源码冻结；三份receipt、两份gate、九条原函数、raw SHA/reuse/anchor/diff核验。strict/context/anchor通过，unrecorded/stale0、既有unknown48。映射生成脚本的缩进函数匹配与hunk顺序失败均留证后修正，未应用错误patch。
+- 本机红测试、原文、源码快照及脚本归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-uninstall-20261009`。callback持有store连接时禁止重入；文件系统部分删除与SQL commit失败后的跨系统恢复未验证，不能把事务回滚描述成跨文件系统原子性。nil registry、目录复制、真实下载/redirect、内置资源/刷新等原缺口继续开放。整体未完成，下一批直接验证原URL下载owner的plain/NeoData、重复安装和重定向失败行为。
+
 ## 2026-10-09 Skill 安装文件与 HTTP 投影一致性
 
 - 单文件和 ZIP 的真实安装 owner 红测试均复现 source URL 在 HTTP 列表中变为 filesystem，[行为红](verification-receipts/adk-skill-install-registry-owner-behavior-red-2026-10-09.json)0 passed/2 failed。原安装 owner 通过 Assistant 领域规则重建 metadata.source，并从实际安装文件投影 tools、数字 metadata.version、校验状态和 SHA256，再交原 SQLite writer 保存；资源与 instructions 保持。

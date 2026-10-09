@@ -25,6 +25,10 @@ mod tool_replay;
 mod stream_cursor;
 pub use stream_cursor::{AdkStreamCursor, AdkStreamPage, AdkStreamProjection};
 
+#[path = "adk_skill_delete.rs"]
+mod skill_delete;
+pub use skill_delete::AdkSkillDeleteError;
+
 #[cfg(test)]
 #[path = "adk_approval_resolution_failure_tests.rs"]
 mod approval_resolution_failure_tests;

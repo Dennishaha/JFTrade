@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T03:26:28.536676+00:00",
+  "verifiedCommit": "8ceed8dd4386fe52f510626248aa8b1d474130e0",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-skill-uninstall-rust-final-20261009.log",
+  "rawOutputSha256": "19b483a9246693a323c5cb6867675fa0797a34604414bc430fcd5e465553138d",
+  "nextestSummaries": [
+    {
+      "planned": 4073,
+      "passed": 4073,
+      "failed": 0,
+      "skipped": 2,
+      "testSeconds": 120.61
+    }
+  ],
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "ed18c9b868bfa793d7f51f7362f56392d03e281df824185f2d4f04b2154f4640",
+  "frozenRustFiles": 1059,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "nextest": "0.9.145"
+  },
+  "remainingRisk": "Nine frozen Go functions reviewed; classifications and reuse permissions unchanged. Real DELETE covers filesystem permission rejection with row/audit rollback, SQL DELETE trigger rejection before file removal, and retry after each fault is removed. No second writer or schema/wire change. A partially failing filesystem removal may remove some resources; a SQLite commit failure after successful filesystem cleanup is not atomic across the two systems. Full download/redirect, builtin resources/refresh and other recorded gaps remain. Whole parity unfinished.",
+  "static": "passed"
+}

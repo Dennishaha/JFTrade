@@ -62,6 +62,10 @@ engine 仅提供文件元数据及实际工具目录。
 单文件与 ZIP 的 SKILL.md 使用同一规则，资源文件保留原内容。安装记录的工具、
 version、校验状态与内容哈希从实际安装文件投影后交给原 SQLite writer 保存，
 不创建第二条持久化路径。
+Skill 卸载的 SQLite DELETE 由原 writer 在事务中执行，文件清理由 engine mutation
+owner 提供。DELETE 执行失败不调用文件清理，文件清理失败回滚记录删除；callback
+持有 store 连接期间不能重入同一 store。跨 SQLite commit 与文件系统的整体原子性
+以及文件系统部分删除的恢复需另行处理。
 
 Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
 
