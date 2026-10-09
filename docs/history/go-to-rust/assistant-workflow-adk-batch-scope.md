@@ -3368,3 +3368,9 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 真实ProductionAdkPort/ProductionAdkChatRuntime先红复现新节点session not found。新节点不传伪造已有sessionId，改由原chat owner创建domain/native session；模型snapshot-model/MAX_V1、COMPLETED回复、原生消息及终态重复恢复一次provider调用闭合。旧跨调用前完整request、暂停后投影inputs两种checkpoint在provider drift后保留原显式session/canonical identity；完整child/native/session/audit保持且零provider连接，重复resume不写终态。
 
 七条冻结原函数/blob复核：reasoning10/23、workflow_canvas133/167/223、config27/65；分类1668 exact/2146 partial/637 boundary保持。新证据单引用，旧reuse不改；Go parent聚合投影与非终态workflow reasoning context继续partial。最终定向236、quick2454 Rust/98 Pine/desktop11+48及现场完整Rust4054 passed/0 failed/2 skipped通过，static/七类replay通过，无LEAK，1046文件与runner源码冻结。六份receipt、两份gate、7条原函数及11处reuse/anchor/diff核验通过；既有partial的一个多引用allowed=false保持，不视为exact复用批准。编译、生产准入红、legacy图夹具及两个verifier错误均留证，详细证据见[积压清单](parity-evidence-backlog.md)。整体未完成，提交后继续非终态workflow快照。
+
+### 2026-10-09 workflow 阻塞 child 的 reasoning 恢复
+
+直接生产Canvas owner重放仍PENDING_INPUT的child，provider drift后完整child/audit/native events及durable max/reasoning_effort/MAX_V1保持、零provider连接；真实RespondToInput恢复实际发送旧snapshot-model/MAX_V1恰好一次。既有completion barrier同步最终audit后捕获终态；重复workflow/runtime恢复保持完整run/log/audit/native events，重放完成才shutdown/join。
+
+复核7条冻结原函数：reasoning10/23、workflow_canvas133/167、input_request584、config27/65。新增child证据不闭合Go parent workflowResumeContext语义，reasoning23保持partial并精准保留该缺口。input584原exact仅引用park/audit半，未闭合两问、推荐项和完整回答后恢复，纠正为partial，当前1667/2147/637；新单引用与旧reuse边界不变。三个夹具失败及源码快照保留，最终定向281 passed/0 failed；quick2455 Rust/98 Pine与七类replay通过、无LEAK，desktop Node检查未安排。现场完整Rust4055 passed/0 failed/2 skipped，static及七类replay通过、无LEAK；1047文件与runner源码冻结，五份receipt、两份gate、7条原函数及12处reuse/anchor/diff核验通过，strict/context/anchor通过。整体未完成，继续input584真实chat两问与完整回答恢复，见[积压清单](parity-evidence-backlog.md)。

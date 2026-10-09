@@ -205,3 +205,6 @@ fn production_workflow_legacy_checkpoint_keeps_explicit_session_identity_after_p
         "existing child must replay before current provider validation"
     );
 }
+
+#[path = "product_adk_workflow_pending_reasoning_owner_tests.rs"]
+mod pending_reasoning;

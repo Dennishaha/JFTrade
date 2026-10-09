@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 workflow 阻塞 child 的 reasoning 恢复
+
+- 直接生产Canvas owner在child仍PENDING_INPUT、provider改为low-only/vendor.current后重放原request：同run、完整child/audit/native events保持，durable max/reasoning_effort/MAX_V1不变，零provider连接。真实RespondToInput再经同一continuation owner发送snapshot-model/reasoning_effort=MAX_V1恰好一次；完成后workflow SUCCEEDED，重复workflow/runtime恢复保持完整run/log/audit/native events。
+- [初始owner](verification-receipts/adk-workflow-pending-reasoning-owner-2026-10-09.json) 1 passed只证明input恢复和之后的终态Canvas重放。[阻塞控制失败](verification-receipts/adk-workflow-pending-reasoning-owner-pending-2026-10-09.json) 0 passed/1 failed：夹具误在公开result断言私有field/value；改为durable断言并验证公开投影不泄漏，实际wire值断言保持。
+- 两次[定向失败](verification-receipts/adk-workflow-pending-reasoning-directed-final-2026-10-09.json)和[shutdown控制失败](verification-receipts/adk-workflow-pending-reasoning-directed-verified-2026-10-09.json)均280 passed/1 failed保留：前者在COMPLETED写入后、最终audit前捕获状态；后者提前shutdown使Canvas重放被runtime stopping准入拒绝。最终夹具在捕获终态前等待既有completion barrier，不取消或关闭runtime；重放结束后明确shutdown/join，原完整相等断言保持。
+- [最终定向receipt](verification-receipts/adk-workflow-pending-reasoning-directed-joined-2026-10-09.json) 281 passed/0 failed，SHA `65ee80892a725ec03ff51b7cb9aa34a758020739d73f4be58d1c93c7227f9469`。复核7条冻结原函数/blob：reasoning10/23、workflow_canvas133/167、input_request584、config27/65。reasoning23新增生产child恢复证据但保持partial：Go workflowResumeContext应用parent run快照，该父级语义及后续节点传播未闭合；parent聚合投影/graph drift缺口保持。input584原exact仅引用park/audit半的专属测试，原函数的两问、q1-o1推荐项及Balanced/q2-o1完整回答后恢复未闭合，纠正为partial。当前1667 exact/2147 partial/637 boundary；新单引用allowed=false/single，旧reuse保持。
+- quick计划已查看；[quick](gate-runs/adk-workflow-pending-reasoning-quick-final-2026-10-09.json)2455 Rust/98 Pine与七类replay通过，无LEAK；本次未安排desktop Node检查，不计通过。[现场完整Rust](gate-runs/adk-workflow-pending-reasoning-rust-final-2026-10-09.json)4055 passed/0 failed/2 skipped、static及七类replay通过，无LEAK。1047 Rust文件与三份runner源码冻结；strict/context/anchor通过，unrecorded/stale0、既有unknown48。五份receipt、两份gate/raw SHA、7条原函数、12处reuse/anchor/diff及源码指纹核验通过，既有partial多引用allowed=false关系不视为exact复用批准。原日志、失败快照与核验脚本备份于 `/Users/jiangfan/.cache/jftrade/parity-workflow-pending-reasoning-20261009`。整体未完成，继续input584的真实chat两问与完整回答恢复。
+
 ## 2026-10-09 workflow 真实模型准入与旧请求重放
 
 - 最终核验脚本的两次错误及原脚本/日志保留：错误只接受`::test`而遗漏顶层integration的`binary$test`名字，按现场libtest-json-plus记录核对；随后错误把exact的allowed复用要求套到既有partial关系。该旧关系referenceCount2、reviewed但allowed=false，原标记完整保持且不升级exact；新单引用仍allowed=false/single。六份receipt与两份gate/raw SHA、7条原函数、11处reuse/anchor/diff及1046份源码指纹已核验。全部原日志、失败与源码快照、核验脚本备份于 `/Users/jiangfan/.cache/jftrade/parity-workflow-reasoning-20261009`。
