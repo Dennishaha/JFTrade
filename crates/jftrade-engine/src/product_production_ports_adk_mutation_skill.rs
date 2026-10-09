@@ -97,22 +97,24 @@ async fn download_skill_bytes(
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default()
         .to_owned();
-    if response
-        .content_length()
-        .is_some_and(|length| length > MAX_SKILL_ARCHIVE_BYTES as u64)
-    {
-        return Err("skill file exceeds 4 MiB".to_owned());
-    }
+    // Match the Go owner: read one byte beyond the archive limit, then let
+    // the install path classify the body as an oversized archive or document.
+    // A content-length shortcut would erase that distinction for URL installs.
+    let max_download_bytes = MAX_SKILL_ARCHIVE_BYTES + 1;
     let mut body = Vec::with_capacity(
         response
             .content_length()
-            .map_or(4096, |length| length as usize),
+            .map_or(4096, |length| length.min(max_download_bytes as u64) as usize),
     );
     while let Some(chunk) = response.chunk().await.map_err(skill_download_error)? {
-        if body.len().saturating_add(chunk.len()) > MAX_SKILL_ARCHIVE_BYTES {
-            return Err("skill file exceeds the maximum allowed size".to_owned());
+        let remaining = max_download_bytes.saturating_sub(body.len());
+        if remaining == 0 {
+            break;
         }
-        body.extend_from_slice(&chunk);
+        body.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
+        if body.len() == max_download_bytes {
+            break;
+        }
     }
     Ok((body, content_type))
 }

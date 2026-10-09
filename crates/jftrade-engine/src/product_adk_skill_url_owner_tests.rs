@@ -432,6 +432,76 @@ fn production_skill_url_install_preserves_archive_size_windows_resources_and_uni
     assert!(filesystem_skill(&port, "archive-skill").unwrap().is_none());
 }
 
+// Parity: go:452dea11:internal/assistant/engine/skill_reg_test.go:115
+// TestSkillRegistryArchiveRejectsUnsafeOrAmbiguousBundles
+#[test]
+fn production_skill_url_install_preserves_archive_error_classification_and_writes_nothing() {
+    let root = tempdir().unwrap();
+    let port = test_port(root.path());
+    let missing = stored_archive(&[("pack/references/guide.md", b"guide")]);
+    let ambiguous = stored_archive(&[
+        ("one/SKILL.md", b"---\nname: one\n---\nOne."),
+        ("two/SKILL.md", b"---\nname: two\n---\nTwo."),
+    ]);
+    let oversized_skill = stored_archive(&[(
+        "huge-skill/SKILL.md",
+        &[b'x'; (512 << 10) + 1],
+    )]);
+    let oversized_archive = vec![b'x'; (4 << 20) + 1];
+    let server = DownloadServer::start(BTreeMap::from([
+        ("/missing.zip".to_owned(), (200, None, missing)),
+        ("/ambiguous.zip".to_owned(), (200, None, ambiguous)),
+        (
+            "/corrupt.zip".to_owned(),
+            (200, None, b"not a zip".to_vec()),
+        ),
+        ("/huge.zip".to_owned(), (200, None, oversized_archive)),
+        (
+            "/huge-skill.zip".to_owned(),
+            (200, None, oversized_skill),
+        ),
+    ]));
+    let rows = port.store.list_skills().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+
+    let missing_error = server.install(&port, "/missing.zip").unwrap_err();
+    assert!(
+        missing_error.to_string().contains("does not contain SKILL.md"),
+        "missing archive error = {missing_error}"
+    );
+    let ambiguous_error = server.install(&port, "/ambiguous.zip").unwrap_err();
+    assert!(
+        ambiguous_error
+            .to_string()
+            .contains("exactly one SKILL.md"),
+        "ambiguous archive error = {ambiguous_error}"
+    );
+    let corrupt_error = server.install(&port, "/corrupt.zip").unwrap_err();
+    assert!(
+        corrupt_error.to_string().contains("parse skill archive"),
+        "corrupt archive error = {corrupt_error}"
+    );
+    let oversized_archive_error = server.install(&port, "/huge.zip").unwrap_err();
+    assert!(
+        oversized_archive_error
+            .to_string()
+            .contains("skill archive exceeds"),
+        "oversized archive error = {oversized_archive_error}"
+    );
+    let oversized_skill_error = server.install(&port, "/huge-skill.zip").unwrap_err();
+    assert!(
+        oversized_skill_error
+            .to_string()
+            .contains("skill file exceeds 512 KiB"),
+        "oversized skill error = {oversized_skill_error}"
+    );
+
+    port.shutdown_with_error().unwrap();
+    assert_eq!(port.store.list_skills().unwrap(), rows);
+    assert_eq!(port.store.list_audit_events().unwrap(), audit);
+    assert!(!root.path().join("skills").exists());
+}
+
 // Parity: go:452dea11:internal/assistant/engine/skill_reg_fs_test.go:89 TestSkillRegistryFilesystemFailureBoundaries
 #[test]
 fn production_skill_url_install_rejects_a_file_at_the_registry_root() {
