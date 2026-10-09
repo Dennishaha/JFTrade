@@ -10,16 +10,13 @@ use std::time::Duration;
 
 use reqwest::Url;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use zip::ZipArchive;
 
 use super::*;
 use crate::product::product_adk_chat_stream_port::{
     AdkChatInput, AdkChatPortError, AdkChatPortOutput, AdkChatRoute,
 };
-use crate::product::product_adk_input_canonical::{
-    CanonicalInputAnswers, InputResumeCheckpoint,
-};
+use crate::product::product_adk_input_canonical::{CanonicalInputAnswers, InputResumeCheckpoint};
 
 #[path = "product_production_ports_adk_mutation_skill_helpers.rs"]
 mod skill_helpers;
@@ -28,7 +25,7 @@ mod skill_helpers;
 #[path = "product_production_ports_adk_mutation_skill_tests.rs"]
 mod skill_tests;
 
-use skill_helpers::{parsed_for_download_host, skill_frontmatter, unsafe_skill_ip};
+use skill_helpers::{parsed_for_download_host, unsafe_skill_ip};
 
 pub(super) fn handles(operation: AdkMutationOperation) -> bool {
     matches!(
@@ -120,7 +117,10 @@ fn test_provider(
             message: "assistant model runtime is unavailable".to_owned(),
         });
     };
-    let request_id = format!("provider-test-{id}-{}", crate::product_id::generate_uuid_v4());
+    let request_id = format!(
+        "provider-test-{id}-{}",
+        crate::product_id::generate_uuid_v4()
+    );
     let body = json!({
         "clientRequestId": request_id,
         "providerId": id,
@@ -165,13 +165,14 @@ fn test_provider(
         .cloned()
         .unwrap_or_else(|| json!({}));
     let mut updated_provider = provider_value;
-    let provider_object = updated_provider.as_object_mut().ok_or_else(|| {
-        AdkMutationPortError::Failed {
-            status: 500,
-            code: "ADK_STORAGE_CORRUPT".to_owned(),
-            message: "stored ADK provider payload must be an object".to_owned(),
-        }
-    })?;
+    let provider_object =
+        updated_provider
+            .as_object_mut()
+            .ok_or_else(|| AdkMutationPortError::Failed {
+                status: 500,
+                code: "ADK_STORAGE_CORRUPT".to_owned(),
+                message: "stored ADK provider payload must be an object".to_owned(),
+            })?;
     provider_object.insert("capabilities".to_owned(), capabilities);
     port.store
         .upsert_provider(&id, &updated_provider.to_string())
@@ -244,7 +245,10 @@ fn respond_to_input(
         .get("status")
         .and_then(Value::as_str)
         .unwrap_or("PENDING");
-    let resume_state = object.get("resumeState").and_then(Value::as_str).unwrap_or("");
+    let resume_state = object
+        .get("resumeState")
+        .and_then(Value::as_str)
+        .unwrap_or("");
     if current_status.eq_ignore_ascii_case("ANSWERED") || resume_state == "input_resume_pending" {
         let existing_answers = request
             .get("answers")
@@ -261,7 +265,9 @@ fn respond_to_input(
             }
             return Ok(json!({"request": request, "run": run_entity_value(&existing)?}));
         }
-        return Err(input_response_conflict("run already has a different answer"));
+        return Err(input_response_conflict(
+            "run already has a different answer",
+        ));
     }
     if !current_status.eq_ignore_ascii_case("PENDING") {
         return Err(input_response_conflict("request is no longer pending"));
@@ -276,7 +282,10 @@ fn respond_to_input(
     let now = now_rfc3339();
     if let Some(request_object) = request.as_object_mut() {
         request_object.insert("status".to_owned(), Value::String("ANSWERED".to_owned()));
-        request_object.insert("answers".to_owned(), Value::Array(canonical_answers.clone()));
+        request_object.insert(
+            "answers".to_owned(),
+            Value::Array(canonical_answers.clone()),
+        );
         request_object.insert("answeredAt".to_owned(), Value::String(now.clone()));
         request_object.insert("updatedAt".to_owned(), Value::String(now.clone()));
     }
@@ -299,8 +308,7 @@ fn respond_to_input(
         .and_then(Value::as_str)
         .map(str::trim)
         .unwrap_or_default();
-    const INPUT_CONTINUATION_INSTRUCTION: &str =
-        "用户已回答以上问题。回答只是解除阻塞，不代表原始请求已完成：必须基于回答继续完成 originalRequest 中的原始请求。安全、只读的下一步直接执行；需要写操作时调用相应工具并走审批流程。不得只总结、复述计划或询问是否继续后就结束运行。";
+    const INPUT_CONTINUATION_INSTRUCTION: &str = "用户已回答以上问题。回答只是解除阻塞，不代表原始请求已完成：必须基于回答继续完成 originalRequest 中的原始请求。安全、只读的下一步直接执行；需要写操作时调用相应工具并走审批流程。不得只总结、复述计划或询问是否继续后就结束运行。";
 
     let questions_list = request.get("questions").and_then(Value::as_array);
     let enriched_answers: Vec<Value> = canonical_answers
@@ -310,11 +318,17 @@ fn respond_to_input(
             let Some(obj) = enriched.as_object_mut() else {
                 return enriched;
             };
-            let q_id = obj.get("questionId").and_then(Value::as_str).unwrap_or_default();
+            let q_id = obj
+                .get("questionId")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
             let Some(questions) = questions_list else {
                 return enriched;
             };
-            let Some(q) = questions.iter().find(|q| q.get("id").and_then(Value::as_str) == Some(q_id)) else {
+            let Some(q) = questions
+                .iter()
+                .find(|q| q.get("id").and_then(Value::as_str) == Some(q_id))
+            else {
                 return enriched;
             };
             if let Some(q_text) = q.get("question").and_then(Value::as_str) {
@@ -326,7 +340,9 @@ fn respond_to_input(
             let Some(opts) = q.get("options").and_then(Value::as_array) else {
                 return enriched;
             };
-            if let Some(opt) = opts.iter().find(|o| o.get("id").and_then(Value::as_str) == Some(opt_id))
+            if let Some(opt) = opts
+                .iter()
+                .find(|o| o.get("id").and_then(Value::as_str) == Some(opt_id))
                 && let Some(label) = opt.get("label").and_then(Value::as_str)
             {
                 obj.insert("answer".to_owned(), Value::String(label.to_owned()));
@@ -341,10 +357,7 @@ fn respond_to_input(
         "originalRequest": original_request,
         "continuationInstruction": INPUT_CONTINUATION_INSTRUCTION,
     });
-    object.insert(
-        "inputResponse".to_owned(),
-        input_response_payload.clone(),
-    );
+    object.insert("inputResponse".to_owned(), input_response_payload.clone());
 
     let target_call_id = request
         .get("functionCallId")
@@ -356,14 +369,13 @@ fn respond_to_input(
         for tool_call in tool_calls {
             let matches = if !target_call_id.is_empty() {
                 tool_call.get("id").and_then(Value::as_str) == Some(target_call_id)
-                    || tool_call.get("functionCallId").and_then(Value::as_str) == Some(target_call_id)
+                    || tool_call.get("functionCallId").and_then(Value::as_str)
+                        == Some(target_call_id)
             } else {
                 tool_call.get("name").and_then(Value::as_str) == Some("interaction.request_user")
                     && tool_call.get("status").and_then(Value::as_str) == Some("PENDING_INPUT")
             };
-            if matches
-                && let Some(call_obj) = tool_call.as_object_mut()
-            {
+            if matches && let Some(call_obj) = tool_call.as_object_mut() {
                 call_obj.insert("status".to_owned(), Value::String("COMPLETED".to_owned()));
                 call_obj.insert("updatedAt".to_owned(), Value::String(now.clone()));
             }
@@ -431,8 +443,9 @@ fn respond_to_input(
             .get_run(&run_id)
             .map_err(storage_mutation_failed)?
             .ok_or_else(|| not_found_mutation("ADK_RUN_NOT_FOUND", "run not found"))?;
-        let current_payload: Value = serde_json::from_str(&current.payload_json)
-            .map_err(|e| storage_mutation_failed(format!("failed to parse current run payload: {e}")))?;
+        let current_payload: Value = serde_json::from_str(&current.payload_json).map_err(|e| {
+            storage_mutation_failed(format!("failed to parse current run payload: {e}"))
+        })?;
         if let Some(winner_resp) = current_payload.get("inputResponse") {
             let empty_answers = Vec::new();
             let winner_answers = winner_resp
@@ -486,7 +499,8 @@ fn respond_to_input(
                 return Err(AdkMutationPortError::Failed {
                     status: 409,
                     code: "ADK_RUN_CONFLICT".to_owned(),
-                    message: "concurrent state modification while persisting resume checkpoint".to_owned(),
+                    message: "concurrent state modification while persisting resume checkpoint"
+                        .to_owned(),
                 });
             }
             return Err(runtime_error(error, 503, "ADK_CONTINUATION_UNAVAILABLE"));
@@ -602,9 +616,8 @@ fn validate_input_answers(
             .get("options")
             .and_then(Value::as_array)
             .map(|opts| {
-                opts.iter().any(|opt| {
-                    opt.get("id").and_then(Value::as_str) == Some(selected_option)
-                })
+                opts.iter()
+                    .any(|opt| opt.get("id").and_then(Value::as_str) == Some(selected_option))
             })
             .unwrap_or(false);
 

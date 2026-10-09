@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T02:59:07.309429+00:00",
+  "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-skill-install-registry-quick-final-20261009.log",
+  "rawOutputSha256": "94ad960334a0381426f7ccf7dc80087c09b1b45df73d935ee188aa0710b84e9a",
+  "nextestSummaries": [
+    {
+      "planned": 2519,
+      "passed": 2519,
+      "failed": 0,
+      "skipped": 0,
+      "testSeconds": 117.701
+    }
+  ],
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "27e658be712797376d4ec7b28c3b94a43fccc7a6288417a60a2790eda1224153",
+  "frozenRustFiles": 1057,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "nextest": "0.9.145"
+  },
+  "remainingRisk": "This passing run used a ZIP fixture with a directory root marker. A later frozen Go review found that the baseline uses a dot file entry, and owner-dot-red reproduced File exists. This gate is retained as pre-correction evidence and does not qualify the final Rust source.",
+  "static": "not_run",
+  "planner": "affected assistant/engine/desktop Rust, seven replays, Pine and desktop checks"
+}

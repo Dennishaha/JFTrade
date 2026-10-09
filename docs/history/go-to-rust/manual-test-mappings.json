@@ -107557,11 +107557,11 @@
       "boundaryReason": null
     },
     "internal/assistant/engine/skill_reg_fs_test.go:48:TestSkillRegistryArchiveInstallsBundlesWithDirectoryEntries": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_archive_install_preserves_resources_and_metadata",
-      "conclusion": "partial：Go 断言带目录条目的压缩包能安装 bundle 且资源可读。Rust 的压缩包安装用例断言安装后资源与元数据保留（该用例已作为其他行证据），但 Go 的“目录条目”输入形态（zip 目录项）在 Rust 的压缩包解析中没有专门断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs::production_skill_install_handles_archive_directory_entries_and_keeps_source_and_resources",
+      "conclusion": "function_exact：直接生产安装owner消费包含空点文件根标记、skill目录、references目录与两份文件的ZIP；返回dir-skill及原source URL，资源原bytes为checklist。真实GET保持相同source且完整rows/audit不变；SKILL.md已写入下载URL。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/skill_reg_fs_test.go",
         "line": 48,
@@ -107570,72 +107570,74 @@
       },
       "rustEvidence": [
         {
-          "file": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs",
-          "test": "skill_archive_install_preserves_resources_and_metadata",
+          "file": "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs",
+          "test": "production_skill_install_handles_archive_directory_entries_and_keeps_source_and_resources",
           "crate": "jftrade-engine",
           "anchor": {
             "goFile": "internal/assistant/engine/skill_reg_fs_test.go",
             "goLine": 48,
-            "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs",
-            "rustLine": 67
+            "rustFile": "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs",
+            "rustLine": 85
           }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust archive installation preserves installed resources and metadata."
+          "function_exact：直接生产安装owner消费包含空点文件根标记、skill目录、references目录与两份文件的ZIP；返回dir-skill及原source URL，资源原bytes为checklist。真实GET保持相同source且完整rows/audit不变；SKILL.md已写入下载URL。"
         ],
-        "uncovered": [
-          "Rust does not specifically assert zip directory-entry input and resource readability for the Go filesystem bundle shape."
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T02:58:36Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)"
         ],
         "testFilter": [
-          "skill_archive_install_preserves_resources_and_metadata"
+          "production_skill_install_handles_archive_directory_entries_and_keeps_source_and_resources"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+        "receiptDigest": "sha256:49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
       "priority": "P2",
-      "nextAction": "review_uncovered_assertions_or_confirm_boundary",
-      "blockedBy": [
-        "behavioral-parity-review"
-      ],
+      "nextAction": "retain_receipt_and_reaudit",
+      "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust archive installation preserves installed resources and metadata."
+        "function_exact：直接生产安装owner消费包含空点文件根标记、skill目录、references目录与两份文件的ZIP；返回dir-skill及原source URL，资源原bytes为checklist。真实GET保持相同source且完整rows/audit不变；SKILL.md已写入下载URL。"
       ],
-      "uncoveredAssertions": [
-        "Rust does not specifically assert zip directory-entry input and resource readability for the Go filesystem bundle shape."
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/assistant/engine/skill_reg_fs_test.go:72:TestSkillRegistryWarnsWhenExternalSkillReferencesUnknownTools": {
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_adk_skill_registry_owner_tests.rs::production_skill_list_keeps_unknown_external_tools_as_a_warning",
       "conclusion": "function_exact：直接生产filesystem Get与实际HTTP列表返回完整相同future-skill投影；future.tool保留，validationStatus=WARNING且validationError含该工具。领域规则由原read owner调用，读取不写完整rows/audit。",
-      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list)'",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/skill_reg_fs_test.go",
@@ -107668,7 +107670,7 @@
         "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "status": "passed",
         "exitCode": 0,
-        "verifiedAt": "2026-10-09T02:23:37Z",
+        "verifiedAt": "2026-10-09T02:58:36Z",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -107688,13 +107690,13 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list)"
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)"
         ],
         "testFilter": [
           "production_skill_list_keeps_unknown_external_tools_as_a_warning"
         ],
-        "verifiedCommit": "b81a4b04b6c973de6c44185fbbe65b9986dfd683",
-        "receiptDigest": "sha256:b7db8e4cf08878b29cee2bcc641c6304fcec36cd3c41673dad74ef1f9e0ffd6e"
+        "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+        "receiptDigest": "sha256:49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -108235,9 +108237,9 @@
     },
     "internal/assistant/engine/skill_reg_test.go:235:TestSkillRegistryInstallURLPlainDocumentAndRedirectSafety": {
       "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_document_install_registers_the_parsed_document",
-      "conclusion": "partial：Go 断言从 URL 安装纯 markdown 文档、重复安装拒绝、重定向安装成功。Rust 的技能文档安装用例断言解析后的文档注册；Go 的“URL 重定向后仍安装”在 Rust 的下载客户端没有专门断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_document_install_registers_the_parsed_document；crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs::production_skill_install_persists_download_source_and_tools_in_the_file_and_http_projection",
+      "conclusion": "partial：直接生产download后安装owner闭合plain-skill source/http.fetch、SKILL.md原URL字段，实际GET保持source/tools，两个contentHash均为实际安装文件SHA-256，完整rows/audit不变。完整InstallURL传输、相同URL重复安装与blocked.example重定向拒绝仍无本函数引用的整组生产网络owner证据。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/skill_reg_test.go",
@@ -108256,41 +108258,61 @@
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs",
             "rustLine": 133
           }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs",
+          "test": "production_skill_install_persists_download_source_and_tools_in_the_file_and_http_projection",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/assistant/engine/skill_reg_test.go",
+            "goLine": 235,
+            "rustFile": "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs",
+            "rustLine": 46
+          }
         }
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust document installation parses and registers a plain markdown document."
+          "partial：直接生产download后安装owner闭合plain-skill source/http.fetch、SKILL.md原URL字段，实际GET保持source/tools，两个contentHash均为实际安装文件SHA-256，完整rows/audit不变。完整InstallURL传输、相同URL重复安装与blocked.example重定向拒绝仍无本函数引用的整组生产网络owner证据。"
         ],
         "uncovered": [
-          "Rust does not assert URL redirect-follow installation success or duplicate URL-install rejection in the cited owner."
+          "冻结原函数的实际InstallURL下载、重复相同URL安装报already installed和unsafe host重定向拒绝尚未由所引用的网络owner整组验证。"
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T02:58:36Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)"
         ],
         "testFilter": [
-          "skill_document_install_registers_the_parsed_document"
+          "skill_document_install_registers_the_parsed_document",
+          "production_skill_install_persists_download_source_and_tools_in_the_file_and_http_projection"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+        "receiptDigest": "sha256:49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -108301,18 +108323,18 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust document installation parses and registers a plain markdown document."
+        "partial：直接生产download后安装owner闭合plain-skill source/http.fetch、SKILL.md原URL字段，实际GET保持source/tools，两个contentHash均为实际安装文件SHA-256，完整rows/audit不变。完整InstallURL传输、相同URL重复安装与blocked.example重定向拒绝仍无本函数引用的整组生产网络owner证据。"
       ],
       "uncoveredAssertions": [
-        "Rust does not assert URL redirect-follow installation success or duplicate URL-install rejection in the cited owner."
+        "冻结原函数的实际InstallURL下载、重复相同URL安装报already installed和unsafe host重定向拒绝尚未由所引用的网络owner整组验证。"
       ],
       "boundaryReason": null
     },
     "internal/assistant/engine/skill_reg_test.go:286:TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_archive_install_preserves_resources_and_metadata",
-      "conclusion": "partial：Go 断言 URL 安装压缩包（含大小窗口）、卸载保护（内置不可删、缺失报错）。Rust 的压缩包安装用例断言资源与元数据保留（该用例已作为其他行证据）；卸载保护由目录用例（内置技能保持注册）覆盖，二者没有合并断言。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：直接生产archive安装保留资源/source；完整URL size窗口与卸载保护/消失矩阵仍有原缺口。目录entry成功不替代这些断言。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/skill_reg_test.go",
@@ -108338,34 +108360,42 @@
           "Rust archive installation preserves resources/metadata and builtin skill deletion remains protected."
         ],
         "uncovered": [
-          "Rust does not combine Go URL archive size-window validation with uninstall missing-id and builtin-protection response semantics in one contract."
+          "实际URL ZIP下载、超过512KiB但不超过4MiB的成功archive窗口、超大markdown错误，以及missing/builtin/外部卸载后Get消失尚未由本函数引用的owner整组闭合。"
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T02:58:36Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)"
         ],
         "testFilter": [
           "skill_archive_install_preserves_resources_and_metadata"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+        "receiptDigest": "sha256:49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -108379,7 +108409,7 @@
         "Rust archive installation preserves resources/metadata and builtin skill deletion remains protected."
       ],
       "uncoveredAssertions": [
-        "Rust does not combine Go URL archive size-window validation with uninstall missing-id and builtin-protection response semantics in one contract."
+        "实际URL ZIP下载、超过512KiB但不超过4MiB的成功archive窗口、超大markdown错误，以及missing/builtin/外部卸载后Get消失尚未由本函数引用的owner整组闭合。"
       ],
       "boundaryReason": null
     },
@@ -113026,7 +113056,7 @@
       "status": "[x]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_archive_install_preserves_resources_and_metadata",
       "conclusion": "function_exact：zip 安装保留 `references/playbook.md` 等资源文件并把 `source` 记为原始 URL；同一文件另有 `skill_document_install_registers_the_parsed_document`、`skill_install_is_exclusive_per_id`、`skill_archive_rejects_unsafe_paths_and_symlinks`、`skill_install_projection_is_durable` 四例覆盖单文档安装、同 id 幂等、路径穿越/符号链接拒绝与投影持久化。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)'",
       "evidence_type": "function_exact",
       "source": {
         "file": "internal/assistant/engine/store_ops_test.go",
@@ -113043,7 +113073,7 @@
             "goFile": "internal/assistant/engine/store_ops_test.go",
             "goLine": 184,
             "rustFile": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs",
-            "rustLine": 67
+            "rustLine": 75
           }
         }
       ],
@@ -113055,29 +113085,37 @@
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T02:58:36Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)"
         ],
         "testFilter": [
           "skill_archive_install_preserves_resources_and_metadata"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+        "receiptDigest": "sha256:49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -113094,8 +113132,8 @@
     "internal/assistant/engine/store_ops_test.go:224:TestInstallSkillURLInstallsNeodataFinancialSearch": {
       "status": "[~]",
       "rust_entry": "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_document_install_registers_the_parsed_document",
-      "conclusion": "partial：Rust 覆盖 URL 文档安装的全链路——`install_skill_document` 解析 frontmatter（name/description/allowed-tools）、拒绝非 http(s) 与不安全 URL、按 `SKILL.md` 落盘并注册 catalog 行，`skill_document_install_registers_the_parsed_document` 冻结该行为。Go 该用例额外挂了一个 httptest 服务器并临时把 `skillsruntime.SkillInstallHostValidator` 置空以验证真实 HTTP 下载；Rust 的 `install_skill_document` 只覆盖下载之后的解析/落盘一半，下载前半由 `parsed_for_download_host`/`unsafe_skill_ip` 的纯函数测试与 `skill_archive_rejects_unsafe_paths_and_symlinks` 覆盖，没有在测试里起回环 HTTP 服务器。保留 partial 记录该 wire 层差异（不是功能缺口）。",
-      "command": "node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --no-fail-fast -E 'not test(production_helper_sync_cancel_aborts_in_flight_request) and not test(production_helper_sync_rejects_broken_pagination_cursors) and not test(production_helper_sync_forwards_page_query_and_persists_provider_values) and not test(production_helper_sync_retries_transient_page_and_records_retry)'",
+      "conclusion": "partial：直接生产安装owner按冻结NeoData文档的metadata.version=2026.06验证id/source/version/displayName/落盘路径；真实plain-skill读取证明源URL、工具和安装文件hash一致，不能替代本函数的NeoData完整HTTP下载/Get字段。旧顶层version与空catalog夹具改为冻结Go形状和生产catalog构造器，原version/VALID/资源断言保持。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine -p jftrade-assistant -p jftrade-store-sqlite --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)'",
       "evidence_type": "partial",
       "source": {
         "file": "internal/assistant/engine/store_ops_test.go",
@@ -113118,37 +113156,45 @@
       ],
       "assertionCoverage": {
         "covered": [
-          "Rust skill document installation parses frontmatter, requires safe http(s), and persists the installed document."
+          "直接生产NeoData安装的id/source、metadata.version=2026.06、displayName和实际SKILL.md落盘。"
         ],
         "uncovered": [
-          "Rust does not assert the specific Go Neodata skill name/content, redirect behavior, or every URL installation response field."
+          "NeoData实际InstallURL网络下载、Get确认已安装及该Get的非空ContentHash/VALID/单个http.fetch完整原断言仍未由对应网络与Get owner整组闭合。"
         ],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T02:58:36Z",
         "argv": [
           "env",
+          "CARGO_INCREMENTAL=0",
           "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
           "node",
           "scripts/quality/cargo-nextest.mjs",
           "run",
-          "--workspace",
+          "-p",
+          "jftrade-engine",
+          "-p",
+          "jftrade-assistant",
+          "-p",
+          "jftrade-store-sqlite",
           "--all-targets",
           "--locked",
           "--message-format",
           "libtest-json-plus",
-          "--no-fail-fast"
+          "--no-fail-fast",
+          "-E",
+          "test(active_stream_retention_uses_frozen_timeout_and_strict_nanosecond_boundary) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(adk_stream_reconnect_routes_carry_replay_markers_and_fail_closed) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_hides_expired_running_stream_without_mutating_the_run) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retention_uses_saved_duration_and_preserves_failed_lookup_semantics) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(replayed_stream_payloads_carry_the_go_replay_marker) | test(reconnect) | test(retention) | test(request_cancellation) | test(fenc) | test(lease) | test(terminal_audit) | test(persisted_run_types) | test(skill) | test(skill_frontmatter) | test(production_post_stream_completes_once) | test(production_skill_list) | test(production_skill_install) | test(downloaded_skill_source_rewrite)"
         ],
         "testFilter": [
           "skill_document_install_registers_the_parsed_document"
         ],
-        "runnerVersion": "cargo-nextest-0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "e3b4f22db77a9d1148e03f892786a4001bb054fa",
-        "verifiedAt": "2026-10-02T19:26:13Z",
-        "receiptDigest": "sha256:4ef3e4e3146966b9916d3ca08b3a796056dc13af13f9acbd47757fdf34bedd85"
+        "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+        "receiptDigest": "sha256:49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755"
       },
       "risk": "normal",
       "owner": "assistant_workflow",
@@ -113159,10 +113205,10 @@
       ],
       "waiverExpiresAt": null,
       "coveredAssertions": [
-        "Rust skill document installation parses frontmatter, requires safe http(s), and persists the installed document."
+        "直接生产NeoData安装的id/source、metadata.version=2026.06、displayName和实际SKILL.md落盘。"
       ],
       "uncoveredAssertions": [
-        "Rust does not assert the specific Go Neodata skill name/content, redirect behavior, or every URL installation response field."
+        "NeoData实际InstallURL网络下载、Get确认已安装及该Get的非空ContentHash/VALID/单个http.fetch完整原断言仍未由对应网络与Get owner整组闭合。"
       ],
       "boundaryReason": null
     },
@@ -341585,6 +341631,22 @@
     }
   },
   "reuse": {
+    "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs::production_skill_install_handles_archive_directory_entries_and_keeps_source_and_resources": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/skill_reg_fs_test.go:48:TestSkillRegistryArchiveInstallsBundlesWithDirectoryEntries"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
+    },
+    "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs::production_skill_install_persists_download_source_and_tools_in_the_file_and_http_projection": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/assistant/engine/skill_reg_test.go:235:TestSkillRegistryInstallURLPlainDocumentAndRedirectSafety"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
+    },
     "crates/jftrade-engine/src/product_adk_skill_registry_owner_tests.rs::production_skill_list_and_get_propagate_corrupt_frontmatter_without_writes": {
       "referenceCount": 1,
       "referenceKeys": [
@@ -352224,14 +352286,14 @@
       "reviewNote": "2026-10-02 bounded reuse review: compared all 6 referenceKeys against the shared Rust owner (status mix {'[~]': 6}); assertion scopes are not interchangeable, so reuse remains disallowed and no function_exact row is upgraded by this relation."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill_tests.rs::skill_archive_install_preserves_resources_and_metadata": {
-      "referenceCount": 3,
+      "referenceCount": 2,
       "referenceKeys": [
-        "internal/assistant/engine/skill_reg_fs_test.go:48:TestSkillRegistryArchiveInstallsBundlesWithDirectoryEntries",
         "internal/assistant/engine/skill_reg_test.go:286:TestSkillRegistryInstallURLSupportsArchivesAndUninstallProtections",
         "internal/assistant/engine/store_ops_test.go:184:TestInstallSkillArchivePreservesResources"
       ],
       "allowed": true,
-      "reviewStatus": "reviewed"
+      "reviewStatus": "reviewed",
+      "reviewNote": "2026-10-09 removed the directory-entry mapping in favor of its dedicated production owner; remaining reuse permissions are unchanged."
     },
     "crates/jftrade-engine/src/product_production_ports_adk_mutation_skill.rs::skill_download_client_installs_rustls_provider_before_build": {
       "referenceCount": 1,

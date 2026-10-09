@@ -58,6 +58,10 @@ Skill 文档的 YAML frontmatter 解码归 `jftrade-assistant`。engine 文件�
 Skill 目录排序按 source 再按 displayName，外部文档的未知工具保留并标记 WARNING；
 内置文档按产品目录约定免除此警告。排序和工具引用规则由 Assistant 领域持有，
 engine 仅提供文件元数据及实际工具目录。
+下载后的 Skill 文档在原安装 mutation owner 内由领域规则写入 source 元数据；
+单文件与 ZIP 的 SKILL.md 使用同一规则，资源文件保留原内容。安装记录的工具、
+version、校验状态与内容哈希从实际安装文件投影后交给原 SQLite writer 保存，
+不创建第二条持久化路径。
 
 Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
 

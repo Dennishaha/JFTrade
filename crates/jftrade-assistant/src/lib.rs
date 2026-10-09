@@ -47,7 +47,9 @@ pub use ports::{
     ProviderFailureKind, ToolRequest,
 };
 pub use runtime::{AssistantRuntime, RuntimeError, TransitionResult};
-pub use skill_document::{SkillDocumentError, SkillDocumentMetadata, parse_skill_document};
+pub use skill_document::{
+    SkillDocumentError, SkillDocumentMetadata, parse_skill_document, rewrite_skill_document_source,
+};
 pub use skill_registry::{SkillToolValidation, compare_skill_catalog_order, validate_skill_tools};
 pub use stream_retention::{DEFAULT_RUN_TIMEOUT_MS, active_run_stream_retention_expired};
 pub use workflow::{TaskGraph, WorkflowError};

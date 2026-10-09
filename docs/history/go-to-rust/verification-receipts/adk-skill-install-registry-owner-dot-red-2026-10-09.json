@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_install)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-09T02:57:00Z",
+  "sourceState": {
+    "verifiedCommit": "d91d67c9efbf6568cc3100de135fb49aa30f0535",
+    "trackedDiffSha256": "dea381bdb618c4a7fdd5b5519494b574e075c90d7617075bd86ad9bf589214c1",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_skill_install_registry_owner_tests.rs",
+        "sha256": "0ec7b3c396db1bbea42761a3c0117a30d54449e468c08cf0a1d5893d7620ded7"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-install-registry-directed-final-2026-10-09.json",
+        "sha256": "7c1d3a180d04a04361e072fb0cd3bcc69dc950b5a06eb0acec5b0b39451d4cef"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-install-registry-directed-fixture-aligned-2026-10-09.json",
+        "sha256": "0897583b61c11b08c9db184d5e11918543985d1d60a5a5d8e2d23432a40cdc5a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-install-registry-owner-behavior-red-2026-10-09.json",
+        "sha256": "ff24afaac98bc7ba5f99702f3096bc1d642bd1f58842a6687a4344b842e77a8a"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-install-registry-owner-green-2026-10-09.json",
+        "sha256": "084be538157d1bc03e9360f1969925b40cf7131be13c9c066ce1ac389800a552"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-install-registry-owner-red-2026-10-09.json",
+        "sha256": "1fb01da537585c09529ab2f27a39f94a26a8824882edf164917927ce48c03ccf"
+      }
+    ]
+  },
+  "rawOutputSha256": "8fc132f66c77254ee5271e918bab9f932ecec993c5e41b61107ec79994d1b8b3",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::registry::production_skill_install_persists_download_source_and_tools_in_the_file_and_http_projection"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::registry::production_skill_install_handles_archive_directory_entries_and_keeps_source_and_resources"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 1,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2010,
+      "exec_time": 0.929810875,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -6,7 +6,7 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
-Skill生产列表的source排序与未知工具WARNING均从真实红修复，领域规则由原read owner调用且完整rows/audit不变。六条冻结原函数复核，fs19/72完整闭合后升exact，当前1671/2143/637；nil registry及Store Save/Delete/规范id仍partial。定向256、quick2516 Rust/98 Pine/desktop11+48、现场完整Rust4068 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。四份receipt、两份gate、1056指纹及九处reuse/anchor核验，新证据单引用，三处旧无关共享关系移除且剩余复用仍不批准。整体未完成，继续安装后文件/HTTP元数据与durable owner的一致性。 详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。
+Skill安装后的文件与HTTP投影已从真实source红修复；复核冻结Go的ZIP点文件条目后，补File exists红证据并修复原解析器。六条原函数仅fs48完整闭合后升exact，当前1672/2142/637；实际下载/redirect/重复URL、大小窗口与NeoData网络/Get仍partial。最终定向259、quick2519 Rust/98 Pine/desktop11+48、现场完整Rust4071 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。七份receipt、三份gate、1057指纹及reuse/anchor核验，失败与修正前quick保留。整体未完成，继续卸载文件失败后的响应与状态保持。详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。
 
 真实POST/重连与文件Skill发现修复运行后外部文件无法列表/卸载，GET不写SQLite，原mutation owner删除目录。六条冻结原函数复核，routes_resource410完整闭合后恢复exact，当前1669/2145/637；两个builtin hash、八份资源、三项publish工具及刷新owner仍有缺口。定向253、quick全量4065 Rust/2435 Web/98 Pine/9结构语料/337 Python、现场完整Rust4065 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。七份receipt、两份gate、1054指纹及九处reuse/anchor核验，失败及核验脚本错误保留；整体未完成，继续source排序及未知工具WARNING。 详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。
 

@@ -6,6 +6,7 @@
 //! go:452dea11:internal/assistant/engine/skillsruntime/install.go for the
 //! archive safety rules.
 
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
@@ -15,8 +16,13 @@ use tempfile::tempdir;
 
 use jftrade_store_sqlite::{AdkArtifactStore, AdkSessionStore, AdkStore};
 
-use super::super::super::{ProductionAdkPort, ProductionToolCatalog};
+use super::super::super::{
+    PRODUCTION_TOOL_DEFINITIONS, ProductionAdapterBinding, ProductionAdkPort, ProductionToolCatalog,
+};
 use super::install_skill_document;
+
+#[path = "product_adk_skill_install_registry_owner_tests.rs"]
+mod registry;
 
 fn test_port(root: &Path) -> Arc<ProductionAdkPort> {
     let adk_path = root.join("adk.db");
@@ -30,6 +36,10 @@ fn test_port(root: &Path) -> Arc<ProductionAdkPort> {
         let connection = rusqlite::Connection::open(path).expect("create database");
         jftrade_store_sqlite::initialize_current(&connection, component).expect("init schema");
     }
+    let bindings = PRODUCTION_TOOL_DEFINITIONS
+        .iter()
+        .map(|definition| (definition.adapter, ProductionAdapterBinding::Ready))
+        .collect::<BTreeMap<_, _>>();
     Arc::new(ProductionAdkPort {
         store: Arc::new(AdkStore::open(&adk_path).expect("open adk store")),
         session_store: Arc::new(
@@ -38,7 +48,7 @@ fn test_port(root: &Path) -> Arc<ProductionAdkPort> {
         artifact_store: Arc::new(
             AdkArtifactStore::open(&artifact_path).expect("open artifact store"),
         ),
-        tool_catalog: Arc::new(ProductionToolCatalog::empty_for_test()),
+        tool_catalog: Arc::new(ProductionToolCatalog::from_bindings(&bindings).unwrap()),
         settings_path: root.join("settings.json"),
         chat_runtime: None,
         unavailable_streams: Default::default(),
@@ -72,20 +82,14 @@ fn skill_archive_install_preserves_resources_and_metadata() {
     let archive = skill_archive(&[
         (
             "research-pack/SKILL.md",
-            "---\nname: research-pack\ndescription: Research pack\nversion: 2026.06\nallowed-tools: [http.fetch]\n---\nUse bundled resources.\n",
+            "---\nname: research-pack\ndescription: Research pack\nmetadata:\n  version: 2026.06\nallowed-tools: [http.fetch]\n---\nUse bundled resources.\n",
         ),
         ("research-pack/references/playbook.md", "playbook content"),
     ]);
     let parsed = reqwest::Url::parse(source_url).expect("source url");
 
-    let installed = install_skill_document(
-        &port,
-        source_url,
-        &parsed,
-        &archive,
-        "application/zip",
-    )
-    .expect("install archive");
+    let installed = install_skill_document(&port, source_url, &parsed, &archive, "application/zip")
+        .expect("install archive");
 
     assert_eq!(installed["id"], "research-pack");
     assert_eq!(installed["source"], source_url);
@@ -98,7 +102,7 @@ fn skill_archive_install_preserves_resources_and_metadata() {
         installed["contentHash"]
             .as_str()
             .is_some_and(|hash| hash.len() == 64),
-        "the content hash is the archive digest: {installed}"
+        "the installed document has a content hash: {installed}"
     );
 
     let install_path = installed["installPath"]
@@ -139,7 +143,7 @@ fn skill_document_install_registers_the_parsed_document() {
         "---\n",
         "name: neodata-financial-search\n",
         "description: Search NeoData financial filings and earnings materials.\n",
-        "version: 2026.06\n",
+        "metadata:\n  version: 2026.06\n",
         "allowed-tools: [http.fetch]\n",
         "---\n",
         "Use NeoData search results as reference material and cite the source URL.\n"
@@ -167,8 +171,7 @@ fn skill_document_install_registers_the_parsed_document() {
         installed["installPath"]
     );
     assert!(
-        root
-            .path()
+        root.path()
             .join("skills/neodata-financial-search/SKILL.md")
             .exists(),
         "the document lands on disk"
@@ -212,7 +215,10 @@ fn skill_install_is_exclusive_per_id() {
     }
     let raw = std::fs::read_to_string(root.path().join("skills/exclusive-skill/SKILL.md"))
         .expect("read installed skill");
-    assert!(raw.contains("first"), "the original install survives: {raw}");
+    assert!(
+        raw.contains("first"),
+        "the original install survives: {raw}"
+    );
 }
 
 /// An archive member escaping the install root is rejected before anything is

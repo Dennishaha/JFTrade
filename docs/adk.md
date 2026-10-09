@@ -156,6 +156,7 @@ ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把�
 - Rust engine 在每次 Skill 列表读取时扫描 `JFTRADE_ADK_SKILLS`（默认 settings 文件同级的 `skills`）下直接子目录中的 `SKILL.md`，合并 durable 安装记录和内置目录投影。同 id 的文件元数据覆盖列表投影；读取不写 SQLite 或审计。
 - YAML frontmatter 由 Assistant 领域解析，文件系统 adapter 提供 source、version、allowed-tools、原文件 SHA-256 和修改时间。非法文档或读取故障返回 `ADK_SKILL_LIST_FAILED`；卸载复用现有 mutation owner，拒绝内置 Skill，外部文件发现与安装使用相同根目录。
 - Skill 列表按 source、displayName 排序。外部 Skill 引用尚未注册的工具时保留原工具列表，返回 `validationStatus=WARNING` 及包含未知工具名的说明；内置文档免除此警告。WARNING 不为该工具创建权限或可执行 handler。
+- 安装单文件或 ZIP 时，下载 URL 写入 SKILL.md 的 `metadata.source`；`metadata.version` 支持文档中的数字版本表示。工具、校验状态和 SHA-256 取自实际安装文档，资源内容保持，目录与记录仍由同一安装 owner 创建。
 - Agent 绑定的是 skill 目录名；模型通过 `list_skills`、`load_skill`、`load_skill_resource` 按需读取说明和资源。
 - ADK Go v2 的原生 `skilltoolset` 提供 Skill 指令和资源，不负责产品工具装配；JFTrade 在构建 Agent 时按工具白名单和权限模式过滤业务工具，并把它们作为原生 FunctionTool 声明。`load_skill` 不再维护额外的工具解锁状态。
 - `SKILL.md` 使用 ADK 原生 frontmatter：`name`、`description`、`allowed-tools`、`metadata`。

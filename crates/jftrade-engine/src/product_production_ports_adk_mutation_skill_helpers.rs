@@ -34,19 +34,3 @@ pub(super) fn unsafe_skill_ip(address: IpAddr) -> bool {
         }
     }
 }
-
-pub(super) fn skill_frontmatter(document: &str, key: &str) -> Option<String> {
-    let lines = document.lines();
-    for line in lines {
-        let Some((candidate, value)) = line.split_once(':') else {
-            continue;
-        };
-        if candidate.trim().eq_ignore_ascii_case(key) {
-            let value = value.trim().trim_matches(['"', '\'']);
-            if !value.is_empty() {
-                return Some(value.to_owned());
-            }
-        }
-    }
-    None
-}

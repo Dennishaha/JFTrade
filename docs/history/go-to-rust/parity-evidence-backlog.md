@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 Skill 安装文件与 HTTP 投影一致性
+
+- 单文件和 ZIP 的真实安装 owner 红测试均复现 source URL 在 HTTP 列表中变为 filesystem，[行为红](verification-receipts/adk-skill-install-registry-owner-behavior-red-2026-10-09.json)0 passed/2 failed。原安装 owner 通过 Assistant 领域规则重建 metadata.source，并从实际安装文件投影 tools、数字 metadata.version、校验状态和 SHA256，再交原 SQLite writer 保存；资源与 instructions 保持。
+- [首次编译失败](verification-receipts/adk-skill-install-registry-owner-red-2026-10-09.json)exit101/零测试保留。[首次定向](verification-receipts/adk-skill-install-registry-directed-final-2026-10-09.json)257 passed/2 failed指出旧夹具将 version 写在顶层；按冻结 Go 的 metadata.version=2026.06 修正，并用生产工具目录构造器注册 http.fetch，原 version/VALID/资源断言保持。[修正夹具定向](verification-receipts/adk-skill-install-registry-directed-fixture-aligned-2026-10-09.json)259 passed。
+- 初次 [quick](gate-runs/adk-skill-install-registry-quick-final-2026-10-09.json)通过后，原函数复核发现 ZIP 的点根标记应是空文件而非目录；纠正输入后[真实红](verification-receipts/adk-skill-install-registry-owner-dot-red-2026-10-09.json)1 passed/1 failed，生产安装报500/File exists。原解析器按冻结 Go 忽略根标记，路径穿越与符号链接拒绝不变。[最终定向](verification-receipts/adk-skill-install-registry-directed-dot-aligned-2026-10-09.json)259 passed/0 failed，SHA `49c6e87278bbdd6d10083d13b412d4c6f3efaddc6ca15cc73d0675dce8351755`；初次 quick 只作为修正前证据。
+- 六条冻结 Go 原函数/blob 复核：skill_reg_fs48/72、skill_reg235/286、store_ops184/224。仅 fs48 的完整 ZIP 输入/id/source/资源断言闭合后升 exact，当前1672 exact/2142 partial/637 boundary。235 的实际下载、重复 URL 和 unsafe redirect；286 的下载大小窗口及完整卸载组合；224 的 NeoData 网络/Get 整组仍 partial。两条新证据独占单引用，旧 archive 共享关系由3降2且已有复用权限不变。
+- 重新查看计划后[最终 quick](gate-runs/adk-skill-install-registry-quick-dot-aligned-2026-10-09.json)2519 Rust/98 Pine/desktop11+48及七类 replay 通过；[现场完整 Rust](gate-runs/adk-skill-install-registry-rust-final-2026-10-09.json)4071 passed/0 failed/2 skipped，static/七类 replay 通过，无 LEAK。1057 Rust 文件与三份 runner 源码冻结；七份 receipt、三份 gate、raw SHA、六条原函数、reuse/anchor/diff核验。strict/context/anchor通过，unrecorded/stale0、既有unknown48。runtime格式diff经实际rustfmt输出核对，只移除两份未使用导入；两次过简比较器失败也留证。
+- 本机失败日志、源码快照、原文与核验脚本归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-install-registry-20261009`。完整下载/redirect、SDK语义、内置资源/刷新与文件删除错误处理继续开放；整体未完成，下一批直接验证卸载文件失败后的响应与状态保持。
+
 ## 2026-10-09 Skill source 排序与未知工具警告
 
 - 两条生产HTTP owner红复现[0 passed/2 failed](verification-receipts/adk-skill-registry-owner-red-2026-10-09.json)：实际b-builtin/a-remote/z-local，对比冻结Go b-builtin/z-local/a-remote；未知future.tool返回INVALID而非WARNING。领域持有source/displayName比较及工具引用规则，原read owner提供实际catalog，文件与完整SQLite rows/audit保持。

@@ -111,7 +111,7 @@ fn install_skill(
 fn install_skill_document(
     port: &ProductionAdkPort,
     raw_url: &str,
-    parsed: &Url,
+    _parsed: &Url,
     body: &[u8],
     content_type: &str,
 ) -> Result<Value, AdkMutationPortError> {
@@ -120,7 +120,7 @@ fn install_skill_document(
         || body.starts_with(b"PK\x03\x04")
         || body.starts_with(b"PK\x05\x06")
         || body.starts_with(b"PK\x07\x08");
-    let (text, files) = if archive {
+    let (text, mut files) = if archive {
         extract_skill_archive(body).map_err(|message| AdkMutationPortError::Failed {
             status: 400,
             code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
@@ -141,17 +141,16 @@ fn install_skill_document(
         })?;
         (text, vec![("SKILL.md".to_owned(), body.to_vec())])
     };
-    let id = normalize_id(
-        skill_frontmatter(&text, "name")
-            .as_deref()
-            .unwrap_or_else(|| {
-                parsed
-                    .path_segments()
-                    .and_then(|mut segments| segments.next_back())
-                    .unwrap_or("skill")
-                    .trim_end_matches(".md")
-            }),
-    );
+    let text = jftrade_assistant::rewrite_skill_document_source(&text, raw_url)
+        .map_err(|error| skill_install_failed(&error.to_string()))?;
+    let metadata = jftrade_assistant::parse_skill_document(&text)
+        .map_err(|error| skill_install_failed(&error.to_string()))?;
+    let id = normalize_id(&metadata.name);
+    for (name, bytes) in &mut files {
+        if name == "SKILL.md" {
+            *bytes = text.as_bytes().to_vec();
+        }
+    }
     if id.is_empty() {
         return Err(invalid_mutation_input("skill name is required"));
     }
@@ -167,9 +166,6 @@ fn install_skill_document(
             message: "skill is already installed".to_owned(),
         });
     }
-    let mut digest = Sha256::new();
-    digest.update(body);
-    let content_hash = encode_hex(&digest.finalize());
     let skills_root = super::super::skills::skills_root(port);
     fs::create_dir_all(&skills_root).map_err(|error| AdkMutationPortError::Failed {
         status: 500,
@@ -203,21 +199,21 @@ fn install_skill_document(
             message: "skill install path already exists".to_owned(),
         });
     }
-    let install_path = skill_dir.join("SKILL.md");
-    let payload = json!({
-        "id": id,
-        "displayName": skill_frontmatter(&text, "displayName").or_else(|| skill_frontmatter(&text, "name")).unwrap_or_default(),
-        "description": skill_frontmatter(&text, "description").unwrap_or_default(),
-        "source": raw_url,
-        "installPath": install_path.to_string_lossy(),
-        "enabled": true,
-        "builtin": false,
-        "tools": [],
-        "version": skill_frontmatter(&text, "version").unwrap_or_default(),
-        "contentHash": content_hash,
-        "validationStatus": "VALID",
-        "validationError": "",
-    });
+    let payload = match super::super::skills::filesystem_skill(port, &id) {
+        Ok(Some(payload)) => payload,
+        result => {
+            let _ = fs::remove_dir_all(&skill_dir);
+            return Err(AdkMutationPortError::Failed {
+                status: 500,
+                code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
+                message: match result {
+                    Err(error) => error.to_string(),
+                    Ok(None) => "installed skill document is missing".to_owned(),
+                    Ok(Some(_)) => unreachable!(),
+                },
+            });
+        }
+    };
     let stored = match port.store.upsert_skill(&id, &payload.to_string()) {
         Ok(stored) => stored,
         Err(error) => {
@@ -401,6 +397,13 @@ fn extract_skill_archive(body: &[u8]) -> Result<ExtractedSkillArchive, String> {
                 .any(|component| matches!(component, std::path::Component::ParentDir))
         {
             return Err(format!("skill archive contains unsafe path {raw_name:?}"));
+        }
+        // Go ignores a root marker even when ZIP metadata calls it a file.
+        if path
+            .components()
+            .all(|component| matches!(component, std::path::Component::CurDir))
+        {
+            continue;
         }
         if raw_name.split('/').any(|segment| segment == "__MACOSX") {
             continue;
