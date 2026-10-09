@@ -13,6 +13,8 @@ fn skill_install_failed(message: &str) -> AdkMutationPortError {
 
 type SkillAddressResolver = std::sync::Arc<dyn Fn(Url) -> Result<SocketAddr, String> + Send + Sync>;
 
+const SKILL_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(20);
+
 fn install_skill(
     port: &ProductionAdkPort,
     input: &AdkMutationInput,
@@ -53,33 +55,32 @@ fn download_and_install_skill(
     let parsed = Url::parse(raw_url)
         .map_err(|_| skill_install_failed("valid http/https skill URL is required"))?;
     validate_skill_url_shape(&parsed).map_err(|message| skill_install_failed(&message))?;
-    let parsed_for_download = parsed.clone();
-    let bytes = std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|error| error.to_string())?;
-        runtime.block_on(async move {
-            tokio::time::timeout(
-                Duration::from_secs(30),
-                download_skill_bytes(parsed_for_download, resolve),
-            )
-            .await
-            .map_err(|_| "skill download timed out".to_owned())?
+    std::thread::scope(|scope| {
+        scope.spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| skill_install_failed(&error.to_string()))?;
+            runtime.block_on(install_downloaded_skill(port, raw_url, parsed, resolve))
         })
+        .join()
+        .map_err(|_| skill_install_failed("skill download worker panicked"))?
     })
-    .join()
-    .map_err(|_| AdkMutationPortError::Failed {
-        status: 502,
-        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-        message: "skill download worker panicked".to_owned(),
-    })?
-    .map_err(|message| AdkMutationPortError::Failed {
-        status: 502,
-        code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
-        message,
-    })?;
-    let (body, content_type) = bytes;
+}
+
+async fn install_downloaded_skill(
+    port: &ProductionAdkPort,
+    raw_url: &str,
+    parsed: Url,
+    resolve: SkillAddressResolver,
+) -> Result<Value, AdkMutationPortError> {
+    let (body, content_type) = tokio::time::timeout(
+        SKILL_DOWNLOAD_TIMEOUT,
+        download_skill_bytes(parsed.clone(), resolve),
+    )
+    .await
+    .map_err(|_| skill_install_failed("skill download timed out"))?
+    .map_err(|message| skill_install_failed(&message))?;
     install_skill_document(port, raw_url, &parsed, &body, &content_type)
 }
 
@@ -106,13 +107,21 @@ async fn download_skill_bytes(
             .content_length()
             .map_or(4096, |length| length as usize),
     );
-    while let Some(chunk) = response.chunk().await.map_err(|error| error.to_string())? {
+    while let Some(chunk) = response.chunk().await.map_err(skill_download_error)? {
         if body.len().saturating_add(chunk.len()) > MAX_SKILL_ARCHIVE_BYTES {
             return Err("skill file exceeds the maximum allowed size".to_owned());
         }
         body.extend_from_slice(&chunk);
     }
     Ok((body, content_type))
+}
+
+fn skill_download_error(error: reqwest::Error) -> String {
+    if error.is_timeout() {
+        "skill download timed out".to_owned()
+    } else {
+        error.to_string()
+    }
 }
 
 async fn resolve_skill_address(
@@ -141,7 +150,7 @@ async fn download_skill_response(
             .get(parsed.clone())
             .send()
             .await
-            .map_err(|error| error.to_string())?;
+            .map_err(skill_download_error)?;
         validate_skill_url_shape(response.url())?;
         if matches!(response.status().as_u16(), 301 | 302 | 303 | 307 | 308)
             && let Some(location) = response.headers().get(reqwest::header::LOCATION)
@@ -413,7 +422,7 @@ fn build_skill_download_client(
     let _ = rustls::crypto::ring::default_provider().install_default();
     reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
+        .timeout(SKILL_DOWNLOAD_TIMEOUT)
         .no_proxy()
         // The download owner follows redirects only after validating and
         // pinning the address of the next hop.

@@ -70,6 +70,8 @@ Skill URL 下载由原安装 mutation owner 执行；生产入口固定注入安
 重定向每跳重新校验 URL 与地址，并把 HTTP client 固定到该已校验地址，达到第五次
 重定向时报错。最终文档保持原始安装 URL。安装错误统一映射为
 400/ADK_SKILL_INSTALL_FAILED；单文档与 ZIP 的文件大小及安全路径规则继续生效。
+同步 mutation 的线程以有界下载截止时间驱动同一异步下载/安装 owner，20 秒总截止时间
+跨重定向保持；reqwest 的类型化 timeout 保留为下载超时，完整下载成功后才调用安装 writer。
 
 Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
 

@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 Skill 生产下载 20 秒截止时间
+
+- 冻结Go的InstallURL实际构建20秒HTTP client，Rust旧值30秒。同步mutation通过scope/join驱动同一异步下载/安装owner；真实TCP握手后才推进暂停的Tokio时钟。新增测试覆盖卡住的headers、body、12秒后才发出的redirect及19秒成功文档，不使用缩短TTL或真实等待作为行为前提。Tokio仅在engine dev-dependencies开启现有test-util feature，锁文件无变更。
+- [首次编译失败](verification-receipts/adk-skill-deadline-owner-red-2026-10-09.json)exit101/零测试保留，缺少shutdown trait导入；[30秒行为红](verification-receipts/adk-skill-deadline-owner-behavior-red-2026-10-09.json)1 passed/3 failed，SHA `da831259e5b0df9bdb329a8d409ebd24ab7202f49a99f0b2d5e81cf95e01be61`。19秒成功控制通过，三个owner在明确20秒时仍不结束。首次20秒[分类失败](verification-receipts/adk-skill-deadline-owner-green-2026-10-09.json)2 passed/2 failed保留，reqwest headers/body错误丢失可读timeout分类；生产依据is_timeout类型判定映射下载超时，不通过message匹配。
+- [修正分类owner](verification-receipts/adk-skill-deadline-owner-classified-2026-10-09.json)4 passed，[最终定向](verification-receipts/adk-skill-deadline-directed-final-2026-10-09.json)271 passed/0 failed，SHA `7496481803cc87b6d20960a4aecf8b1796451f49ea31b49cb3fcb49f9fab40e4`。19秒仍活动、20秒400/ADK_SKILL_INSTALL_FAILED/skill download timed out，完整rows/audit与skills目录保持；redirect共用总截止时间，成功控制沿同一writer落盘并保存source/tools。六条冻结原函数/blob复核：skill_reg_fs48、skill_reg162/235/286、store_ops184/224；超时属于额外生产行为，分类和reuse保持1674 exact/2140 partial/637 boundary。
+- 查看计划后[quick](gate-runs/adk-skill-deadline-quick-final-2026-10-09.json)2479 Rust/98 Pine/desktop11+48与七类replay通过；[现场完整Rust](gate-runs/adk-skill-deadline-rust-final-2026-10-09.json)4083 passed/0 failed/2 skipped，static/七类replay通过，无LEAK。1061 Rust文件及三份runner源码冻结；五份receipt、两份gate、六条原函数与六处reuse/anchor/raw SHA/diff核验，strict/context/anchor通过，unrecorded/stale0、既有unknown48。
+- 首次mapping工具返回被截断，apply_patch拒绝且未改映射；完整57233-byte patch保存并核对边界后成功应用。最终verifier发现新增测试模块使store_ops184的物理anchor前移3行，原失败日志与首次归档保留；修正行号后再次核验。失败、原文、源码快照与核验脚本最终归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-deadline-20261009-final`，首次归档仍在同名无-final目录。blocking DNS不能由async timeout终止，runtime shutdown可能等待，因此本批不保证整个同步mutation的20秒返回上限；DNS取消/shutdown、typed missing卸载、nil registry/目录复制、HTTPS/YAML/SDK、内置资源及跨系统清理恢复继续开放。整体未完成，下一批推进缺失卸载typed NotFound源错误。
+
 ## 2026-10-09 Skill 真实 URL 下载与逐跳安全验证
 
 - [首次编译失败](verification-receipts/adk-skill-url-owner-red-2026-10-09.json)exit101/零测试与[行为红](verification-receipts/adk-skill-url-owner-behavior-red-2026-10-09.json)2 passed/3 failed均保留。生产下载原先停止302，并分别以409/ADK_SKILL_EXISTS和502返回重复安装及下载错误；冻结Go沿安全重定向下载，安装失败统一400/ADK_SKILL_INSTALL_FAILED。

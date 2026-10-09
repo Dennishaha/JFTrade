@@ -30,6 +30,9 @@ mod uninstall;
 #[path = "product_adk_skill_url_owner_tests.rs"]
 mod download;
 
+#[path = "product_adk_skill_download_deadline_tests.rs"]
+mod deadline;
+
 fn test_port(root: &Path) -> Arc<ProductionAdkPort> {
     let adk_path = root.join("adk.db");
     let session_path = root.join("adk-session.db");

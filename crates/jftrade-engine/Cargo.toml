@@ -54,6 +54,7 @@ zip.workspace = true
 
 [dev-dependencies]
 prost.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
 
 [lints]
 workspace = true

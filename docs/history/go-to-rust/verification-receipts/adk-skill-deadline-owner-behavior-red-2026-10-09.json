@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_download_deadline)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-09T04:02:29Z",
+  "sourceState": {
+    "verifiedCommit": "99d8a9654c007aac584b4105fb575d0892e50f27",
+    "trackedDiffSha256": "7ecbdd16f6498ff35d5681cdd96057f7ab1bf16482ef6c5219157875cc684c7d",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_skill_download_deadline_tests.rs",
+        "sha256": "ff1139147f910003e8dbfec1883010968c34ca4429e681b40d5bb100a95aa5ae"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-deadline-owner-red-2026-10-09.json",
+        "sha256": "6f846e946521900336c37ab54ab11d1501f5111bceb5945daa4ea2d17323c43c"
+      }
+    ]
+  },
+  "rawOutputSha256": "27e494e87d3b3e3d75235a037b5d7f5094bf6ef3843fcf55133ba6de73041db2",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::deadline::production_skill_download_deadline_accepts_a_document_before_twenty_seconds"
+  ],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::deadline::production_skill_download_deadline_covers_stalled_body_at_twenty_seconds",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::deadline::production_skill_download_deadline_covers_stalled_headers_at_twenty_seconds",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::deadline::production_skill_download_deadline_is_shared_across_redirects"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 1,
+      "failed": 3,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2020,
+      "exec_time": 9.348892415,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

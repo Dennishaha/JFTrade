@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_download_deadline)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-09T04:01:47Z",
+  "sourceState": {
+    "verifiedCommit": "99d8a9654c007aac584b4105fb575d0892e50f27",
+    "trackedDiffSha256": "7ecbdd16f6498ff35d5681cdd96057f7ab1bf16482ef6c5219157875cc684c7d",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_skill_download_deadline_tests.rs",
+        "sha256": "5fd99f6b9fa4dc6916635a47e56ed88447b7d596755c678214622ada7352b49e"
+      }
+    ]
+  },
+  "rawOutputSha256": "7bcbd02b6c2843f01f0bada6ac6fa42255c0b3886aca276bd99329570a211a03",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

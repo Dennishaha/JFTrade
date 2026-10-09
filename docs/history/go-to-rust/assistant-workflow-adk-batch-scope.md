@@ -1,5 +1,7 @@
 # Assistant、Workflow、ADK 领域对齐批次
 
+Skill生产下载总截止时间由30秒对齐冻结Go的20秒。真实TCP握手与暂停时钟验证headers/body/跨redirect超时及19秒成功，400分类与完整rows/audit/文件保持；同一异步下载/安装owner由原同步mutation驱动。定向271、quick2479 Rust/98 Pine/desktop11+48及现场完整Rust4083 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。五份receipt、两份gate、1061指纹与六条原函数/reuse/anchor核验，分类1674/2140/637保持；编译、旧30秒、首次timeout分类和工具截断失败留证。blocking DNS shutdown不能保证整个mutation的20秒返回上限，typed missing等缺口保持；整体未完成，继续缺失卸载类型化源错误。详见[积压清单](parity-evidence-backlog.md)。
+
 真实URL下载修复安全302停止与409/502安装错误，原owner逐跳验证地址、固定连接、保留最初source，失败统一400；private/localhost/metadata/FTP在解析/连接前拒绝。六条冻结原函数复核，235/224完整闭合升exact，当前1674/2140/637；162目录/nil、286 typed os.ErrNotExist仍partial。定向267、quick2475 Rust/98 Pine/desktop11+48与现场完整Rust4079 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。五份receipt、两份gate、1060指纹及六处reuse/anchor核验，编译/行为红留证。Go20秒/Rust30秒、DNS取消与跨系统恢复继续开放；整体未完成，继续生产下载默认超时。详见[积压清单](parity-evidence-backlog.md)。
 
 Skill卸载权限失败的真实DELETE从200修复为500，原writer事务回滚记录删除；SQL DELETE拒绝控制保持文件及完整rows/audit，故障移除后均可200重试。九条原函数分类与reuse不变，当前1672/2142/637；新失败控制不用于升级exact。定向261、quick2676 Rust/98 Pine/desktop11+48、现场完整Rust4073 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。三份receipt、两份gate、1059指纹及九条原函数/anchor核验，红测试及脚本失败留证。文件系统部分删除、SQL commit后跨系统恢复仍有缺口；整体未完成，继续真实URL下载、重复安装与重定向owner。详见[积压清单](parity-evidence-backlog.md)。
