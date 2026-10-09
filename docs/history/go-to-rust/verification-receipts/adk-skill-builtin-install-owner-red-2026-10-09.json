@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_url_install_preserves_builtin_ids_against_documents_and_archives)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-09T04:36:53Z",
+  "sourceState": {
+    "verifiedCommit": "8d15ef76727c43a42692c4d1eb5043242fd16f75",
+    "trackedDiffSha256": "dea13a5e6499ab2faf3c1280ffd0d060efedcebee6873e8afecbbcd17dca8851",
+    "untrackedFiles": []
+  },
+  "rawOutputSha256": "2262ec9eb50c14eadd545816f79a7f4677822583a30d13606f682c68ef813c2c",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_preserves_builtin_ids_against_documents_and_archives"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2025,
+      "exec_time": 0.09268525,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -68,6 +68,8 @@ owner 提供。DELETE 执行失败不调用文件清理，文件清理失败回�
 以及文件系统部分删除的恢复需另行处理。
 Skill registry 卸载缺失项保留类型化的文件系统 NotFound 源错误；原 mutation port
 负责将它投影为 500/ADK_SKILL_UNINSTALL_FAILED，错误分类不依赖消息文本。
+原 Skill 安装 owner 在创建临时目录和写入记录前检查已注册内置 ID；catalog 形式的
+内置 Skill 具有与已存在安装目录相同的重复安装保护，外部单文档及 ZIP 不能替换它。
 Skill URL 下载由原安装 mutation owner 执行；生产入口固定注入安全地址解析器。
 重定向每跳重新校验 URL 与地址，并把 HTTP client 固定到该已校验地址，达到第五次
 重定向时报错。最终文档保持原始安装 URL。安装错误统一映射为

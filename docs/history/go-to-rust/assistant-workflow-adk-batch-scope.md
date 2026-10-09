@@ -1,5 +1,7 @@
 # Assistant、Workflow、ADK 领域对齐批次
 
+原安装owner现保留所有catalog内置Skill ID，外部单文档/ZIP下载在文件、SQLite前返回400重复安装并保持目录投影。九条原函数分类仍1675/2139/637；补充builtin collision不升级原函数。定向273、quick2481 Rust/98 Pine/desktop11+48、现场完整Rust4085 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。三份receipt、两份gate、1061指纹与anchor/reuse核验；整体未完成，继续archive边界优先级和资源投影。详见[积压清单](parity-evidence-backlog.md)。
+
 缺失Skill卸载由原registry owner保留typed NotFound源错误，原port继续500/code/message；missing/builtin拒绝保持完整rows/audit/文档bytes。七条原函数复核，skill_reg286整组闭合升exact；fs89旧archive错误归因换为真实下载后file-root拒绝，仍partial。当前1675/2139/637。最终定向272、quick2480 Rust/98 Pine/desktop11+48、现场完整Rust4084 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。五份receipt、三份gate、1061指纹与reuse/anchor复核；DNS、目录/nil、内置资源与跨系统恢复仍开放，整体未完成，继续内置skill ID安装保护。详见[积压清单](parity-evidence-backlog.md)。
 
 Skill生产下载总截止时间由30秒对齐冻结Go的20秒。真实TCP握手与暂停时钟验证headers/body/跨redirect超时及19秒成功，400分类与完整rows/audit/文件保持；同一异步下载/安装owner由原同步mutation驱动。定向271、quick2479 Rust/98 Pine/desktop11+48及现场完整Rust4083 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。五份receipt、两份gate、1061指纹与六条原函数/reuse/anchor核验，分类1674/2140/637保持；编译、旧30秒、首次timeout分类和工具截断失败留证。blocking DNS shutdown不能保证整个mutation的20秒返回上限，typed missing等缺口保持；整体未完成，继续缺失卸载类型化源错误。详见[积压清单](parity-evidence-backlog.md)。

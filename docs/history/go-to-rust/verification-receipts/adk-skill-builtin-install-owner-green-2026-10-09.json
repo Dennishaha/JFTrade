@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_url_install_preserves_builtin_ids_against_documents_and_archives)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T04:37:37Z",
+  "sourceState": {
+    "verifiedCommit": "8d15ef76727c43a42692c4d1eb5043242fd16f75",
+    "trackedDiffSha256": "9f0908a006fe655c1326ca40a15bb5046ae82f93ec439396e6a6b701fcbd2c10",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-builtin-install-owner-red-2026-10-09.json",
+        "sha256": "32f17de9f435cc29a6eada0706027a985c61188d8f5a5b39d5f553e512b12c38"
+      }
+    ]
+  },
+  "rawOutputSha256": "ee7c323669fcaf4fcb5413fb0bcd7bfc823d8e62bce30abc496182c7a22157e7",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_preserves_builtin_ids_against_documents_and_archives"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2025,
+      "exec_time": 0.129776375,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

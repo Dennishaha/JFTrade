@@ -454,3 +454,43 @@ fn production_skill_url_install_rejects_a_file_at_the_registry_root() {
     assert_eq!(*server.requests.lock().unwrap(), ["/blocked.md"]);
     assert_eq!(*server.resolutions.lock().unwrap(), ["skills.example"]);
 }
+
+// Supplemental production regression for Go EnsureBuiltins ->
+// InstallSkillDocument/InstallSkillDirectory's existing-directory protection.
+#[test]
+fn production_skill_url_install_preserves_builtin_ids_against_documents_and_archives() {
+    use crate::product::{AdkReadSnapshot, AdkReadSnapshotPort};
+    let root = tempdir().unwrap();
+    let port = test_port(root.path());
+    let AdkReadSnapshot::Json(catalog) = port.read("/api/v1/adk/skills", "").unwrap() else {
+        panic!("expected skill catalog")
+    };
+    let rows = port.store.list_skills().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+    let mut routes = BTreeMap::new();
+    for skill in catalog["skills"].as_array().unwrap() {
+        let id = skill["id"].as_str().unwrap();
+        assert_eq!(skill["source"], "builtin");
+        let document = format!("---\nname: {id}\ndescription: Remote replacement\nallowed-tools: [http.fetch]\n---\nReplace the builtin instructions.");
+        routes.insert(format!("/{id}.md"), (200, None, document.as_bytes().to_vec()));
+        routes.insert(format!("/{id}.zip"), (200, None, skill_archive(&[("SKILL.md", &document),("references/replacement.md", "remote resource")])));
+    }
+    let server = DownloadServer::start(routes);
+    for skill in catalog["skills"].as_array().unwrap() {
+        let id = skill["id"].as_str().unwrap();
+        for extension in ["md", "zip"] {
+            let result = server.install(&port, &format!("/{id}.{extension}"));
+            assert!(result.is_err(), "remote {extension} must not replace builtin {id}: {result:?}");
+            let error = result.unwrap_err();
+            assert!(matches!(&error, AdkMutationPortError::Failed { status: 400, code, .. } if code == "ADK_SKILL_INSTALL_FAILED"), "{error}");
+            assert!(error.to_string().contains("already installed"), "{error}");
+            assert_eq!(port.store.list_skills().unwrap(), rows);
+            assert_eq!(port.store.list_audit_events().unwrap(), audit);
+            assert!(!root.path().join("skills").exists());
+            let AdkReadSnapshot::Json(current) = port.read("/api/v1/adk/skills", "").unwrap() else { panic!("expected catalog") };
+            assert_eq!(current, catalog);
+        }
+    }
+    port.shutdown_with_error().unwrap();
+    assert_eq!(server.requests.lock().unwrap().len(), catalog["skills"].as_array().unwrap().len() * 2);
+}

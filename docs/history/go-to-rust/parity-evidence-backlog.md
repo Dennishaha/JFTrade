@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 内置 Skill ID 安装保护
+
+- 真实HTTP owner红测试复现远程文档可覆盖 `jftrade-trading` 内置 ID，返回成功并改变 source/tools/说明；[红receipt](verification-receipts/adk-skill-builtin-install-owner-red-2026-10-09.json)0 passed/1 failed，SHA `32f17de9f435cc29a6eada0706027a985c61188d8f5a5b39d5f553e512b12c38`。Go `EnsureBuiltins` 预置目录与 `InstallSkillDocument/InstallSkillDirectory` existing-path 拒绝在 Rust catalog 仅投影场景缺失，修复为原安装owner在临时目录、文件和writer之前保留全部builtin IDs。
+- [owner green](verification-receipts/adk-skill-builtin-install-owner-green-2026-10-09.json)1 passed；新增生产HTTP补充覆盖所有 builtin IDs 的单文档与ZIP下载。每次均400/ADK_SKILL_INSTALL_FAILED/already installed，完整catalog、rows/audit保持且不创建skills目录；共两种入口实际请求与安装失败后无写入。该补充不替代冻结Go原函数断言。
+- 九条冻结Go原函数/blob复核：skill_reg_fs48/89、skill_reg162/235/286、store_ops184/224、store_lifecycle711/735。分类保持1675 exact/2139 partial/637 boundary；builtin collision为单独补充证据，不升级原函数。最终定向[273 passed/0 failed](verification-receipts/adk-skill-builtin-install-directed-final-2026-10-09.json)，SHA `7121df5936c6438585c4ab22bee36c56aa4913cad31dc6a3989e9b44e25263f6`。原红和首次绿色receipt均保留。最终verifier发现711/735旧single关系仍allowed=true，首次失败日志保留；两条纠正allowed=false，引用数与分类不变，重跑strict/context和核验。
+- 查看计划后[quick](gate-runs/adk-skill-builtin-install-quick-final-2026-10-09.json)2481 Rust/98 Pine/desktop11+48及七类replay通过；[现场完整Rust](gate-runs/adk-skill-builtin-install-rust-final-2026-10-09.json)4085 passed/0 failed/2 skipped，static/七类replay通过，无LEAK。1061 Rust文件及三份runner源码冻结；三份receipt、两份gate、九条原函数/reuse/anchor/raw SHA/diff核验，strict/context/anchor通过，unrecorded/stale0、既有unknown48。
+- 原文、红测试、源码快照与核验脚本归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-builtin-install-20261009`。完整内置资源刷新、原生SDK/YAML加载、blocking DNS shutdown/cancel及跨文件系统清理恢复仍开放；整体未完成，下一批继续 archive 边界优先级和资源投影。
+
 ## 2026-10-09 Skill 缺失卸载的类型化源错误
 
 - 冻结Go的Uninstall缺失分支返回os.ErrNotExist；原Rust文本正确但Error::source缺失。[真实registry owner红](verification-receipts/adk-skill-notfound-owner-red-2026-10-09.json)0 passed/1 failed，SHA `baa4f6a062d01b4b919ecc317a972dc1680bf905f42ebbfb38a1dc6c8f1b532b`。原生产卸载owner保留std::io::ErrorKind::NotFound源错误、registry及cleanup错误类型；原mutation wrapper仍映射500/ADK_SKILL_UNINSTALL_FAILED/file does not exist，不新增writer、schema或wire字段。

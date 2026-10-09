@@ -239,6 +239,9 @@ fn install_skill_document(
         .get_skill(&id)
         .map_err(storage_mutation_failed)?
         .is_some()
+        || super::super::builtin_skills(&port.tool_catalog)
+            .iter()
+            .any(|skill| skill.get("id").and_then(Value::as_str) == Some(id.as_str()))
     {
         return Err(AdkMutationPortError::Failed {
             status: 409,

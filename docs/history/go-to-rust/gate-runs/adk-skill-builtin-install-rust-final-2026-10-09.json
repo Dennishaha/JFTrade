@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T06:32:18.862408+00:00",
+  "verifiedCommit": "8d15ef76727c43a42692c4d1eb5043242fd16f75",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-skill-builtin-install-rust-final-20261009.log",
+  "rawOutputSha256": "d04478f83b1269d4757e6fc2cbd9544f675365685a1bc1ee3b73fa4736b30cf9",
+  "nextestSummaries": [
+    {
+      "planned": 4085,
+      "passed": 4085,
+      "failed": 0,
+      "skipped": 2,
+      "testSeconds": 119.764
+    }
+  ],
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "a919a0f34273c96513d91babbd3037f32801b7b8a933afdd5cd0c67a59c58218",
+  "frozenRustFiles": 1061,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "nextest": "0.9.145"
+  },
+  "remainingRisk": "Nine frozen Go original functions reviewed; classifications and reuse stay 1675 exact/2139 partial/637 boundary. The production install owner rejects every builtin catalog id before files/rows are created, matching Go pre-materialized builtin directories and duplicate-path refusal. Real HTTP single-document and ZIP downloads for all builtin ids preserve full catalog, rows/audit and absent install directory; original 0/1 red replacement is retained. New builtin collision test is supplemental. Blocking DNS shutdown/cancel, nil registry/directory-copy, HTTPS/YAML/SDK, builtins bundle/resources and cross-filesystem cleanup recovery remain. Whole parity unfinished.",
+  "static": "passed"
+}
