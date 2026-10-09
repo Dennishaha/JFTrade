@@ -27,6 +27,7 @@ impl SnapshotProvider {
                     }
                     Err(error) => panic!("accept snapshot provider: {error}"),
                 };
+                socket.set_nonblocking(false).unwrap();
                 socket.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
                 socket.set_write_timeout(Some(Duration::from_secs(3))).unwrap();
                 captured.lock().unwrap().push(read_http_json_body(&mut socket));
@@ -65,6 +66,13 @@ fn snapshot_runtime(endpoint: &str, effort: &str, mappings: Value) -> (
     let runtime = ProductionAdkChatRuntime::new(store, sessions, &settings,
         Arc::new(RunCancellationRegistry::default()),
         Arc::new(crate::product::product_production_ports::ProductionToolCatalog::empty_for_test()));
+    // These tests drive the production continuation directly. Join the other
+    // recovery owner before seeding any run, so startup timing cannot claim it.
+    let scanner = runtime.recovery_supervisor.as_ref().unwrap();
+    scanner.shutdown();
+    let health = scanner.health_snapshot();
+    assert_eq!(health.status.as_str(), "shutdown");
+    assert!(!health.running);
     (directory, runtime)
 }
 

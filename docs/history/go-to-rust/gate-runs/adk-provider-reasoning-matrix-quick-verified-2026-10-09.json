@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-08T23:42:55.509532+00:00",
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-quick-verified-20261009.log",
+  "rawOutputSha256": "ef2b3b6c351c9eb7e82f232b997df0bad9729e1073017844dee18828d2a05f6e",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.143"
+  },
+  "nextestSummary": {
+    "planned": 2451,
+    "passed": 2451,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 114.063
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_reasoning_resume_owner_tests.rs": "66fcc827ec21429a0f717c1d5dfbfa672526071f4ad3a61d79c5140bbd4be22a",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "c9d73c6e7d68b17a661210c861aee76b1941e8ef4cf117a6cfbcd5347c7b6c4c",
+    "crates/jftrade-engine/src/product_adk_provider_reasoning_matrix_owner_tests.rs": "b5fb4cc0b9f4955ff8ad074edb10fd6f68eaee6c30ac8bb6f486cf5aabff22c3"
+  },
+  "rustSourceFingerprintSha256": "7cf99b2699273c0bf8ffc674c78bce35809826af785cae825c12fb23786843f8",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Two real HTTP/resolver owner tests close the six invalid configurations and valid/shared/unmapped/invalid effort matrix from frozen config27. Six original functions reviewed. Config27 partial→exact only after complete assertions;1667 exact/2147 partial/637 boundary. Production logic already matches these assertions. Workflow reasoning snapshot propagation, whole chat projection, HTTP idle shutdown and all other registered gaps remain unfinished.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopNodeChecks": "not scheduled by quick planner"
+}

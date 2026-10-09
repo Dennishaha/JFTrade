@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "verifiedAt": "2026-10-08T23:53:46.175842+00:00",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-quick-runner-final-20261009.log",
+  "rawOutputSha256": "78201e07fcfe207af68686713ee888c68bf496bcd7c6889a5c8787437a9f14c0",
+  "failure": "snapshot mock provider accepted socket was still nonblocking; immediate read returned WouldBlock, provider thread panicked and production continuation stored MODEL_CALL_FAILED. Switch only accepted socket to blocking I/O while retaining the original read/write timeout and all behavior assertions.",
+  "nextestSummary": {
+    "planned": 4051,
+    "run": 485,
+    "passed": 484,
+    "failed": 1,
+    "skipped": 2,
+    "notRunAfterFailure": 3566
+  },
+  "failedTests": [
+    "production_reasoning_resume_uses_saved_wire_mapping_after_provider_config_drift"
+  ],
+  "webTests": {
+    "passed": 2435
+  },
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "pythonTests": {
+    "passed": 337
+  },
+  "compatibilityReplays": "not run after workspace failure",
+  "rustSourceFingerprintSha256": "7cf99b2699273c0bf8ffc674c78bce35809826af785cae825c12fb23786843f8",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": []
+}

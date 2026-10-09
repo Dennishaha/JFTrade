@@ -4,14 +4,14 @@ import test from "node:test";
 import { nextestVersion, normalizePnpmArguments, releaseFor, sha256 } from "./cargo-nextest.mjs";
 
 test("pins checksum-verified nextest archives for supported product hosts", () => {
-  assert.equal(nextestVersion, "0.9.143");
+  assert.equal(nextestVersion, "0.9.145");
   const expected = new Map([
-    ["darwin-arm64", ["universal-apple-darwin", "4830d430411148d17602a75cc880bfb4dc8dac153dea59a48a2ef4cc93577f07"]],
-    ["darwin-x64", ["universal-apple-darwin", "4830d430411148d17602a75cc880bfb4dc8dac153dea59a48a2ef4cc93577f07"]],
-    ["linux-arm64", ["aarch64-unknown-linux-gnu", "2a64b3566a92508550a7ab29c3e8db25472ca37730ecb4d22100b6aa440c2a68"]],
-    ["linux-x64", ["x86_64-unknown-linux-gnu", "66786b9abe23920d022a182d1416b1bbc8130dd4872a9553d76985a1708dcd1e"]],
-    ["win32-arm64", ["aarch64-pc-windows-msvc", "c89ca8168a6cb1aff6e38b3551bedc9b924477aa983d947b99038c5bed6438ba"]],
-    ["win32-x64", ["x86_64-pc-windows-msvc", "c42a1dbde532da06dc9b4a43d44fd0ce668b836c2ab7388410f10ff9834476a2"]],
+    ["darwin-arm64", ["universal-apple-darwin", "52ecaedb4f5af9267ef7ed02bc937d2a15a94ff96cb663080e81311f798c9905"]],
+    ["darwin-x64", ["universal-apple-darwin", "52ecaedb4f5af9267ef7ed02bc937d2a15a94ff96cb663080e81311f798c9905"]],
+    ["linux-arm64", ["aarch64-unknown-linux-gnu", "0ad2815fd91a7ecec3a7e25c749b584f66729ac688fd26b2fd494f7ff94b7fd0"]],
+    ["linux-x64", ["x86_64-unknown-linux-gnu", "32aa82416099eb12fffae9cf1a279ad201fecbd3f74826c613e32e9006b29867"]],
+    ["win32-arm64", ["aarch64-pc-windows-msvc", "29614accc4b232b0fabdda1805d449bae3130a8de6cb343a5b2584e0e886cf0a"]],
+    ["win32-x64", ["x86_64-pc-windows-msvc", "bfecd545af057adb83be7ddfe135fd067fb9c990544da1ea111e675f45d628a9"]],
   ]);
   for (const [host, [target, digest]] of expected) {
     const [platform, arch] = host.split("-");

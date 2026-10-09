@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-08T23:46:31.119123+00:00",
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-rust-verified-20261009.log",
+  "rawOutputSha256": "e7795b8b2c86c21d2a45e112244f052d75fdb0f5a054064f566ecfb532581d9f",
+  "failure": "cargo deny advisory database fetch failed with curl 16 Error in the HTTP2 framing layer; retain online advisory policy and retry using Git HTTP/1.1 transport",
+  "static": "failed at advisory database fetch after fmt/clippy/architecture/production policy passed",
+  "workspaceTests": "not run",
+  "compatibilityReplays": "not run",
+  "rustSourceFingerprintSha256": "7cf99b2699273c0bf8ffc674c78bce35809826af785cae825c12fb23786843f8",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": []
+}

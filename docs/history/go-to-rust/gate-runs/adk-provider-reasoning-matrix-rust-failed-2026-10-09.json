@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 100,
+  "verifiedAt": "2026-10-08T23:37:03.030725+00:00",
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-rust-20261009.log",
+  "rawOutputSha256": "48954b607590142fd56107a5a5fa6e1772a713d33acf2286501dd1a33352b25a",
+  "nextestSummary": {
+    "planned": 4051,
+    "run": 449,
+    "passed": 448,
+    "failed": 1,
+    "skipped": 2,
+    "notRunAfterFailure": 3602
+  },
+  "failedTests": [
+    "production_reasoning_resume_uses_saved_wire_mapping_after_provider_config_drift"
+  ],
+  "failure": "Direct resume raced the already-started durable recovery scanner and returned Conflict(assistant continuation is already running). The test needs one explicit owner before seeding its run; do not accept the conflict or relax wire/terminal/once-only assertions.",
+  "static": "passed",
+  "compatibilityReplays": "not run after workspace test failure",
+  "rustSourceFingerprintSha256": "01a1c7d1396595bceb1dbaf4e57161bcfa600e3a40eb152338047963d6d7dfa8",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": []
+}

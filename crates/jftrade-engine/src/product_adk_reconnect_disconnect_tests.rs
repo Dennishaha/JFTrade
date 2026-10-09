@@ -31,6 +31,9 @@ mod sync_responses;
 #[path = "product_adk_private_reasoning_owner_tests.rs"]
 mod private_reasoning;
 
+#[path = "product_adk_provider_reasoning_matrix_owner_tests.rs"]
+mod provider_reasoning_matrix;
+
 // Inject only the socket failure. Routes, cursor projection, body polling and
 // connection cleanup all run through the prepared production router/Hyper.
 struct FailingListener {

@@ -1,0 +1,51 @@
+{
+  "release": "cargo-nextest-0.9.145",
+  "metadataSha256": "44144442d4fc37b9bda57c57bee4b44f4e304c438e123c63f176de93e48713b0",
+  "archives": [
+    {
+      "target": "universal-apple-darwin",
+      "file": ".git/nextest-0.9.145-release-archives/cargo-nextest-0.9.145-universal-apple-darwin.tar.gz",
+      "sha256": "52ecaedb4f5af9267ef7ed02bc937d2a15a94ff96cb663080e81311f798c9905",
+      "bytes": 16786077,
+      "url": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.145/cargo-nextest-0.9.145-universal-apple-darwin.tar.gz"
+    },
+    {
+      "target": "aarch64-unknown-linux-gnu",
+      "file": ".git/nextest-0.9.145-release-archives/cargo-nextest-0.9.145-aarch64-unknown-linux-gnu.tar.gz",
+      "sha256": "0ad2815fd91a7ecec3a7e25c749b584f66729ac688fd26b2fd494f7ff94b7fd0",
+      "bytes": 11399480,
+      "url": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.145/cargo-nextest-0.9.145-aarch64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "file": ".git/nextest-0.9.145-release-archives/cargo-nextest-0.9.145-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "32aa82416099eb12fffae9cf1a279ad201fecbd3f74826c613e32e9006b29867",
+      "bytes": 12050698,
+      "url": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.145/cargo-nextest-0.9.145-x86_64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "target": "aarch64-pc-windows-msvc",
+      "file": ".git/nextest-0.9.145-release-archives/cargo-nextest-0.9.145-aarch64-pc-windows-msvc.tar.gz",
+      "sha256": "29614accc4b232b0fabdda1805d449bae3130a8de6cb343a5b2584e0e886cf0a",
+      "bytes": 7527298,
+      "url": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.145/cargo-nextest-0.9.145-aarch64-pc-windows-msvc.tar.gz"
+    },
+    {
+      "target": "x86_64-pc-windows-msvc",
+      "file": ".git/nextest-0.9.145-release-archives/cargo-nextest-0.9.145-x86_64-pc-windows-msvc.tar.gz",
+      "sha256": "bfecd545af057adb83be7ddfe135fd067fb9c990544da1ea111e675f45d628a9",
+      "bytes": 7927953,
+      "url": "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.145/cargo-nextest-0.9.145-x86_64-pc-windows-msvc.tar.gz"
+    }
+  ],
+  "schemaVersion": "jftrade.tool-bootstrap-verification.v1",
+  "verifiedAt": "2026-10-08T23:51:44.016079+00:00",
+  "metadataUrl": "https://api.github.com/repos/nextest-rs/nextest/releases/tags/cargo-nextest-0.9.145",
+  "upstreamFix": "https://nexte.st/changelog/#0-9-145-2026-09-16",
+  "installedHost": "darwin-arm64",
+  "installedVersion": "cargo-nextest 0.9.145 (00af4550e 2026-09-16)\nrelease: 0.9.145\ncommit-hash: 00af4550ec3b3b9f0e574b897b06acb95d325ba2\ncommit-date: 2026-09-16\nhost: aarch64-apple-darwin",
+  "installedBinarySha256": "84882f70f095269a4d89ac2255c4fe7490545d0adf42d8556905401ed4236b33",
+  "executionScope": "Only darwin-arm64 was executed; all five release archives for six supported hosts were downloaded and matched official GitHub asset SHA-256.",
+  "runnerSourceSha256": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+  "remainingRisk": "Historical LEAK process attribution remains an inference; original quality failures retained. No assertion, timeout, filter or leak classification was weakened."
+}

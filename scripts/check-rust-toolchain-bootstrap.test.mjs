@@ -235,7 +235,7 @@ test("local and CI nextest entrypoints preserve all-target coverage", async () =
     packageJson.scripts["test:rust:archive-shard"],
     "node scripts/quality/cargo-nextest.mjs run",
   );
-  assert.match(wrapper, /nextestVersion = "0\.9\.143"/);
+  assert.match(wrapper, /nextestVersion = "0\.9\.145"/);
   assert.match(wrapper, /archive checksum mismatch/);
   assert.doesNotMatch(JSON.stringify(packageJson.scripts), /run-rust-engine-unit-shard/);
 });

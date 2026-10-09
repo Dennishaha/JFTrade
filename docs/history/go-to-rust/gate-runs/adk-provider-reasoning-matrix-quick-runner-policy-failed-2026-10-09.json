@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "verifiedAt": "2026-10-08T23:50:44.190396+00:00",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-quick-runner-fixed-20261009.log",
+  "rawOutputSha256": "0b4a79bab92dc979f454fa539f30ac3b3cb36576b71115d60593ce052d41de99",
+  "failure": "bootstrap policy regression test still asserted old pinned version 0.9.143; update the exact assertion to reviewed 0.9.145, preserve all-target/archive coverage checks",
+  "policyTests": {
+    "planned": 125,
+    "passed": 124,
+    "failed": 1
+  },
+  "contracts": "passed",
+  "workspaceTests": "not run",
+  "compatibilityReplays": "not run",
+  "rustSourceFingerprintSha256": "7cf99b2699273c0bf8ffc674c78bce35809826af785cae825c12fb23786843f8",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": []
+}

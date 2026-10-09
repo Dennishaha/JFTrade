@@ -8,33 +8,33 @@ import { fileURLToPath } from "node:url";
 
 import { rustCompileEnvironment } from "../lib/tauri-runtime.mjs";
 
-export const nextestVersion = "0.9.143";
+export const nextestVersion = "0.9.145";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const releases = Object.freeze({
   "darwin-arm64": Object.freeze({
     target: "universal-apple-darwin",
-    sha256: "4830d430411148d17602a75cc880bfb4dc8dac153dea59a48a2ef4cc93577f07",
+    sha256: "52ecaedb4f5af9267ef7ed02bc937d2a15a94ff96cb663080e81311f798c9905",
   }),
   "darwin-x64": Object.freeze({
     target: "universal-apple-darwin",
-    sha256: "4830d430411148d17602a75cc880bfb4dc8dac153dea59a48a2ef4cc93577f07",
+    sha256: "52ecaedb4f5af9267ef7ed02bc937d2a15a94ff96cb663080e81311f798c9905",
   }),
   "linux-arm64": Object.freeze({
     target: "aarch64-unknown-linux-gnu",
-    sha256: "2a64b3566a92508550a7ab29c3e8db25472ca37730ecb4d22100b6aa440c2a68",
+    sha256: "0ad2815fd91a7ecec3a7e25c749b584f66729ac688fd26b2fd494f7ff94b7fd0",
   }),
   "linux-x64": Object.freeze({
     target: "x86_64-unknown-linux-gnu",
-    sha256: "66786b9abe23920d022a182d1416b1bbc8130dd4872a9553d76985a1708dcd1e",
+    sha256: "32aa82416099eb12fffae9cf1a279ad201fecbd3f74826c613e32e9006b29867",
   }),
   "win32-arm64": Object.freeze({
     target: "aarch64-pc-windows-msvc",
-    sha256: "c89ca8168a6cb1aff6e38b3551bedc9b924477aa983d947b99038c5bed6438ba",
+    sha256: "29614accc4b232b0fabdda1805d449bae3130a8de6cb343a5b2584e0e886cf0a",
   }),
   "win32-x64": Object.freeze({
     target: "x86_64-pc-windows-msvc",
-    sha256: "c42a1dbde532da06dc9b4a43d44fd0ce668b836c2ab7388410f10ff9834476a2",
+    sha256: "bfecd545af057adb83be7ddfe135fd067fb9c990544da1ea111e675f45d628a9",
   }),
 });
 

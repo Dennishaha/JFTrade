@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "failed",
+  "exitCode": 0,
+  "qualityFailure": "4051 passed but nextest reported one LEAK; not a clean quality gate",
+  "verifiedAt": "2026-10-08T23:48:53.024289+00:00",
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-rust-http1-20261009.log",
+  "rawOutputSha256": "2874c9f29835684c51266c85faf70b2b10edc3ef14ae0be98a85e79e5ae7e270",
+  "nextestSummary": {
+    "planned": 4051,
+    "passed": 4051,
+    "failed": 0,
+    "skipped": 2,
+    "leaky": 1
+  },
+  "leakyTests": [
+    "mcp_tools_list_exposes_only_reviewed_read_tools"
+  ],
+  "static": "passed",
+  "compatibilityReplays": "all seven passed",
+  "rustSourceFingerprintSha256": "7cf99b2699273c0bf8ffc674c78bce35809826af785cae825c12fb23786843f8",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": []
+}

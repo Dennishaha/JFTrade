@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:rust"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T00:00:03.362741+00:00",
+  "verifiedCommit": "9b0682ef67d7acd065286052b01ca24c4d1a72f9",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-provider-reasoning-matrix-rust-provider-fixed-20261009.log",
+  "rawOutputSha256": "334845eeb2aa20c01a54df8e6dc22d1fd683e89211efa86693802beb5010c4fe",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.145",
+    "gitHttpVersion": "HTTP/1.1"
+  },
+  "nextestSummary": {
+    "planned": 4051,
+    "passed": 4051,
+    "failed": 0,
+    "skipped": 2,
+    "testSeconds": 114.789
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_reasoning_resume_owner_tests.rs": "3bd3d22487c0d982c8a31ae2bd05e35eda07792034329aa518e0b35e67524288",
+    "crates/jftrade-engine/src/product_adk_reconnect_disconnect_tests.rs": "c9d73c6e7d68b17a661210c861aee76b1941e8ef4cf117a6cfbcd5347c7b6c4c",
+    "crates/jftrade-engine/src/product_adk_provider_reasoning_matrix_owner_tests.rs": "b5fb4cc0b9f4955ff8ad074edb10fd6f68eaee6c30ac8bb6f486cf5aabff22c3"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "4016ebc88c1fbc4e0714c369a961ae4cc3769e0cd822fd90ad587fbace6ee104",
+  "frozenRustFiles": 1044,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Seven frozen Go functions reviewed. HTTP/resolver matrix closes config27; reasoning10/23 refresh receipt and moved Rust anchor only, workflow branch remains partial. Resume fixture joins startup scanner before seeding and explicitly makes accepted mock sockets blocking with original timeouts. Nextest 0.9.145 pin/checksums synchronized locally and in CI; historical LEAK attribution remains an inference, original failures retained. 1667 exact/2147 partial/637 boundary; whole parity unfinished.",
+  "static": "passed"
+}
