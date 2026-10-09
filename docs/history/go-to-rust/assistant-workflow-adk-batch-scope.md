@@ -1,5 +1,17 @@
 # Assistant、Workflow、ADK 领域对齐批次
 
+本批复核冻结 `internal/assistant/engine/skill_reg_test.go:115`。
+真实 URL 下载 owner 新增缺失 `SKILL.md`、多根歧义、损坏 ZIP、超过 4 MiB
+archive 与超过 512 KiB 文档的逐项失败断言，并保持 rows/audit/skills 目录零写入。
+下载层读取 4 MiB+1 后交给 archive/document owner，恢复 Go 的 archive/document
+错误分类；定向 nextest 4/4 passed，receipt
+`sha256:6cfb60ffb253cdc5c9eb55994bbde17be1bc1f634239e7f048cc5cb25a8112cf`。
+映射由 partial 升 `function_exact`，当前 **1676 exact / 2138 partial / 637 boundary**；
+reuse 保持单引用 `allowed=false`，source/diff/anchor 现场复核通过。quick 门禁已通过；
+两次现场 `CARGO_INCREMENTAL=0 pnpm run check:rust` 均仅在 `cargo deny` 拉取
+RustSec advisory DB 时因 GitHub 网络不可达退出，失败证据保留。整体未完成，继续 ADK
+重连写失败、预取消和断连终态 owner 对齐。
+
 原安装owner现保留所有catalog内置Skill ID，外部单文档/ZIP下载在文件、SQLite前返回400重复安装并保持目录投影。九条原函数分类仍1675/2139/637；补充builtin collision不升级原函数。定向273、quick2481 Rust/98 Pine/desktop11+48、现场完整Rust4085 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。三份receipt、两份gate、1061指纹与anchor/reuse核验；整体未完成，继续archive边界优先级和资源投影。详见[积压清单](parity-evidence-backlog.md)。
 
 缺失Skill卸载由原registry owner保留typed NotFound源错误，原port继续500/code/message；missing/builtin拒绝保持完整rows/audit/文档bytes。七条原函数复核，skill_reg286整组闭合升exact；fs89旧archive错误归因换为真实下载后file-root拒绝，仍partial。当前1675/2139/637。最终定向272、quick2480 Rust/98 Pine/desktop11+48、现场完整Rust4084 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。五份receipt、三份gate、1061指纹与reuse/anchor复核；DNS、目录/nil、内置资源与跨系统恢复仍开放，整体未完成，继续内置skill ID安装保护。详见[积压清单](parity-evidence-backlog.md)。
