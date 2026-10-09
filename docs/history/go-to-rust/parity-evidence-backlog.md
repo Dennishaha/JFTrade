@@ -1,5 +1,14 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 Skill 真实 URL 下载与逐跳安全验证
+
+- [首次编译失败](verification-receipts/adk-skill-url-owner-red-2026-10-09.json)exit101/零测试与[行为红](verification-receipts/adk-skill-url-owner-behavior-red-2026-10-09.json)2 passed/3 failed均保留。生产下载原先停止302，并分别以409/ADK_SKILL_EXISTS和502返回重复安装及下载错误；冻结Go沿安全重定向下载，安装失败统一400/ADK_SKILL_INSTALL_FAILED。
+- 原mutation owner逐跳校验URL形状、目标地址及五跳上限，以校验后的地址固定真实reqwest连接，relative Location保持最初source。生产入口固定使用安全resolver，fixture仅替代解析结果到本地HTTP服务器；private/localhost/metadata/FTP目标在解析和连接前拒绝。单文档、NeoData、ZIP资源、600KiB archive窗口、超大markdown与卸载保护沿原安装/删除writer验证，完整rows/audit/文件和请求/解析轨迹均断言。
+- [owner green](verification-receipts/adk-skill-url-owner-green-2026-10-09.json)5 passed、[首次定向](verification-receipts/adk-skill-url-directed-final-2026-10-09.json)266 passed；增加private-target控制后的[最终定向](verification-receipts/adk-skill-url-directed-secure-2026-10-09.json)267 passed/0 failed，SHA `bf441f21c43331612748260da937a52409f32b360b801bf4e454c4e3db5d4aaf`。六条冻结原函数/blob复核：skill_reg_fs48、skill_reg162/235/286、store_ops184/224。235与224完整闭合升exact，当前1674 exact/2140 partial/637 boundary；162保留nil registry和目录复制等分支，286保留typed os.ErrNotExist源错误，不能由相同message推断闭合。
+- 四条新reuse均单引用allowed=false/single；删除两条无引用旧关系，旧document共享4→2仍不允许exact复用，旧archive共享2→1保持原exact184及single权限。五份receipt、两份gate、六条原函数与六处reuse/anchor/raw SHA/diff核验；strict/context/anchor通过，unrecorded/stale0、既有unknown48。
+- 查看计划后[quick](gate-runs/adk-skill-url-quick-final-2026-10-09.json)2475 Rust/98 Pine/desktop11+48及七类replay通过；[现场完整Rust](gate-runs/adk-skill-url-rust-final-2026-10-09.json)4079 passed/0 failed/2 skipped，static/七类replay通过，无LEAK。1060 Rust文件与三份runner源码冻结。失败、原文、源码快照及脚本归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-url-20261009`。
+- Go默认20秒与Rust30秒下载、blocking DNS取消/shutdown、完整HTTPS/YAML/SDK、内置资源/刷新及跨文件系统清理恢复继续开放。整体未完成，下一批直接验证生产下载owner的20秒默认超时及零写入行为。
+
 ## 2026-10-09 Skill 卸载失败与原 writer 事务回滚
 
 - 真实 DELETE 在目录内文件无删除权限时仍返回200，SQLite行已删除；[红receipt](verification-receipts/adk-skill-uninstall-owner-red-2026-10-09.json)1 passed/1 failed，SHA `34a8ae1b9a4afb781743ec5e2bf4589decb25a6347640023aeda3e6aa6772ccc`。SQL DELETE trigger拒绝控制同轮通过，完整rows/audit与文件bytes保持，排除修复时把文件删除提前到SQL执行之前。

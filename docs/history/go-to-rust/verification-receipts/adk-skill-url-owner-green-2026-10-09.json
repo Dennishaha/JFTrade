@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_url_install)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T03:40:05Z",
+  "sourceState": {
+    "verifiedCommit": "215f1e49c43dac0f3e1cf44226cb32b1d0fa2fb3",
+    "trackedDiffSha256": "a7dc0848b527133ac15ba9e48b8ca4730ba6b896d5f6a44216d04a467208695e",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_skill_url_owner_tests.rs",
+        "sha256": "7469603d1e44a8124915ed906c77bbd3b8228931dcb0cc3a1b4385bb4abac122"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-url-owner-behavior-red-2026-10-09.json",
+        "sha256": "02f4d9aeff35619bc33d8196d20a424eebe90477dc62261883497e385f791d3d"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-url-owner-red-2026-10-09.json",
+        "sha256": "a2090e4a721eea1bad80697f356cb13bfedea3d45eb93e8a911016a651468a73"
+      }
+    ]
+  },
+  "rawOutputSha256": "2734d96bd0e9c27afdc430e158cc2520757db77d91b3a164b3ea5b09e9afda97",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_downloads_neodata_and_gets_registered_metadata",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_downloads_plain_document_rejects_duplicates_and_blocks_unsafe_redirects",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_follows_a_validated_relative_redirect_and_keeps_the_original_source",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_preserves_archive_size_windows_resources_and_uninstall_protections",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_rejects_http_404_and_redirect_loops_without_writes"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 5,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2014,
+      "exec_time": 0.553409582,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

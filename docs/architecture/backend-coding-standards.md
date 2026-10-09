@@ -66,6 +66,10 @@ Skill 卸载的 SQLite DELETE 由原 writer 在事务中执行，文件清理由
 owner 提供。DELETE 执行失败不调用文件清理，文件清理失败回滚记录删除；callback
 持有 store 连接期间不能重入同一 store。跨 SQLite commit 与文件系统的整体原子性
 以及文件系统部分删除的恢复需另行处理。
+Skill URL 下载由原安装 mutation owner 执行；生产入口固定注入安全地址解析器。
+重定向每跳重新校验 URL 与地址，并把 HTTP client 固定到该已校验地址，达到第五次
+重定向时报错。最终文档保持原始安装 URL。安装错误统一映射为
+400/ADK_SKILL_INSTALL_FAILED；单文档与 ZIP 的文件大小及安全路径规则继续生效。
 
 Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
 

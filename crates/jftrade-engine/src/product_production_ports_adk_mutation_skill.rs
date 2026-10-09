@@ -11,13 +11,37 @@ fn skill_install_failed(message: &str) -> AdkMutationPortError {
     }
 }
 
+type SkillAddressResolver = std::sync::Arc<dyn Fn(Url) -> Result<SocketAddr, String> + Send + Sync>;
+
 fn install_skill(
     port: &ProductionAdkPort,
     input: &AdkMutationInput,
 ) -> Result<Value, AdkMutationPortError> {
-    // Go maps every `InstallSkill` failure to `400 ADK_SKILL_INSTALL_FAILED`
-    // with the registry message, so the skill transport owns this code rather
-    // than the generic `ADK_INVALID_REQUEST` mutation failure.
+    install_skill_with_resolver(
+        port,
+        input,
+        std::sync::Arc::new(|url| validate_skill_url_network(&url)),
+    )
+}
+
+fn install_skill_with_resolver(
+    port: &ProductionAdkPort,
+    input: &AdkMutationInput,
+    resolve: SkillAddressResolver,
+) -> Result<Value, AdkMutationPortError> {
+    download_and_install_skill(port, input, resolve).map_err(|error| match error {
+        AdkMutationPortError::Failed { message, .. } => skill_install_failed(&message),
+        error => skill_install_failed(&error.to_string()),
+    })
+}
+
+fn download_and_install_skill(
+    port: &ProductionAdkPort,
+    input: &AdkMutationInput,
+    resolve: SkillAddressResolver,
+) -> Result<Value, AdkMutationPortError> {
+    // The production entry always supplies the network safety validator.
+    // Tests supply a pinned fixture address through this same owner.
     let raw_url = input
         .body
         .get("url")
@@ -29,8 +53,6 @@ fn install_skill(
     let parsed = Url::parse(raw_url)
         .map_err(|_| skill_install_failed("valid http/https skill URL is required"))?;
     validate_skill_url_shape(&parsed).map_err(|message| skill_install_failed(&message))?;
-    let url = raw_url.to_owned();
-    const MAX_SKILL_ARCHIVE_BYTES: usize = 4 << 20;
     let parsed_for_download = parsed.clone();
     let bytes = std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -38,54 +60,12 @@ fn install_skill(
             .build()
             .map_err(|error| error.to_string())?;
         runtime.block_on(async move {
-            // Pin the HTTP client to the address checked below. Without this
-            // resolver override a DNS answer can change between validation
-            // and reqwest's connection (classic DNS-rebinding TOCTOU).
-            let validated_address = tokio::time::timeout(
-                Duration::from_secs(5),
-                tokio::task::spawn_blocking(move || {
-                    validate_skill_url_network(&parsed_for_download)
-                }),
+            tokio::time::timeout(
+                Duration::from_secs(30),
+                download_skill_bytes(parsed_for_download, resolve),
             )
             .await
-            .map_err(|_| "skill URL validation timed out".to_owned())?
-            .map_err(|error| error.to_string())?;
-            let validated_address = validated_address?;
-            let client = build_skill_download_client(&url, validated_address)?;
-            let mut response = client
-                .get(url.clone())
-                .send()
-                .await
-                .map_err(|error| error.to_string())?;
-            validate_skill_url_shape(response.url())?;
-            if !response.status().is_success() {
-                return Err(format!("skill download returned {}", response.status()));
-            }
-            let content_type = response
-                .headers()
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .unwrap_or_default()
-                .to_owned();
-            let max_bytes = MAX_SKILL_ARCHIVE_BYTES;
-            if response
-                .content_length()
-                .is_some_and(|length| length > max_bytes as u64)
-            {
-                return Err("skill file exceeds 4 MiB".to_owned());
-            }
-            let mut body = Vec::with_capacity(
-                response
-                    .content_length()
-                    .map_or(4096, |length| length as usize),
-            );
-            while let Some(chunk) = response.chunk().await.map_err(|error| error.to_string())? {
-                if body.len().saturating_add(chunk.len()) > max_bytes {
-                    return Err("skill file exceeds the maximum allowed size".to_owned());
-                }
-                body.extend_from_slice(&chunk);
-            }
-            Ok((body, content_type))
+            .map_err(|_| "skill download timed out".to_owned())?
         })
     })
     .join()
@@ -101,6 +81,96 @@ fn install_skill(
     })?;
     let (body, content_type) = bytes;
     install_skill_document(port, raw_url, &parsed, &body, &content_type)
+}
+
+async fn download_skill_bytes(
+    parsed: Url,
+    resolve: SkillAddressResolver,
+) -> Result<(Vec<u8>, String), String> {
+    const MAX_SKILL_ARCHIVE_BYTES: usize = 4 << 20;
+    let mut response = download_skill_response(parsed, resolve).await?;
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_owned();
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_SKILL_ARCHIVE_BYTES as u64)
+    {
+        return Err("skill file exceeds 4 MiB".to_owned());
+    }
+    let mut body = Vec::with_capacity(
+        response
+            .content_length()
+            .map_or(4096, |length| length as usize),
+    );
+    while let Some(chunk) = response.chunk().await.map_err(|error| error.to_string())? {
+        if body.len().saturating_add(chunk.len()) > MAX_SKILL_ARCHIVE_BYTES {
+            return Err("skill file exceeds the maximum allowed size".to_owned());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok((body, content_type))
+}
+
+async fn resolve_skill_address(
+    parsed: Url,
+    resolve: SkillAddressResolver,
+) -> Result<SocketAddr, String> {
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        tokio::task::spawn_blocking(move || resolve(parsed)),
+    )
+    .await
+    .map_err(|_| "skill URL validation timed out".to_owned())?
+    .map_err(|error| error.to_string())?
+}
+
+async fn download_skill_response(
+    mut parsed: Url,
+    resolve: SkillAddressResolver,
+) -> Result<reqwest::Response, String> {
+    let mut address = resolve_skill_address(parsed.clone(), resolve.clone()).await?;
+    let mut redirects = 0;
+    loop {
+        // Each hop uses exactly the address its validator checked.
+        let client = build_skill_download_client(parsed.as_str(), address)?;
+        let response = client
+            .get(parsed.clone())
+            .send()
+            .await
+            .map_err(|error| error.to_string())?;
+        validate_skill_url_shape(response.url())?;
+        if matches!(response.status().as_u16(), 301 | 302 | 303 | 307 | 308)
+            && let Some(location) = response.headers().get(reqwest::header::LOCATION)
+        {
+            let location = location.to_str().map_err(|error| error.to_string())?;
+            let next = parsed.join(location).map_err(|error| error.to_string())?;
+            let unsafe_redirect = |error: String| {
+                format!(
+                    "redirect to unsafe host {:?} blocked: {error}",
+                    next.host_str().unwrap_or_default()
+                )
+            };
+            validate_skill_url_shape(&next).map_err(unsafe_redirect)?;
+            let next_address = resolve_skill_address(next.clone(), resolve.clone())
+                .await
+                .map_err(unsafe_redirect)?;
+            redirects += 1;
+            if redirects >= 5 {
+                return Err("too many redirects (max 5)".to_owned());
+            }
+            parsed = next;
+            address = next_address;
+            continue;
+        }
+        if !response.status().is_success() {
+            return Err(format!("skill URL returned {}", response.status().as_u16()));
+        }
+        return Ok(response);
+    }
 }
 
 /// Persist a downloaded skill document or archive.
@@ -345,8 +415,8 @@ fn build_skill_download_client(
         .connect_timeout(Duration::from_secs(10))
         .timeout(Duration::from_secs(30))
         .no_proxy()
-        // Redirects are denied so a later hop cannot bypass the initial
-        // private-address and DNS safety checks.
+        // The download owner follows redirects only after validating and
+        // pinning the address of the next hop.
         .redirect(reqwest::redirect::Policy::custom(|attempt| attempt.stop()))
         .resolve(&parsed_for_download_host(raw_url)?, validated_address)
         .build()
