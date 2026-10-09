@@ -208,3 +208,6 @@ fn production_workflow_legacy_checkpoint_keeps_explicit_session_identity_after_p
 
 #[path = "product_adk_workflow_pending_reasoning_owner_tests.rs"]
 mod pending_reasoning;
+
+#[path = "product_adk_request_user_chat_owner_tests.rs"]
+mod request_user_chat;

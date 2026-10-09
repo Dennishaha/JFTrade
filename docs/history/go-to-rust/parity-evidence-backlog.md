@@ -1,5 +1,12 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 request_user 真实 chat 与完整回答恢复
+
+- 真实ProductionAdkChatRuntime消费模型返回的interaction.request_user，公开目录实际暴露该工具；chat返回PENDING_INPUT、两问、q1-o1与推荐项，等待时provider只调用一次。run.awaiting_input的subject/decisionKind与blockingReason隐私保持；真实RespondToInput提交Balanced/q2-o1后五秒内同run COMPLETED，同inputRequest ANSWERED且两条answers完整相等。重复回答/runtime恢复保持完整run/audit/native events，总provider调用恰好两次。
+- 真实单问控制同时核对durable inputResponse与实际continuation wire：requestId、原始中文请求、非空instruction、唯一Conservative answer；wire只有一个function_call_output，call_id与原interaction.request_user名称配对。注入模型400失败后同run FAILED，完成owner后重试保持完整run/audit/native events且provider仍恰好两次。Go773/802保留旧各自子断言证据，新共用owner的两个不同断言部分明确审核，reuse allowed=true/reviewed/referenceCount2；584专属新owner单引用allowed=false/single。
+- [初始owner](verification-receipts/adk-request-user-chat-owner-2026-10-09.json)2 passed；[定向失败](verification-receipts/adk-request-user-chat-directed-final-2026-10-09.json)281 passed/1 failed保留：FAILED已保存时先捕获row，同一continuation随后附加response/finalMessageId，导致重试全row比较失败。原payload差异仅这两个附件字段；改为completion barrier结束后重新读取完整row，状态及完整相等断言保持，未放宽生产终态。修复后[定向](verification-receipts/adk-request-user-chat-directed-joined-2026-10-09.json)282 passed；预检查格式仅去掉loop语句分号，[最终定向](verification-receipts/adk-request-user-chat-directed-formatted-2026-10-09.json)282 passed/0 failed，SHA `60105c12e505bd689a6f85a1599a2b21c74c6c44ba02605313c1fbf7d32080da`。
+- 复核7条冻结原函数/blob：input530/556/584/773/802、reasoning23、config65。只有584完整闭合后partial→exact，当前1668 exact/2146 partial/637 boundary；Go parent workflowResumeContext和answered/pending timeline卡片分组仍有原缺口。查看计划后[quick](gate-runs/adk-request-user-chat-quick-final-2026-10-09.json)2457 Rust/98 Pine与七类replay通过，desktop Node检查未安排，不计通过；[现场完整Rust](gate-runs/adk-request-user-chat-rust-final-2026-10-09.json)4057 passed/0 failed/2 skipped，static及七类replay通过，无LEAK。1048 Rust文件与runner源码冻结；四份receipt、两份gate/raw SHA、7条原函数及9处reuse/anchor/diff核验通过，strict/context/anchor通过、unrecorded/stale0、既有unknown48。原日志、失败快照、原payload差异与核验脚本备份于 `/Users/jiangfan/.cache/jftrade/parity-request-user-chat-20261009`。整体未完成，继续超时RUNNING stream的重连保留期控制。
+
 ## 2026-10-09 workflow 阻塞 child 的 reasoning 恢复
 
 - 直接生产Canvas owner在child仍PENDING_INPUT、provider改为low-only/vendor.current后重放原request：同run、完整child/audit/native events保持，durable max/reasoning_effort/MAX_V1不变，零provider连接。真实RespondToInput再经同一continuation owner发送snapshot-model/reasoning_effort=MAX_V1恰好一次；完成后workflow SUCCEEDED，重复workflow/runtime恢复保持完整run/log/audit/native events。

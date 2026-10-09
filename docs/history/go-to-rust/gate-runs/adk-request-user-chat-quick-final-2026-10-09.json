@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T01:18:10.366069+00:00",
+  "verifiedCommit": "5c975dbb7168752fc441a319264bf0876d9df559",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-request-user-chat-quick-final-20261009.log",
+  "rawOutputSha256": "9fed6e8bcce9bd4c332963b6771e84898f45e136ec07ab1dbc66e8ffbe55298a",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.145",
+    "gitHttpVersion": "HTTP/1.1"
+  },
+  "nextestSummary": {
+    "planned": 2457,
+    "passed": 2457,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 113.73
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_workflow_reasoning_owner_tests.rs": "d6a8398fb65f6daf52962feb2426172be6c60c264819a6275c72b1ff4088b6a9",
+    "crates/jftrade-engine/src/product_adk_request_user_chat_owner_tests.rs": "4a7ea08e659209cab2004e17385e4614ec76cbd39bfd1748a0a3256cd67bb1ee"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "e5159e1525c3456076ad2238c1d220a8bf0a7d618b0bf5cdf2ff080308501dda",
+  "frozenRustFiles": 1048,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Seven frozen Go functions reviewed. Actual chat/model tool call yields two questions and recommended q1-o1; Balanced/q2-o1 answers resume the same run and remain ANSWERED at COMPLETED. Single-question durable response and actual wire retain originalRequest, nonempty instruction, Conservative answer and matching call identity/name; injected provider failure is FAILED and terminal retry preserves the full owner state. input584 restored to exact only after its full assertions close. Go parent workflow reasoning and grouped answered/pending timeline-card gaps remain. Failed-state capture before response/final-message attachment retained; final capture follows the existing completion barrier. Classification 1668 exact/2146 partial/637 boundary; whole parity unfinished.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopNodeChecks": {
+    "status": "not_planned"
+  },
+  "planner": "affected engine/desktop Rust tests, seven replays and Pine checks; desktop Node checks not planned"
+}

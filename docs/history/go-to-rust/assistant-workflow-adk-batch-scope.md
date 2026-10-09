@@ -3374,3 +3374,9 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 直接生产Canvas owner重放仍PENDING_INPUT的child，provider drift后完整child/audit/native events及durable max/reasoning_effort/MAX_V1保持、零provider连接；真实RespondToInput恢复实际发送旧snapshot-model/MAX_V1恰好一次。既有completion barrier同步最终audit后捕获终态；重复workflow/runtime恢复保持完整run/log/audit/native events，重放完成才shutdown/join。
 
 复核7条冻结原函数：reasoning10/23、workflow_canvas133/167、input_request584、config27/65。新增child证据不闭合Go parent workflowResumeContext语义，reasoning23保持partial并精准保留该缺口。input584原exact仅引用park/audit半，未闭合两问、推荐项和完整回答后恢复，纠正为partial，当前1667/2147/637；新单引用与旧reuse边界不变。三个夹具失败及源码快照保留，最终定向281 passed/0 failed；quick2455 Rust/98 Pine与七类replay通过、无LEAK，desktop Node检查未安排。现场完整Rust4055 passed/0 failed/2 skipped，static及七类replay通过、无LEAK；1047文件与runner源码冻结，五份receipt、两份gate、7条原函数及12处reuse/anchor/diff核验通过，strict/context/anchor通过。整体未完成，继续input584真实chat两问与完整回答恢复，见[积压清单](parity-evidence-backlog.md)。
+
+### 2026-10-09 request_user 真实 chat 与完整回答恢复
+
+真实chat/model工具调用返回两问、q1-o1推荐项与PENDING_INPUT；Balanced/q2-o1回答后同run COMPLETED、同inputRequest ANSWERED且两条answers完整相等。审计隐私、原生final回复、重复回答与恢复的完整终态保持、provider恰好两次闭合。单问控制的durable response与实际wire保留唯一Conservative answer、中文原请求、非空instruction和正确call身份/名称；执行错误明确FAILED，重复恢复不写入或调用模型。
+
+复核7条原函数input530/556/584/773/802、reasoning23、config65；584完整闭合后恢复exact，当前1668/2146/637。773/802的新共用owner按不同durable/wire断言审核，584新证据仅单引用；parent reasoning与timeline分组缺口保持。FAILED row早于同owner附件写入的夹具失败保留，capture在既有completion barrier后重新读取，最终定向282 passed/0 failed。quick2457 Rust/98 Pine与现场完整Rust4057 passed/0 failed/2 skipped、static/七类replay通过，无LEAK；desktop Node检查未安排。1048 Rust文件与runner源码冻结，四份receipt、两份gate、7条原函数及9处reuse/anchor/diff核验通过，strict/context/anchor通过。整体未完成，继续超时RUNNING stream的重连保留期控制，详见[积压清单](parity-evidence-backlog.md)。
