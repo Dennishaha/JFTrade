@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 Skill source 排序与未知工具警告
+
+- 两条生产HTTP owner红复现[0 passed/2 failed](verification-receipts/adk-skill-registry-owner-red-2026-10-09.json)：实际b-builtin/a-remote/z-local，对比冻结Go b-builtin/z-local/a-remote；未知future.tool返回INVALID而非WARNING。领域持有source/displayName比较及工具引用规则，原read owner提供实际catalog，文件与完整SQLite rows/audit保持。
+- [首次修复编译失败](verification-receipts/adk-skill-registry-owner-green-2026-10-09.json)exit101/零测试保留，借用返回值closure的生命周期不满足；直接借用字段后[两条owner](verification-receipts/adk-skill-registry-owner-compiled-2026-10-09.json)通过。最终增加生产Get与HTTP完整投影相等，以及损坏metadata YAML的List/Get Document类型错误、HTTP500 ADK_SKILL_LIST_FAILED与零写入控制。
+- [最终定向](verification-receipts/adk-skill-registry-directed-final-2026-10-09.json)256 passed/0 failed，SHA `b7db8e4cf08878b29cee2bcc641c6304fcec36cd3c41673dad74ef1f9e0ffd6e`。六条冻结原函数/blob复核：skill_reg_fs19/72、skill_recover11、session_skill68、lifecycle735、routes_resource410。19/72完整闭合后partial→exact，当前1671 exact/2143 partial/637 boundary；11的nil registry与68的Store Save/Delete/规范id整组断言仍partial。三条新证据均单引用allowed=false/single；摘除三个不相关旧共享引用，余下各四条仍不允许exact复用。
+- 查看计划后[quick](gate-runs/adk-skill-registry-quick-final-2026-10-09.json)2516 Rust/98 Pine/desktop11+48与七类replay通过；[现场完整Rust](gate-runs/adk-skill-registry-rust-final-2026-10-09.json)4068 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。1056 Rust文件及三份runner源码冻结；四份receipt、两份gate/raw SHA、六条原函数及九处reuse/anchor/diff核验；strict/context/anchor通过，unrecorded/stale0、既有unknown48。纠正六个旧/前移anchor行号，其中POST必须绑定自身声明前的marker，不能使用同文件首个相同Go marker。
+- 源码、红测试、编译失败、原函数及核验证据归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-registry-20261009`。内置bundle、资源加载/刷新、完整YAML/SDK语义及既有文件删除错误仍有缺口；整体未完成，继续安装后文件/HTTP元数据与durable安装owner一致性。
+
 ## 2026-10-09 真实 POST/重连与文件 Skill 发现
 
 - 真实HTTP红复现运行后创建的外部SKILL.md未出现在列表、DELETE500/file does not exist；[行为红](verification-receipts/adk-stream-skill-owner-behavior-red-2026-10-09.json)0 passed/1 failed保留。文件发现读取与安装共用根目录，领域YAML parser解析frontmatter；列表不写SQLite/audit，卸载沿原mutation owner执行。rustls夹具缺provider、错误类型编译失败与发现只接总览未接列表的失败receipt及源码快照均保留。

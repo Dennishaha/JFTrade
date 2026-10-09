@@ -55,6 +55,9 @@ Skill 文档的 YAML frontmatter 解码归 `jftrade-assistant`。engine 文件�
 安装记录、内置目录投影合并；读取不写 SQLite 或审计。根目录来自
 `JFTRADE_ADK_SKILLS`，未配置时为 settings 文件同级的 skills 目录，安装与发现共用。
 卸载仍由原 mutation owner 执行；文件系统投影不另建写入者。
+Skill 目录排序按 source 再按 displayName，外部文档的未知工具保留并标记 WARNING；
+内置文档按产品目录约定免除此警告。排序和工具引用规则由 Assistant 领域持有，
+engine 仅提供文件元数据及实际工具目录。
 
 Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
 

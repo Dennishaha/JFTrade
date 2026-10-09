@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "product_adk_skill_registry_owner_tests.rs"]
+mod registry;
+
 async fn skill_router(
     port: Arc<ProductionAdkPort>,
     include_chat: bool,
@@ -296,7 +299,13 @@ async fn production_skill_directory_reports_metadata_and_rejects_corrupt_frontma
     assert_eq!(skill["description"], "guarded metadata");
     assert_eq!(skill["version"], "2");
     assert_eq!(skill["tools"], json!(["missing.tool"]));
-    assert_eq!(skill["validationStatus"], "INVALID");
+    assert_eq!(skill["validationStatus"], "WARNING");
+    assert!(
+        skill["validationError"]
+            .as_str()
+            .unwrap()
+            .contains("missing.tool")
+    );
     assert_eq!(skill["builtin"], false);
     assert_eq!(
         skill["installPath"],

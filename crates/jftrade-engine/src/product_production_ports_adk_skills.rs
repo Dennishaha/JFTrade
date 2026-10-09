@@ -83,18 +83,14 @@ pub(crate) fn filesystem_skill(
         ));
     }
     let builtin = document.source.eq_ignore_ascii_case("builtin");
-    let available = port.tool_catalog.values();
-    let unknown = document
-        .allowed_tools
+    let available = port
+        .tool_catalog
+        .values()
         .iter()
-        .filter(|tool| {
-            !available
-                .iter()
-                .any(|entry| entry.get("id").and_then(Value::as_str) == Some(tool.as_str()))
-        })
-        .cloned()
+        .filter_map(|entry| entry.get("id").and_then(Value::as_str).map(str::to_owned))
         .collect::<Vec<_>>();
-    let valid = builtin || unknown.is_empty();
+    let validation =
+        jftrade_assistant::validate_skill_tools(builtin, &document.allowed_tools, &available);
     let modified = time::OffsetDateTime::from(modified)
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|error| SkillRegistryError::Invalid(error.to_string()))?;
@@ -106,8 +102,8 @@ pub(crate) fn filesystem_skill(
         json!({"id":document.name, "displayName":document.name,
         "description":document.description, "source":document.source, "installPath":path,
         "enabled":true, "builtin":builtin, "tools":document.allowed_tools, "version":document.version,
-        "contentHash":digest, "validationStatus":if valid {"VALID"} else {"INVALID"},
-        "validationError":if valid {String::new()} else {format!("unknown ADK tools: {}",unknown.join(", "))},
+        "contentHash":digest, "validationStatus":validation.status,
+        "validationError":validation.message,
         "createdAt":modified, "updatedAt":modified}),
     ))
 }

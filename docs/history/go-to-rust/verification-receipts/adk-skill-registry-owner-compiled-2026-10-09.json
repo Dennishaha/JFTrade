@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_list)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T02:21:32Z",
+  "sourceState": {
+    "verifiedCommit": "b81a4b04b6c973de6c44185fbbe65b9986dfd683",
+    "trackedDiffSha256": "41523d1b708ea0a10ffebcd9519e0ade9b01a9f00f69a159c9f6cf0fe9842c7e",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-assistant/src/skill_registry.rs",
+        "sha256": "583eda419a341c22308c24350c6eb992177ec171ac3ebdf091a98df509794b52"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_skill_registry_owner_tests.rs",
+        "sha256": "754e4861f34e85b5581465b18b89cb5ebae5acea301c496f22e71fae96178312"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-registry-owner-green-2026-10-09.json",
+        "sha256": "7af6581783022e4a56db2a83fd5d7e2ff176b450d4640c1076f01cb4cb54c82e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-registry-owner-red-2026-10-09.json",
+        "sha256": "8615981afb3a916a984188eb0d07281a03f9860e64467e329de2417a6d6757a1"
+      }
+    ]
+  },
+  "rawOutputSha256": "ca087a68f8a442378487a0eea8a58eec2cc30c8fa55b4982c0543f5a2286d8d0",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_skill::registry::production_skill_list_keeps_unknown_external_tools_as_a_warning",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_skill::registry::production_skill_list_sorts_by_source_then_name_and_preserves_filesystem_defaults"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2007,
+      "exec_time": 1.856106958,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

@@ -227,27 +227,24 @@ impl ProductionAdkPort {
                 skills.push(builtin);
             }
         }
-        // Go sorts builtin rows first, then by display name within each group.
+        // Go's filesystem registry orders by source, then display name.
         skills.sort_by(|left, right| {
-            let left_builtin = left
-                .get("builtin")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let right_builtin = right
-                .get("builtin")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            right_builtin.cmp(&left_builtin).then_with(|| {
+            jftrade_assistant::compare_skill_catalog_order(
+                left.get("source")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
                 left.get("displayName")
                     .and_then(Value::as_str)
-                    .unwrap_or_default()
-                    .cmp(
-                        right
-                            .get("displayName")
-                            .and_then(Value::as_str)
-                            .unwrap_or_default(),
-                    )
-            })
+                    .unwrap_or_default(),
+                right
+                    .get("source")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+                right
+                    .get("displayName")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
+            )
         });
         Ok(AdkReadSnapshot::Json(json!({"skills": skills})))
     }

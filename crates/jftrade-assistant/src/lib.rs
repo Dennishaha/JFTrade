@@ -15,6 +15,7 @@ mod ports;
 pub mod rig_adapter;
 mod runtime;
 mod skill_document;
+mod skill_registry;
 mod stream_retention;
 mod workflow;
 mod workflow_canvas;
@@ -47,6 +48,7 @@ pub use ports::{
 };
 pub use runtime::{AssistantRuntime, RuntimeError, TransitionResult};
 pub use skill_document::{SkillDocumentError, SkillDocumentMetadata, parse_skill_document};
+pub use skill_registry::{SkillToolValidation, compare_skill_catalog_order, validate_skill_tools};
 pub use stream_retention::{DEFAULT_RUN_TIMEOUT_MS, active_run_stream_retention_expired};
 pub use workflow::{TaskGraph, WorkflowError};
 pub use workflow_canvas::{

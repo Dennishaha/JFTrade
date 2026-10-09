@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_list)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 100,
+  "status": "failed",
+  "verifiedAt": "2026-10-09T02:19:37Z",
+  "sourceState": {
+    "verifiedCommit": "b81a4b04b6c973de6c44185fbbe65b9986dfd683",
+    "trackedDiffSha256": "cbbe75cd64548da0926d2a9002448d9779eb250f2ec887de96ff12b64a3ea63d",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_skill_registry_owner_tests.rs",
+        "sha256": "754e4861f34e85b5581465b18b89cb5ebae5acea301c496f22e71fae96178312"
+      }
+    ]
+  },
+  "rawOutputSha256": "e145a418648b0a960e21499de86067a06a5b0ec2b220ea85d5533b0839111f77",
+  "passedTests": [],
+  "failedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_skill::registry::production_skill_list_keeps_unknown_external_tools_as_a_warning",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_skill::registry::production_skill_list_sorts_by_source_then_name_and_preserves_filesystem_defaults"
+  ],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "failed",
+      "passed": 0,
+      "failed": 2,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2007,
+      "exec_time": 1.772674126,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
