@@ -17,8 +17,8 @@ use crate::product::product_adk_chat_stream_port::{
 };
 use crate::product::product_production_route_registry::ProductionRouteAdapter;
 use crate::product::{
-    ActiveProviderState, AdkReadEvent, AdkReadSnapshot, AdkReadSnapshotError, AdkReadSnapshotPort,
-    AdkReadStream, AdkReadLiveStream,
+    ActiveProviderState, AdkReadEvent, AdkReadLiveStream, AdkReadSnapshot, AdkReadSnapshotError,
+    AdkReadSnapshotPort, AdkReadStream,
 };
 
 #[path = "product_adk_reconnect_stream.rs"]
@@ -28,22 +28,23 @@ mod reconnect_stream;
 mod unavailable_stream;
 use unavailable_stream::UnavailableStreams;
 
-#[path = "product_production_ports_adk_metrics.rs"]
-mod metrics;
 #[path = "product_production_ports_adk_mcp.rs"]
 mod mcp;
+#[path = "product_production_ports_adk_metrics.rs"]
+mod metrics;
 #[path = "product_production_ports_adk_mutation.rs"]
 pub(crate) mod mutation;
 #[path = "product_production_ports_adk_projection.rs"]
 pub(crate) mod projection;
+#[path = "product_production_ports_adk_skills.rs"]
+pub(crate) mod skills;
 #[path = "product_production_ports_adk_support.rs"]
 mod support;
 
 use projection::{
     builtin_agent, builtin_skills, composer_state_value, dynamic_id, invalid_payload,
     is_deleted_payload, normalize_memory_key, not_found, not_found_with_code, page, payload,
-    put_string, query_param,
-    session_entity_value, timeline_value, workflow_trigger_value,
+    put_string, query_param, session_entity_value, timeline_value, workflow_trigger_value,
 };
 use support::{allowed_modes, helper_provider, is_provider_dynamic_adapter};
 
@@ -695,8 +696,7 @@ impl ProductionToolCatalog {
             }
             "industry" | "calendar" | "macro" => {
                 if snapshot.helper_ready
-                    && snapshot.provider
-                        == Some(jftrade_settings::MarketDataProvider::Akshare)
+                    && snapshot.provider == Some(jftrade_settings::MarketDataProvider::Akshare)
                 {
                     ProductionAdapterBinding::Ready
                 } else {

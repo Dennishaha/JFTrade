@@ -69,6 +69,7 @@ rig-core = { version = "=0.42.0", default-features = false }
 prost = "=0.14.4"
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+yaml-rust2 = { version = "=0.13.0", default-features = false }
 rusqlite = { version = "=0.40.2", default-features = false, features = ["backup", "bundled"] }
 rust_decimal = { version = "=1.43.0", default-features = false, features = ["maths", "serde", "serde-arbitrary-precision", "serde-float", "std"] }
 rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std"] }
@@ -116,4 +117,3 @@ strip = "symbols"
 
 [profile.test]
 debug = 1
-

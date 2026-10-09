@@ -551,3 +551,6 @@ async fn production_agent_templates_remain_available_without_chat_runtime() {
 
 #[path = "product_adk_stream_retention_owner_tests.rs"]
 mod stream_retention;
+
+#[path = "product_adk_stream_skill_owner_tests.rs"]
+mod stream_skill;

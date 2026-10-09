@@ -6,7 +6,6 @@
 use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
-use std::path::PathBuf;
 use std::time::Duration;
 
 use reqwest::Url;

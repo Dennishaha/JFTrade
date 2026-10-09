@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_directory_is_discovered)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 101,
+  "status": "failed",
+  "verifiedAt": "2026-10-09T01:56:01Z",
+  "sourceState": {
+    "verifiedCommit": "c1d964faa3d7750e854cb5b1cc8c43c541a61208",
+    "trackedDiffSha256": "d50e99d1a917b31aa11c62bc8d851e14cf1d7f9dd211823cc7758d25e4e05f95",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-assistant/src/skill_document.rs",
+        "sha256": "8b66e00725425705cfb0fdc0a17a0f4b3e85703264a29df3bc922a391c58de77"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_stream_skill_owner_tests.rs",
+        "sha256": "9399e8ea007b5b6df58a10897272c097d4e2df2f587236495bbb81e27ddadc21"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_adk_skills.rs",
+        "sha256": "c74ee721dcc2f172a0f891f66d7ce1a089803ba8d8bc884a9b16e6d07a621746"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-skill-owner-behavior-red-2026-10-09.json",
+        "sha256": "c0044d8d7127d2c969e7b3cb13a6b6eb258e883267560e9e1611e22fa8e6caf2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-skill-owner-red-2026-10-09.json",
+        "sha256": "baf7a2d4ade62641cc85d7db25e64485604abd91de2eb5b25e0221da6db8e075"
+      }
+    ]
+  },
+  "rawOutputSha256": "61db50e2332a3ac9efc79ee20fdd74bb50e113b80f9ac47905da2b4e66cca693",
+  "passedTests": [],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": []
+}

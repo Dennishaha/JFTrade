@@ -6,6 +6,8 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
+真实POST/重连与文件Skill发现修复运行后外部文件无法列表/卸载，GET不写SQLite，原mutation owner删除目录。六条冻结原函数复核，routes_resource410完整闭合后恢复exact，当前1669/2145/637；两个builtin hash、八份资源、三项publish工具及刷新owner仍有缺口。定向253、quick全量4065 Rust/2435 Web/98 Pine/9结构语料/337 Python、现场完整Rust4065 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。七份receipt、两份gate、1054指纹及九处reuse/anchor核验，失败及核验脚本错误保留；整体未完成，继续source排序及未知工具WARNING。 详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。
+
 过期RUNNING流重连已从两个生产GET的200红复现修复为404，读owner不写durable状态；拆分后定向231、quick2715 Rust/98 Pine/desktop11+48与现场完整Rust4060 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。首次quick的805行架构失败及源码快照留证，按重连职责拆分而不提高门禁限制。routes136完整闭合后exact，routes_resource410旧引用未闭合完整skill/POST断言，纠正为partial；当前1668/2146/637。四份receipt、三份gate、1051指纹及六条原函数核验，记录级TTL与无合法时间的last-event回退保留；整体未完成，继续routes_resource410的真实POST/skill链路。
 
 真实chat/model完成request_user两问、推荐项、审计隐私及Balanced/q2-o1回答恢复，input584完整闭合后恢复exact；单问durable/wire的原请求、非空instruction和FAILED终态控制补齐773/802。最终定向282、quick2457 Rust/98 Pine与现场完整Rust4057 passed/0 failed/2 skipped通过，static/七类replay通过，无LEAK；desktop Node检查未安排。四份receipt、两份gate、1048指纹、7条原函数及9处reuse/anchor/diff核验通过，当前1668/2146/637；parent reasoning及timeline分组等缺口保持。FAILED先于同owner附件写入的捕获夹具失败已保留，下一批验证超时RUNNING stream的重连保留期。

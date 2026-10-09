@@ -50,6 +50,12 @@ last-event 回退不在这一判断中。
 持有。engine adapter 读取当前状态并验证 provider 可用性，领域规则通过后才交由
 现有 store writer 保存；创建与更新入口使用同一保护规则。
 
+Skill 文档的 YAML frontmatter 解码归 `jftrade-assistant`。engine 文件系统 adapter
+在列表读取时发现 skills 根目录的直接子目录，将有效 SKILL.md 的元数据与 durable
+安装记录、内置目录投影合并；读取不写 SQLite 或审计。根目录来自
+`JFTRADE_ADK_SKILLS`，未配置时为 settings 文件同级的 skills 目录，安装与发现共用。
+卸载仍由原 mutation owner 执行；文件系统投影不另建写入者。
+
 Assistant chat请求身份的字段规范化与有序JSON表示同样归领域crate；engine计算摘要并在现有durable和无run保留owner比较身份，旧摘要兼容不引入第二写入者。
 
 ### Store crates

@@ -14,7 +14,7 @@
         "crates",
         "tests/fixtures/compatibility"
       ],
-      "entrypoints": ["crates/jftrade-engine/src/bin/jftrade-api-rust.rs", "crates/jftrade-engine/src/strategy_runtime_task.rs", "crates/jftrade-engine/src/product_workflow_scheduler.rs"],
+      "entrypoints": ["crates/jftrade-engine/src/bin/jftrade-api-rust.rs", "crates/jftrade-engine/src/strategy_runtime_task.rs", "crates/jftrade-engine/src/product_workflow_scheduler.rs", "crates/jftrade-engine/src/product_production_ports_adk_skills.rs"],
       "affectedTests": ["pnpm run check:rust"],
       "quickTests": ["pnpm run check:rust:architecture"]
     },

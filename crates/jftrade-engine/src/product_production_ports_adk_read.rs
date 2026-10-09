@@ -105,7 +105,7 @@ impl ProductionAdkPort {
             agents.push(builtin_agent(&self.tool_catalog));
         }
         let providers = self.entities(self.store.list_providers()?, "provider")?;
-        let mut skills = self.entities(self.store.list_skills()?, "skill")?;
+        let mut skills = self.skill_entities()?;
         if skills.is_empty() {
             skills = builtin_skills(&self.tool_catalog);
         }
@@ -211,7 +211,7 @@ impl ProductionAdkPort {
         // externally installed skill.  Rust projects the builtins from the
         // tool catalog instead of duplicating files, so the projection has to
         // merge both sources: a stored install must never hide the builtins.
-        let mut skills = self.entities(self.store.list_skills()?, "skill")?;
+        let mut skills = self.skill_entities()?;
         let stored_ids = skills
             .iter()
             .filter_map(|skill| skill.get("id").and_then(Value::as_str))
@@ -250,6 +250,17 @@ impl ProductionAdkPort {
             })
         });
         Ok(AdkReadSnapshot::Json(json!({"skills": skills})))
+    }
+
+    fn skill_entities(&self) -> Result<Vec<Value>, AdkReadSnapshotError> {
+        let mut values = self.entities(self.store.list_skills()?, "skill")?;
+        for skill in skills::filesystem_skills(self)
+            .map_err(|error| resource_list_failed(500, "ADK_SKILL_LIST_FAILED", error))?
+        {
+            values.retain(|current| current.get("id") != skill.get("id"));
+            values.push(skill);
+        }
+        Ok(values)
     }
 
     fn tasks(&self, query: &str) -> Result<AdkReadSnapshot, AdkReadSnapshotError> {

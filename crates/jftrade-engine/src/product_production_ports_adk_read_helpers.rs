@@ -12,7 +12,7 @@ use super::*;
 pub(super) fn resource_list_failed(
     status: u16,
     code: &str,
-    error: AdkStoreError,
+    error: impl std::fmt::Display,
 ) -> AdkReadSnapshotError {
     AdkReadSnapshotError::Failed {
         status,

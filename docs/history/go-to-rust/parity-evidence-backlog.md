@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 真实 POST/重连与文件 Skill 发现
+
+- 真实HTTP红复现运行后创建的外部SKILL.md未出现在列表、DELETE500/file does not exist；[行为红](verification-receipts/adk-stream-skill-owner-behavior-red-2026-10-09.json)0 passed/1 failed保留。文件发现读取与安装共用根目录，领域YAML parser解析frontmatter；列表不写SQLite/audit，卸载沿原mutation owner执行。rustls夹具缺provider、错误类型编译失败与发现只接总览未接列表的失败receipt及源码快照均保留。
+- [owner suite](verification-receipts/adk-stream-skill-owner-suite-2026-10-09.json)3 passed；真实POST完成、两路after=1 replay、after=-1与missing404、provider恰好一次及完整终态不变；Skill列表/removed PUT/FTP非法安装/builtin保护/外部文件发现与卸载闭合。metadata/hash/损坏YAML控制保持完整rows/audit。新增yaml-rust2精确0.13.0，不启用默认encoding，未升级已有锁包版本。
+- [最终定向](verification-receipts/adk-stream-skill-directed-final-2026-10-09.json)253 passed/0 failed，SHA `697445a6c88357154f2fefe2df0fd98f23955c16ef0eaaf06e155c43a956be3e`。六条冻结原函数复核：routes_resource410、routes707、lifecycle711/735/792、store_ops147。410完整闭合后恢复exact；735补真实文件发现与删除后消失。新shared owner分别闭合410的HTTP组合与735的目录生命周期，reuse allowed=true/reviewed/referenceCount2。792准确保留两个builtin ContentHash、八份资源及三项publish工具缺口；147仍boundary，无对应刷新owner。当前1669 exact/2145 partial/637 boundary。
+- 根Cargo及模块表变更触发quick全量fallback，查看计划后[quick](gate-runs/adk-stream-skill-quick-final-2026-10-09.json)通过：4065 Rust、2435 Web、98 Pine、9结构语料、337 Python；[现场完整Rust](gate-runs/adk-stream-skill-rust-final-2026-10-09.json)4065 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。独立desktop Node检查未安排，不计通过。1054 Rust文件及三份runner源码冻结，七份receipt/两份gate/raw SHA、六条原函数和九处reuse/anchor/diff复核；strict/context/anchor通过，unrecorded/stale0、既有unknown48。
+- 核验脚本误要求红日志含不存在的外部id，但该日志恰好证明列表缺该id；原错误脚本/日志保留，改为核对实际缺目录消息及delete500。证据归档至 `/Users/jiangfan/.cache/jftrade/parity-stream-skill-20261009`。完整SDK/YAML语义、资源加载、builtin刷新与既有忽略文件删除错误保持缺口；下一批直接验证source排序与未知工具WARNING。整体未完成。
+
 ## 2026-10-09 过期 RUNNING 流的重连保留期
 
 - 真实prepared router两路GET复现非常旧startedAt的RUNNING流仍返回200，[红receipt](verification-receipts/adk-stream-retention-owner-red-2026-10-09.json)0 passed/1 failed及1051前的1049份源码快照保留；修复后[owner](verification-receipts/adk-stream-retention-owner-green-2026-10-09.json)1 passed。Assistant领域按冻结时限加30分钟保留期、严格纳秒边界判断；engine解析时间并使用不含streamEvents/providerEvents的元数据，GET只拒绝可见性、不改变完整run/audit/main及native sessions。

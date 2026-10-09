@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_directory_is_discovered)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T01:58:40Z",
+  "sourceState": {
+    "verifiedCommit": "c1d964faa3d7750e854cb5b1cc8c43c541a61208",
+    "trackedDiffSha256": "b85544131e9fa6537e1c6f8f610350805dd377da983e463226ffa3f85f153f4f",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-assistant/src/skill_document.rs",
+        "sha256": "8b66e00725425705cfb0fdc0a17a0f4b3e85703264a29df3bc922a391c58de77"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_adk_stream_skill_owner_tests.rs",
+        "sha256": "9399e8ea007b5b6df58a10897272c097d4e2df2f587236495bbb81e27ddadc21"
+      },
+      {
+        "path": "crates/jftrade-engine/src/product_production_ports_adk_skills.rs",
+        "sha256": "c74ee721dcc2f172a0f891f66d7ce1a089803ba8d8bc884a9b16e6d07a621746"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-skill-owner-behavior-red-2026-10-09.json",
+        "sha256": "c0044d8d7127d2c969e7b3cb13a6b6eb258e883267560e9e1611e22fa8e6caf2"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-skill-owner-compiled-2026-10-09.json",
+        "sha256": "2e0dd37137ac4a5694cb31074af2e323109ec627ea3cb34cb9cc3649eac9b31b"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-skill-owner-green-2026-10-09.json",
+        "sha256": "c3d6980ab00c50e85eb018d75bbbb69b67a78fd33a92bf5ed1ace7329c7c8df5"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-stream-skill-owner-red-2026-10-09.json",
+        "sha256": "baf7a2d4ade62641cc85d7db25e64485604abd91de2eb5b25e0221da6db8e075"
+      }
+    ]
+  },
+  "rawOutputSha256": "d2ba08bb4eda7eb71733be815fca510ce4da4dd26d5cd3ede8863c4184150cee",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::stream_skill::production_skill_directory_is_discovered_on_read_and_uninstalled_by_the_mutation_owner"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2004,
+      "exec_time": 0.836823167,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

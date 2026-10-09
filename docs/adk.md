@@ -153,11 +153,12 @@ ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把�
 
 ## Skill 运行时
 
-- Skill 真相源是文件系统中的 `adk/skills/<skill-name>/SKILL.md` 目录树，直接使用 ADK 原生 `skill.NewFileSystemSource` + `skilltoolset`。
+- Rust engine 在每次 Skill 列表读取时扫描 `JFTRADE_ADK_SKILLS`（默认 settings 文件同级的 `skills`）下直接子目录中的 `SKILL.md`，合并 durable 安装记录和内置目录投影。同 id 的文件元数据覆盖列表投影；读取不写 SQLite 或审计。
+- YAML frontmatter 由 Assistant 领域解析，文件系统 adapter 提供 source、version、allowed-tools、原文件 SHA-256 和修改时间。非法文档或读取故障返回 `ADK_SKILL_LIST_FAILED`；卸载复用现有 mutation owner，拒绝内置 Skill，外部文件发现与安装使用相同根目录。
 - Agent 绑定的是 skill 目录名；模型通过 `list_skills`、`load_skill`、`load_skill_resource` 按需读取说明和资源。
 - ADK Go v2 的原生 `skilltoolset` 提供 Skill 指令和资源，不负责产品工具装配；JFTrade 在构建 Agent 时按工具白名单和权限模式过滤业务工具，并把它们作为原生 FunctionTool 声明。`load_skill` 不再维护额外的工具解锁状态。
 - `SKILL.md` 使用 ADK 原生 frontmatter：`name`、`description`、`allowed-tools`、`metadata`。
-- 不再保留产品级 `enabled` 开关或 Skill 数据库存储；`allowed-tools` 用于校验 Skill 是否能在当前 agent/权限模式下使用，不能绕过 agent 工具白名单。
+- durable 安装记录仍由唯一 SQLite writer 持有，文件发现不回填记录；`allowed-tools` 对照实际工具目录校验，不能绕过 agent 工具白名单。内置 bundle 的文件与资源刷新、完整原生 Skill 资源加载仍有行为对齐缺口，见[活动路线图](roadmap.md)。
 - 外部 Skill 只提供工作规范与资源目录，不执行任意代码；安装时限制文件大小并阻止不安全主机与文件路径引用。
 
 ## API 访问权限

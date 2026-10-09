@@ -170,14 +170,7 @@ fn install_skill_document(
     let mut digest = Sha256::new();
     digest.update(body);
     let content_hash = encode_hex(&digest.finalize());
-    let skills_root = std::env::var_os("JFTRADE_ADK_SKILLS")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            port.settings_path
-                .parent()
-                .unwrap_or(std::path::Path::new("."))
-                .join("skills")
-        });
+    let skills_root = super::super::skills::skills_root(port);
     fs::create_dir_all(&skills_root).map_err(|error| AdkMutationPortError::Failed {
         status: 500,
         code: "ADK_SKILL_INSTALL_FAILED".to_owned(),
@@ -262,7 +255,9 @@ pub(super) fn uninstall_skill(
                     "builtin skills cannot be uninstalled",
                 ));
             }
-            None => return Err(skill_uninstall_failed("file does not exist")),
+            None => super::super::skills::filesystem_skill(port, id)
+                .map_err(|error| skill_uninstall_failed(&error.to_string()))?
+                .ok_or_else(|| skill_uninstall_failed("file does not exist"))?,
         },
     };
     let source = payload
@@ -271,7 +266,9 @@ pub(super) fn uninstall_skill(
         .unwrap_or_default()
         .trim();
     if source.eq_ignore_ascii_case("builtin") || builtin.is_some() {
-        return Err(skill_uninstall_failed("builtin skills cannot be uninstalled"));
+        return Err(skill_uninstall_failed(
+            "builtin skills cannot be uninstalled",
+        ));
     }
     port.store
         .delete_skill(id)
