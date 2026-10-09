@@ -41,6 +41,7 @@
 ## 工作流
 
 - Canvas 与旧的单 prompt workflow 共用节点执行器。模型返回 RUNNING、PENDING_APPROVAL 或 PENDING_INPUT 时挂起图；只有前置节点终态成功，后续节点才可执行。未知状态不映射为成功。
+- 新节点由 chat owner 在准入时创建会话，不把尚未创建的内部标识作为已有 sessionId 提交。重放使用节点保存的原始请求；旧暂停节点保持原显式会话身份，避免改变已持久运行的请求指纹。
 - 调用图、输入、调用 UUID 和节点请求身份保存在现有 trigger log 的私有 checkpoint 中；每个节点跨外部调用前后使用日志 revision CAS 保存进度。私有 checkpoint 不返回到 HTTP 日志响应。
 - 重启、审批或输入继续后，scheduler 重新读取非终态日志；已成功节点跳过，未完成节点复用原 clientRequestId，与模型运行的持久化执行租约及工具幂等共同防止重复副作用。
 - 调度器按 Go 分支所用五字段 cron 的步进/日星期语义计算时间，以真实时间线处理 DST 重复及不存在时刻。下一次触发时间与调用入队在 SQLite 同一事务完成；并发 trigger 更新通过 revision CAS 决定唯一胜者。

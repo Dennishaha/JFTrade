@@ -1,5 +1,15 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 workflow 真实模型准入与旧请求重放
+
+- 最终核验脚本的两次错误及原脚本/日志保留：错误只接受`::test`而遗漏顶层integration的`binary$test`名字，按现场libtest-json-plus记录核对；随后错误把exact的allowed复用要求套到既有partial关系。该旧关系referenceCount2、reviewed但allowed=false，原标记完整保持且不升级exact；新单引用仍allowed=false/single。六份receipt与两份gate/raw SHA、7条原函数、11处reuse/anchor/diff及1046份源码指纹已核验。全部原日志、失败与源码快照、核验脚本备份于 `/Users/jiangfan/.cache/jftrade/parity-workflow-reasoning-20261009`。
+
+- [生产红receipt](verification-receipts/adk-workflow-reasoning-owner-behavior-red-2026-10-09.json) 0 passed/1 failed：真实Canvas调用生产model runtime时，新节点显式提交未创建的sessionId，返回ADK_CHAT_FAILED/session not found，workflow FAILED，零模型执行。新节点改由同一chat owner准入时创建会话；外部已有session校验保持。完整已保存节点request直接重放，旧暂停节点保持原显式session身份，不改旧run canonical指纹。
+- [修复owner](verification-receipts/adk-workflow-reasoning-owner-fixed-2026-10-09.json)及[控制receipt](verification-receipts/adk-workflow-reasoning-controls-2026-10-09.json)各1 passed，均只选择真实新节点控制。最终[定向receipt](verification-receipts/adk-workflow-reasoning-directed-final-2026-10-09.json) 236 passed/0 failed，SHA `5fdd3072d5454d5b6f6bb62a9d5cec5069e5ef30e522cf21916361d5f0ea1bb2`，包含两个生产owner。新workflow实际发送snapshot-model/vendor.current=MAX_V1，COMPLETED回复/原生消息保持，terminal retry恰好一次provider调用。旧节点跨外部调用前的完整request、暂停后的投影inputs两种checkpoint，在provider drift后复用旧session/canonical request，完整child/native/session/audit保持且零provider连接，重复resume不写终态。
+- [首轮编译失败](verification-receipts/adk-workflow-reasoning-owner-red-2026-10-09.json)exit101、零测试保留：fixture错误读取StoredAdkEntity不存在的agent_id字段，改用生产get_session_agent_id。首轮[定向失败](verification-receipts/adk-workflow-reasoning-directed-2026-10-09.json)235 passed/1 failed保留：legacy控制图缺start，严格可达性校验拒绝；按冻结Go可达图补start/edge及已完成start checkpoint，保持原run/session/指纹/零重执行断言。源码与失败日志均保留。
+- 复核7条冻结原函数/blob：reasoning10/23、workflow_canvas133/167/223、config27/65。所有分类保持1668 exact/2146 partial/637 boundary；workflow133新增直接生产证据，reasoning10/23更新移动anchor与现场receipt。reasoning23的缺口精确为非终态workflow恢复context时保留MAX_V1，不能由本批终态child重放或新节点成功推断；Go parent workflowPlan/workflowStatus/childRunIDs和暂停graph drift等仍partial。新证据仅单引用，旧reuse保持。
+- 查看计划后[quick](gate-runs/adk-workflow-reasoning-quick-final-2026-10-09.json)2454 Rust/98 Pine/desktop11+48与七类replay通过；[现场完整Rust](gate-runs/adk-workflow-reasoning-rust-final-2026-10-09.json)4054 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。1046 Rust文件及三份runner源码冻结。strict/context/anchor通过，unrecorded/stale0、既有unknown48；整体未完成。
+
 ## 2026-10-09 known-context preview 生产 owner
 
 - 直接调用生产 `emit_preview_session`，执行已持有 context 时仅发布一帧 session、sequence1 并 EOF。把 durable context 改为非法 JSON 后，独立生产读取返回500/ADK_STORAGE_CORRUPT，而 preview 成功；完整 context/session/audit 保持、零 provider 连接。该控制结合 owner 源码验证本次调用不重载 context，不声称记录了读取次数。生产逻辑无需修改。

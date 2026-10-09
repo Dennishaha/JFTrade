@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T00:35:58.191777+00:00",
+  "verifiedCommit": "39c7d03a2752739c9090d5f0498acec9e15019ec",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-workflow-reasoning-quick-final-20261009.log",
+  "rawOutputSha256": "6031750a3e07933ef4d8cd52e0ee802ea649201bde4a12dcfb082633ee84b8d7",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.145",
+    "gitHttpVersion": "HTTP/1.1"
+  },
+  "nextestSummary": {
+    "planned": 2454,
+    "passed": 2454,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 113.604
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_reasoning_resume_owner_tests.rs": "be69306cac4ac4337d83e0275136e1510daaa4528b5891267a99be6e10aaa0bf",
+    "crates/jftrade-engine/src/product_production_ports_adk_mutation_workflow_canvas.rs": "b7d65d763dc5d96e9b69cdd3fd52ccd8e2d2014903d0d41aad0de024463aa67e",
+    "crates/jftrade-engine/src/product_adk_workflow_reasoning_owner_tests.rs": "aa42f0beefd05230f5f2ba7c72d1ab9a9a44d320429d4b6fd29a4bdc6cee8015"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "39ba8d16e91fcf2462b3a96ba69057a8ec6146437a30a5e8135b6dedfb11eece",
+  "frozenRustFiles": 1046,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Seven frozen Go functions reviewed. Real Canvas dispatch fixes fresh session admission through the existing chat owner; complete saved requests and legacy explicit sessions preserve old canonical identities. Real model/new session and two legacy checkpoint forms tested. Parent projection and nonterminal workflow reasoning restoration gaps remain partial. Compile failure, production session-not-found red and invalid control graph preserved. 1668 exact/2146 partial/637 boundary; whole parity unfinished.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopNodeChecks": {
+    "contracts": 11,
+    "sidecar": 48
+  },
+  "planner": "affected engine/desktop, seven replays, Pine and desktop checks"
+}

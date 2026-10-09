@@ -109,6 +109,7 @@ pub(super) fn execute_canvas_workflow(
         if node_runs.iter().any(|node| node.node_id == *node_id && node.status == "SUCCEEDED") {
             continue;
         }
+        let previous_node = node_runs.iter().find(|node| node.node_id == *node_id).cloned();
         node_runs.retain(|node| node.node_id != *node_id);
         let node = compiler.node(node_id).expect("node must exist");
         let node_type = compiler.node_type(node_id).unwrap_or("agent");
@@ -208,15 +209,14 @@ pub(super) fn execute_canvas_workflow(
 
                 let request_id = format!("workflow-{}-{node_id}-{}", ctx.workflow_id, ctx.invocation_uuid);
                 let session_id = format!("workflow-session-{node_id}-{}", ctx.invocation_uuid);
-                let body = json!({
+                let body = workflow_chat_request(previous_node.as_ref(), &session_id, json!({
                     "clientRequestId": request_id,
-                    "sessionId": session_id,
                     "agentId": agent_id,
                     "providerId": provider_id,
                     "model": model,
                     "message": message,
                     "objective": objective,
-                });
+                }));
 
                 // Save the stable request identity before the external boundary.
                 // Replays use that same clientRequestId after process restart.
@@ -426,4 +426,22 @@ pub(super) fn execute_canvas_workflow(
         response,
         node_runs,
     })
+}
+
+fn workflow_chat_request(previous: Option<&WorkflowNodeRun>, legacy_session: &str, mut body: Value) -> Value {
+    // An unstarted node lets the chat owner resolve/create its session. Passing
+    // a fabricated explicit id would require a row which does not yet exist.
+    // A checkpoint from before dispatch owns the complete original request.
+    if let Some(saved) = previous.and_then(|node| node.inputs.as_ref())
+        && saved.get("clientRequestId") == body.get("clientRequestId") {
+        return saved.clone();
+    }
+    // Older paused nodes saved only the projected inputs and outputs after
+    // dispatch. Their deterministic session id identifies the original body;
+    // keep it explicit so the existing run's canonical identity still matches.
+    if previous.and_then(|node| node.outputs.as_ref())
+        .and_then(|output| output.get("sessionId")).and_then(Value::as_str) == Some(legacy_session) {
+        body["sessionId"] = json!(legacy_session);
+    }
+    body
 }

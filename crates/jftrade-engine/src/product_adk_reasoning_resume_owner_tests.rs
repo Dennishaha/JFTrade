@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "product_adk_workflow_reasoning_owner_tests.rs"]
+mod workflow_reasoning;
+
 struct SnapshotProvider {
     endpoint: String,
     requests: Arc<Mutex<Vec<Value>>>,

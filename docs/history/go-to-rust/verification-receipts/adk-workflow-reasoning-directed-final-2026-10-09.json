@@ -1,0 +1,723 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(approval_and_running_nodes_suspend_then_resume_the_same_durable_request) | test(production_provider_reasoning_http_persists_shared_values_and_resolver_matches_reference_matrix) | test(production_provider_reasoning_http_rejects_all_invalid_reference_configs_without_writes) | test(production_reasoning_request_override_wins_over_agent_and_rejects_unknown_effort) | test(production_reasoning_resume_uses_saved_wire_mapping_after_provider_config_drift) | test(production_workflow_legacy_checkpoint_keeps_explicit_session_identity_after_provider_drift) | test(production_workflow_real_model_creates_its_session_and_replays_without_execution) | test(provider_reasoning_config_normalizes_custom_mappings_and_rejects_duplicates) | test(provider_reasoning_resolution_matches_mapping_and_unsupported_effort_contract) | test(reachable_workflow_graph_executes_once_and_records_terminal_node_states) | test(resolve_provider_freezes_agent_reasoning_mapping_and_request_override) | test(workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation) | test(workflow) | test(reasoning) | test(terminal_audit) | test(fenc) | test(lease)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T00:31:09Z",
+  "sourceState": {
+    "verifiedCommit": "39c7d03a2752739c9090d5f0498acec9e15019ec",
+    "trackedDiffSha256": "83d31db696853c72dd8ee0f9c9a51872bae75baacfefc260c27010cc0bb770e1",
+    "untrackedFiles": [
+      {
+        "path": "crates/jftrade-engine/src/product_adk_workflow_reasoning_owner_tests.rs",
+        "sha256": "aa42f0beefd05230f5f2ba7c72d1ab9a9a44d320429d4b6fd29a4bdc6cee8015"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-workflow-reasoning-controls-2026-10-09.json",
+        "sha256": "9944a0d1c117536fd3902ffde9e485543bf196122b6a082e77032f3bcb1e2f6c"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-workflow-reasoning-directed-2026-10-09.json",
+        "sha256": "ca4441b7d4be2fe11fa0544af6897650309d6f9226e34412540fc6ccdff9786e"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-workflow-reasoning-owner-behavior-red-2026-10-09.json",
+        "sha256": "2150491c9c67f7085a3f75d5bbc35210eed4c518d755e8795170d397dc52a053"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-workflow-reasoning-owner-fixed-2026-10-09.json",
+        "sha256": "e4a53ddb96632521f472ff4e1d10ccb2976db3ce2d9e8dd9ae6538fdba1f7990"
+      },
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-workflow-reasoning-owner-red-2026-10-09.json",
+        "sha256": "d37f061589e2c21438001e66e451d786658cbc9ba6e55cb1b9d4b4fa88649d97"
+      }
+    ]
+  },
+  "rawOutputSha256": "b6b64f9f5f6b248e70af102023c37c65881936a8561e7eb2f3fe4ddad54c8ff3",
+  "passedTests": [
+    "jftrade-engine::adk_chat_stream_compatibility$product_adk_chat_stream_port::tests::chat_request_identity_validates_uuid_normalizes_message_and_distinguishes_reasoning",
+    "jftrade-engine::adk_chat_stream_timing_challenge$product_adk_chat_stream_port::tests::chat_request_identity_validates_uuid_normalizes_message_and_distinguishes_reasoning",
+    "jftrade-engine::adk_identifier_security_hardening$test_workflow_invocation_request_and_session_id_entropy",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$product_adk_chat_stream_port::tests::chat_request_identity_validates_uuid_normalizes_message_and_distinguishes_reasoning",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$test_commit_tool_result_strictly_returns_lease_lost_on_unknown_expired_or_mismatched_token",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$test_fencing_token_monotonically_increases_across_takeovers",
+    "jftrade-engine::adk_lease_fencing_takeover_edge_conditions$test_lease_expiration_boundary_before_and_after_expiry",
+    "jftrade-engine::adk_mutations_compatibility$adk_workflow_routes_reject_invalid_payloads_with_reference_messages",
+    "jftrade-engine::adk_workflow_canvas_contracts$approval_and_running_nodes_suspend_then_resume_the_same_durable_request",
+    "jftrade-engine::adk_workflow_canvas_contracts$disabled_workflow_and_webhook_routes_keep_the_go_error_codes",
+    "jftrade-engine::adk_workflow_canvas_contracts$test_canvas_workflow_cycle_detection_rejects_with_400",
+    "jftrade-engine::adk_workflow_canvas_contracts$test_canvas_workflow_error_skips_downstream_nodes",
+    "jftrade-engine::adk_workflow_canvas_contracts$test_canvas_workflow_multi_node_execution_and_context_propagation",
+    "jftrade-engine::adk_workflow_canvas_contracts$test_canvas_workflow_self_loop_and_invalid_edges_rejected",
+    "jftrade-engine::adk_workflow_canvas_contracts$test_legacy_workflow_synthesizes_noderuns_for_backward_compatibility",
+    "jftrade-engine::adk_workflow_canvas_contracts$test_workflow_tools_missing_session_and_empty_payload_boundaries",
+    "jftrade-engine::adk_workflow_canvas_contracts$workflow_mutation_rejects_invalid_work_mode",
+    "jftrade-engine::adk_workflow_canvas_contracts$workflow_mutation_routes_keep_the_go_not_found_codes",
+    "jftrade-engine::adk_workflow_canvas_contracts$workflow_run_and_trigger_routes_keep_the_go_error_codes",
+    "jftrade-engine::adk_workflow_canvas_contracts$workflow_webhook_secret_lifecycle_stays_sanitized_and_authenticated",
+    "jftrade-engine::adk_workflow_scheduler_contracts$test_schedule_trigger_disabled_parent_workflow_safely_advances",
+    "jftrade-engine::adk_workflow_scheduler_contracts$test_workflow_scheduler_worker_start_stop_and_status",
+    "jftrade-engine::backtests_write_compatibility$sqlite_test_cutover_preserves_rollback_duplicate_fencing_and_restart",
+    "jftrade-engine::jftrade_engine$product::adk_workflow_bridge_tests::workflow_bridge_operations_fail_closed_without_their_ports",
+    "jftrade-engine::jftrade_engine$product::product_adk_chat_stream_port::tests::chat_request_identity_validates_uuid_normalizes_message_and_distinguishes_reasoning",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::catalog_policy_tests::blank_permission_mode_still_releases_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::catalog_policy_tests::released_calls_are_executed_by_the_tool_loop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::chat_turn_tests::a_failed_workflow_execution_surfaces_on_the_loop_chat_path",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::chat_turn_tests::a_released_optimizer_call_reaches_the_production_executor",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::expiry_tests::a_fresh_foreign_run_lease_shields_a_run_from_expiry",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_completion_barrier_high_concurrency_tokio_blocking",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_completion_barrier_task_panic_unwinds_cleanly_without_hanging",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_completion_barrier_timeout_expires_without_deadlock",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_cancellation_signal_propagates",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_claims_are_exclusive_and_released",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_concurrent_spawn_shutdown_race",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_rejects_new_work_once_stopping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_releases_claims_without_extra_initialization",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_shutdown_blocks_for_all_tasks",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::challenge_continuation_supervisor_shutdown_cancels_in_flight_and_rejects_new_work",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::fail_closed_lease_takeover_blocks_duplicate_tool_execution_and_stale_commit",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::multiple_workers_simultaneous_takeover_after_lease_expiry_never_executes_fail_closed_tool",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::fencing_tests::takeover_worker_never_invokes_external_tool_for_expired_running_invocation",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::gate_tests::chat_rejects_invalid_permission_work_mode_and_reasoning_overrides",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::gate_tests::run_gate_rejects_the_eleventh_concurrent_run_and_releases_on_drop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::provider_probe_without_mappings_sends_no_reasoning_field",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::provider_reasoning_resolution_matches_mapping_and_unsupported_effort_contract",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_new_request_cannot_supply_private_snapshot_to_bypass_provider_mapping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_request_override_wins_over_agent_and_rejects_unknown_effort",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_resume_uses_saved_wire_mapping_after_provider_config_drift",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::production_reasoning_resume_without_complete_snapshot_keeps_current_provider_validation",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::workflow_reasoning::production_workflow_legacy_checkpoint_keeps_explicit_session_identity_after_provider_drift",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reasoning_resume::workflow_reasoning::production_workflow_real_model_creates_its_session_and_replays_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::pre_run::created_run::projection_recovery::contracts::production_terminal_recovery_selects_final_message_reply_reasoning_and_native_timeline",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::private_reasoning::production_private_reasoning_snapshot_is_persisted_restored_and_hidden_in_http_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::private_reasoning::production_sync_running_replay_hides_private_reasoning_without_changing_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::private_reasoning::production_terminal_cancel_projection_hides_private_reasoning_snapshot",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::provider_reasoning_matrix::production_provider_reasoning_http_persists_shared_values_and_resolver_matches_reference_matrix",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::disconnect::provider_reasoning_matrix::production_provider_reasoning_http_rejects_all_invalid_reference_configs_without_writes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::reconnect_live::reconnect_reader_drop_releases_idle_store_reference_without_background_reads",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::resolve_provider_freezes_agent_reasoning_mapping_and_request_override",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::responses_request_injects_provider_reasoning_mapping",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::responses_request_reasoning_effort_matrix_matches_go_contract",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::tool_claim_heartbeat_is_live_then_becomes_fenced_takeover",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::concurrent_runtime_shutdowns_cancel_and_join_admitted_background_before_returning",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::deadline::production_assistant_shutdown_closes_owned_runtime_and_accepts_repeated_close",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::deadline::production_assistant_shutdown_reports_an_unfinished_continuation_deadline",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::deadline::synchronous_assistant_termination_preserves_ports_until_background_cleanup_finishes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::runtime_shutdown_allows_cancelled_background_to_persist_cleanup_before_joining",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::lifecycle_tests::workflow_shutdown::workflow_wait_cancellation_is_immediate_before_a_long_requested_wait",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::session_context_tests::workflow_auto_compaction_proceeds_under_an_active_run_while_chat_waits",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_cancelled_run_audits_run_cancelled_and_terminates_once",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_completed_run_links_its_final_assistant_message_across_the_transcript",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_completed_run_persists_the_reply_and_audits_run_completed",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_continuation_for_a_missing_run_is_a_silent_no_op",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_denied_approval_audits_run_resumed_and_run_denied_with_the_denied_state",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_failed_run_persists_its_terminal_state_and_audit_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_failed_run_persists_the_provider_error_and_audit_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_gated_call_parks_the_run_and_audits_awaiting_approval",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_pending_input_run_audits_awaiting_input_with_the_decision_kind",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::a_timed_out_run_audits_the_timed_out_lifecycle_kind",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_approved_tool_waits_for_the_existing_local_run_lease_to_release",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_concurrent_sibling_approvals_complete_with_one_execution_per_tool",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_duplicate_approval_returns_while_the_single_tool_execution_is_blocked",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::approval_concurrency::production_lease_wait_precancellation_preserves_the_existing_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::best_effort_audit_faults_are_reported_once_and_never_fail_the_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::best_effort_audit_reports_nothing_when_the_insert_succeeds_or_was_already_recorded",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::denied_approval_summary_renders_the_go_denial_reply_text",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::late_disconnect_and_failure_preserve_terminal_run_history_and_audit",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_running_stream_owner_contacts_provider_and_persists_its_timeout",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_stopped_stream_owner_replays_terminal_frame_without_a_provider_request",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::disconnect::stream_owner::production_stream_precancellation_and_body_disconnect_keep_one_durable_terminal_error",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::durable_completion::production_checkpoint_replays_legacy_terminal_labels_without_rewriting_the_ledger",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_keyed_handler_consuming_the_key_completes_and_replays_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_keyed_handler_ignoring_key_fails_unknown_once_and_blocks_the_second_attempt",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_normalized_keyed_mode_enforces_consumption_and_replays_the_original_outcome",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_unknown_replay_journal_failure_rolls_back_run_events_and_ledger",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_unknown_replay_rejects_stale_owner_and_late_results_before_takeover_restoration",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::keyed_tool::production_worker_returns_unknown_and_its_validation_does_not_count_as_handler_consumption",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_checkpoint_replay_journal_failure_rolls_back_the_projection",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_checkpoint_replay_rejects_the_stale_owner_and_restores_under_takeover",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_expiry_reconciliation_preserves_a_fresh_foreign_lease_and_run",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_failed_read_checkpoint_replay_preserves_the_original_error_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_failed_read_persists_its_false_output_and_failed_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_handler_observes_a_stable_run_key_and_replay_keeps_the_same_output_key",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_read_checkpoint_replay_restores_the_original_result_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_read_tool_result_replays_from_the_same_durable_invocation_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_run_writes_reject_stale_and_mismatched_fences_before_the_current_write",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_stale_run_lease_executes_no_read_tool_and_preserves_the_replacement",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_tool_claim_classifies_sql_owner_and_cross_run_fence_rejections_as_lease_lost",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::production_tool_claim_preserves_precancellation_and_allows_its_current_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::uncertain_write::production_catalog_invocation_policy_uses_descriptor_modes_and_read_permission_defaults",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::uncertain_write::production_fail_closed_structured_rejection_remains_a_completed_failed_call",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::durable_tool::uncertain_write::production_fail_closed_write_error_stays_unknown_and_replays_without_execution",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::failure_projection::created_failure_owner_rejects_stale_fence_before_terminal_and_message_writes",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::failure_projection::failed_message_transaction_retains_error_then_attaches_final_at_same_sequence",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::lifecycle_audit_helpers_match_the_reference_table",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_rejects_expired_durable_lease_without_changing_the_row",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_stream_waiting_for_headers_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_stream_waiting_for_json_body_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_a_waiting_sync_provider_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_heartbeat_write_failure_cancels_an_idle_stream_provider_and_joins",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_run_lease_defaults_use_thirty_second_ttl_and_join_on_drop",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::production_run_lease_reuses_its_owner_and_rejects_a_foreign_owner",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_background_shutdown_cancels_joins_and_rejects_new_work",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_lease_admission_rejects_closing_and_closed_without_persisting",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_shutdown_cancels_a_provider_token_registered_after_close_started",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_shutdown_waits_for_the_live_stream_lease_release",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::shutdown::production_shutdown_waits_for_the_sync_chat_lease_release",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::snapshot::production_configured_run_lease_heartbeat_rejects_takeover_at_initial_expiry",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::snapshot::production_heartbeat_keeps_its_owner_live_beyond_the_initial_snapshot_expiry",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_lease::snapshot::production_heartbeat_rejects_expired_caller_snapshot_before_attempting_a_write",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::run_terminal_state_classifies_unsupported_input_before_the_status_switch",
+    "jftrade-engine::jftrade_engine$product::product_adk_model_runtime::terminal_audit_tests::terminal_failure_mapping_matches_the_reference_table",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::control_plane_hard_stop_release_is_single_shot",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::control_plane_hard_stops_block_until_every_entry_released",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::control_plane_kill_switch_release_is_idempotent_and_audited",
+    "jftrade-engine::jftrade_engine$product::product_execution_risk_coordinator::tests::port_release_missing_hard_stop_reports_not_found",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::disabled_runtime_has_stopped_status_and_releases_listener",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::replacement_disable_and_close_release_each_listener_owner",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::workflow_wait_duration_parses_multiple_input_forms",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::workflow_wait_tool_rejects_too_long_duration",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::workflow_wait_tool_returns_context_cancellation",
+    "jftrade-engine::jftrade_engine$product::product_mcp_server::tests::workflow_wait_tool_waits_and_does_not_require_approval",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::workflow::tests::failure_cas_loser_distinguishes_missing_durable_winner",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::workflow::tests::failure_cas_loser_returns_durable_failed_winner_without_overwriting_it",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::builtin_agent_http::builtin_agent_http_updates_provider_reasoning_and_keeps_protected_fields",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::provider_reasoning_config_defaults_to_the_responses_field_and_empty_mappings",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::provider_reasoning_config_normalizes_custom_mappings_and_rejects_duplicates",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::provider_reasoning_mapping_changes_persist_and_gate_new_agent_efforts",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::trigger_parity::workflow_original_crud_pages_failed_logs_and_soft_deletes_resources",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::trigger_parity::workflow_trigger_original_invalid_schedule_and_market_configs_do_not_write_rows",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::trigger_parity::workflow_trigger_original_string_instrument_config_reaches_the_durable_owner",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::trigger_parity::workflow_trigger_original_validation_errors_preserve_their_field_classification",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_and_trigger_lists_hide_deleted_rows_after_create_and_delete",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_bridge_pages_lists_and_rejects_unknown_run_targets",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_management_catalog_keeps_the_skill_and_approval_boundaries",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_resource_crud_normalizes_tags_and_pagination_defaults",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_run_without_a_model_runtime_fails_closed_and_finalises_the_invocation",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::store_parity::workflow_updates_keep_omitted_fields_and_apply_explicit_clears",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::workflow_tool_error::workflow_manager_failures_surface_verbatim_on_every_workflow_route",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::workflow_tool_error::workflow_trigger_update_switches_a_manual_trigger_to_a_schedule",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::workflow_tool_error::workflow_writes_apply_the_documented_write_fields",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::tests::workflow_tool_error::workflow_writes_reject_malformed_canvas_graphs_before_storing",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_error_tests::execution_http_upstream_errors_preserve_codes_and_fence_duplicate_submissions",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::execution_http_place_list_events_cancel_preserve_rust_admission_and_durable_fence",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_preview_tests::execution_http_lifecycle_tests::malformed_persisted_execution_orders_reject_before_cancel_fence_or_broker_call",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::order_state_tests::challenge_edge_case_3_broker_network_failure_does_not_mutate_or_release_quota",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_execution::product_production_ports_execution_orders::execution_reconciliation::tests::push_worker_tests::test_p1_02_single_writer_lease_and_concurrency_fencing",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_quote::quote_lease::tests::subscription_required_error_formats_channel_instrument_and_interval",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::broker_neutral_polling_acquire_heartbeat_release_never_consumes_futu_lease",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::clear_route_preserves_running_strategy_lease",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::consumer_only_release_keeps_other_consumer_entry",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::prediction_subscription_rejects_invalid_instrument_types_and_lease_ids",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::prediction_subscription_surfaces_a_provider_failure_without_retaining_a_lease",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::prediction_subscription_uses_reference_counted_leases",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::release_and_clear_map_snapshot_failure_after_logical_cleanup",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_market_data::product_production_ports_market_data_subscription::tests::subscription_routes_preserve_instrument_request_contract_through_acquire_release_and_clear",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::failed_pine_warmup_releases_only_its_own_subscription_once",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::owner_tests::timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io",
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_strategy::product_production_ports_strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits",
+    "jftrade-engine::jftrade_engine$product::product_server_tests::enabled_web_access_binds_and_shutdown_releases_port",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::basic_quote_read_requires_a_lease_and_never_leaks_the_raw_opend_error",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::candle_read_without_a_kline_lease_fails_before_realtime_provider_access",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::live_read_routes_require_a_logical_subscription_lease",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::poll_only_read_routes_prioritize_capabilities_and_preserve_leases",
+    "jftrade-engine::jftrade_engine$product::tests::market_data_quote_read_tests::snapshot_read_fences_provider_generation_switch_during_helper_query",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_drop_terminates_reconciliation_before_releasing_leases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_shutdown_joins_scheduler_on_current_thread_before_releasing_leases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_product_shutdown_stops_reconciliation_before_releasing_leases",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::direct_production_ports_without_trade_runtime_release_execution_lease",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_adk_local_mutations_persist_tasks_memory_and_workflow_triggers",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_route_fence_discards_embedding_ports",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_startup_fails_closed_on_backtest_market_data_lease_conflict",
+    "jftrade-engine::jftrade_engine$product::tests::production_assembly_tests::product_production_assembly_tests::production_startup_fails_closed_on_writer_lease_conflict",
+    "jftrade-engine::jftrade_engine$product::tests::strategy_durable_http_parity_tests::production_http_definition_delete_guard_releases_after_linked_instance_soft_delete",
+    "jftrade-engine::jftrade_engine$product::tests::system_control_read_tests::production_system_status_reports_real_database_lease_and_schema_state",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::depth_parity::websocket_listener_shutdown_cancels_pending_initial_depth_read_and_releases_demand",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_separate_web_listener_preserves_desktop_fence_and_releases_both_ports",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::production_websocket_missing_provider_closes_and_releases_connection",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::http_parity_tests::security_parity::websocket_listener_shutdown_cancels_pending_security_read_and_releases_connection_demand",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::ws_live_shutdown_closes_active_connection_and_releases_depth_subscription",
+    "jftrade-engine::jftrade_engine$product::tests::ws_live_tests::ws_live_subscription_registry_drives_status_and_releases_on_disconnect",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::batch_atomic_startup_tests::startup_acquires_all_writer_leases_in_stable_order_before_migrating",
+    "jftrade-engine::jftrade_engine$product_data_management::tests::production_database_startup_leases_before_creating_database",
+    "jftrade-engine::jftrade_engine$product_runtime::product_runtime_tests::product_runtime_composes_opend_provider_and_fences_shutdown_ownership",
+    "jftrade-engine::jftrade_engine$product_workflow_cron::tests::next_schedule_run_calculation_with_timezone",
+    "jftrade-engine::jftrade_engine$product_workflow_cron::tests::next_schedule_run_rfc3339_string",
+    "jftrade-engine::jftrade_engine$product_workflow_cron::tests::next_schedule_run_skips_weekend_for_weekday_cron",
+    "jftrade-engine::jftrade_engine$product_workflow_cron::tests::parse_invalid_cron_expressions",
+    "jftrade-engine::jftrade_engine$product_workflow_cron::tests::parse_valid_cron_expressions",
+    "jftrade-engine::jftrade_engine$product_workflow_jobs::tests::stop_blocks_new_dispatch_and_join_reports_active_owners",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::parity_tests::threshold_ignores_events_without_instruments_and_skips_empty_numeric_path_segments",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::parity_tests::threshold_original_cooling_and_missing_paths_preserve_state_decisions",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::parity_tests::threshold_original_mismatched_events_do_not_prime_unrelated_instruments",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::parity_tests::threshold_original_nested_cross_down_and_config_scalars_preserve_values",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::parity_tests::threshold_rule_numeric_paths_state_and_cooldown_cover_original_boundaries",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::tests::evaluate_above_and_below_levels",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::tests::evaluate_cross_down_transitions",
+    "jftrade-engine::jftrade_engine$product_workflow_threshold::tests::evaluate_cross_up_transitions",
+    "jftrade-engine::market_data_subscription_mutation_compatibility$sqlite_test_cutover_preserves_subscription_transactions_fencing_and_reopen",
+    "jftrade-engine::research_presets_write_compatibility$research_preset_write_leaf_replays_concurrent_fencing_and_recovery",
+    "jftrade-engine::strategy_definitions_write_compatibility$sqlite_test_cutover_writer_lease_rejects_a_second_owner",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::failed_pine_warmup_releases_only_its_own_subscription_once",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::owner_tests::timed_out_stop_keeps_owner_and_releases_store_during_blocking_quote_io",
+    "jftrade-engine::strategy_runtime_lifecycle_bounded_tests$strategy_runtime::strategy_runtime_execution::tests::test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits",
+    "jftrade-engine::strategy_simulate_closed_loop$strategy_runtime_execution::tests::test_execute_strategy_intents_revision_fence_mismatch_blocks_and_audits",
+    "jftrade-engine::system_write_compatibility$system_write_release_routes_reject_malformed_optional_payload_before_port",
+    "jftrade-engine::watchlist_write_compatibility$sqlite_test_cutover_preserves_revision_fencing_import_commit_and_restart",
+    "jftrade-engine::workflow_canvas_behavior_parity$reachable_workflow_graph_executes_once_and_records_terminal_node_states",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_canvas_save_read_and_restart_preserve_the_submitted_graph",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_child_nodes_receive_rendered_inputs_and_persist_their_outputs",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_node_output_placeholders_remain_literal_downstream_data",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_run_persists_ordered_start_agent_monitor_outputs",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_template_input_values_are_not_evaluated_as_other_placeholders",
+    "jftrade-engine::workflow_canvas_behavior_parity$workflow_without_canvas_uses_the_existing_durable_single_agent_path"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 197,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_timing_challenge",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 4,
+      "exec_time": 0.006018625,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_identifier_security_hardening",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.009598583,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_chat_stream_timing_challenge",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 4,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_lease_fencing_takeover_edge_conditions",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.009317333,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_identifier_security_hardening",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_mutations_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 9,
+      "exec_time": 0.005803417,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_mutations_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 12,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2,
+      "exec_time": 0.212140084,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_lease_fencing_takeover_edge_conditions",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 2,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 6,
+      "exec_time": 0.781405581,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_canvas_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "backtests_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "market_data_subscription_mutation_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 10,
+      "exec_time": 0.050126334,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "backtests_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "research_presets_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 5,
+      "exec_time": 0.006389875,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "research_presets_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_definitions_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.024468084,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "market_data_subscription_mutation_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 3,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 14,
+      "exec_time": 0.032782042,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_definitions_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "system_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 12,
+      "exec_time": 0.005503792,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "system_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "watchlist_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 44,
+      "exec_time": 0.022991666,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_simulate_closed_loop",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 7,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "workflow_canvas_behavior_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 8,
+      "exec_time": 0.032601792,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "watchlist_write_compatibility",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 14,
+      "exec_time": 0.302528625,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "adk_workflow_scheduler_contracts",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 0,
+      "exec_time": 0.473630541,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "workflow_canvas_behavior_parity",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 84,
+      "exec_time": 3.144821125,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "strategy_runtime_lifecycle_bounded_tests",
+        "kind": "test"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 197,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 1802,
+      "exec_time": 147.093968758,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}

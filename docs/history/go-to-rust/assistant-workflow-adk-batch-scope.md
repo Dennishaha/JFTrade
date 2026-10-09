@@ -3362,3 +3362,9 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 直接生产 `emit_preview_session` 对已持有context的执行仅发布session、sequence1并EOF；durable context腐坏后的独立读取返回500/ADK_STORAGE_CORRUPT，而preview成功、完整context/session/audit保持，零provider连接。控制结合owner源码验证本次调用不重载context，不声称记录读取次数。已有Go式无response终态run经两路真实HTTP重连恰好run/final、正确response.run.id、无error且EOF，完整row/native/audit保持。
 
 逐项复核6条冻结原函数/blob：recovery41、helpers167/151、routes136、disconnect110、runner_chat1124。只将recovery41 partial→exact，当前1668 exact/2146 partial/637 boundary；其余分类与缺口保持。两个旧terminal引用补物理anchor和mapping anchor，新owner单引用，旧reuse关系保持。首次编译、strict缺anchor及quick格式失败均留证；源码冻结结束后才修正。最终定向156 passed，quick2452 Rust/98 Pine/desktop11+48与七类replay通过，无LEAK；现场完整Rust4052 passed/0 failed/2 skipped、static与七类replay通过，无LEAK；1045 Rust文件和runner源码冻结。四份receipt、两份通过gate、六条原函数及15处reuse/anchor/diff核验通过。workflow reasoning恢复、delta分类/narrative组合、过期RUNNING清理及GET typed/history继续开放，整体未完成，详细证据见[积压清单](parity-evidence-backlog.md)。
+
+### 2026-10-09 workflow 真实模型准入与旧请求重放
+
+真实ProductionAdkPort/ProductionAdkChatRuntime先红复现新节点session not found。新节点不传伪造已有sessionId，改由原chat owner创建domain/native session；模型snapshot-model/MAX_V1、COMPLETED回复、原生消息及终态重复恢复一次provider调用闭合。旧跨调用前完整request、暂停后投影inputs两种checkpoint在provider drift后保留原显式session/canonical identity；完整child/native/session/audit保持且零provider连接，重复resume不写终态。
+
+七条冻结原函数/blob复核：reasoning10/23、workflow_canvas133/167/223、config27/65；分类1668 exact/2146 partial/637 boundary保持。新证据单引用，旧reuse不改；Go parent聚合投影与非终态workflow reasoning context继续partial。最终定向236、quick2454 Rust/98 Pine/desktop11+48及现场完整Rust4054 passed/0 failed/2 skipped通过，static/七类replay通过，无LEAK，1046文件与runner源码冻结。六份receipt、两份gate、7条原函数及11处reuse/anchor/diff核验通过；既有partial的一个多引用allowed=false保持，不视为exact复用批准。编译、生产准入红、legacy图夹具及两个verifier错误均留证，详细证据见[积压清单](parity-evidence-backlog.md)。整体未完成，提交后继续非终态workflow快照。
