@@ -17,6 +17,7 @@ workers/pineworker/coverage/
 
 # IDE / OS
 .DS_Store
+._*
 .idea/
 .vscode/*
 !.vscode/launch.json
