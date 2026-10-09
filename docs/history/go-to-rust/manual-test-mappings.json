@@ -4038,11 +4038,11 @@
       "boundaryReason": null
     },
     "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun": {
-      "status": "[~]",
-      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once; crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs::production_live_failure_replays_final_projection_without_provisional_error",
-      "conclusion": "partial（2026-10-09冻结原测试复核）：已持久终态恢复为final而非第二条error的断言闭合；已有session在真实HTTP执行中仅发一次preview也已验证。但Go已知contextSent时ensureSessionAndContext只发布一个session且不重新获取context的独立分支，不能由完整执行流中session计数1替代。 本批新增真实live provider失败终态final及创建后context失败控制；known-context缺口保持，不升级exact。 2026-10-09：实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。 已知context的preview/no-refetch原断言继续partial。",
-      "command": "env CARGO_INCREMENTAL=0 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked",
-      "evidence_type": "partial",
+      "status": "[x]",
+      "rust_entry": "crates/jftrade-engine/src/product_adk_model_runtime_recovery_tests.rs::persisted_terminal_run_is_published_as_final_instead_of_a_second_error; crates/jftrade-engine/src/product_adk_chat_stream_product_tests.rs::production_live_chat_stream_reuses_existing_session_preview_once; crates/jftrade-engine/src/product_adk_created_run_failure_owner_tests.rs::production_live_failure_replays_final_projection_without_provisional_error; crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs::production_failed_message_append_recovers_final_without_saved_response; crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs::production_reconnect_recovers_go_terminal_run_without_embedded_response; crates/jftrade-engine/src/product_adk_known_context_preview_owner_tests.rs::production_known_context_preview_publishes_only_session_without_reloading_context",
+      "conclusion": "function_exact：冻结原函数两分支已闭合。直接生产emit_preview_session在执行已持有context时恰好发布一个session且EOF；durable context被改为非法JSON后独立读取确实失败，而preview成功且context/session/audit保持。此控制结合owner源码证明该调用不重新加载context，不声称测得读取次数。Go式无response终态run通过两路实际HTTP重连返回恰好run/final、正确response.run.id、无error并EOF，完整row/native/audit保持。生产逻辑无需修改。",
+      "command": "env CARGO_INCREMENTAL=0 NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1 node scripts/quality/cargo-nextest.mjs run -p jftrade-engine --all-targets --locked --message-format libtest-json-plus --no-fail-fast -E 'test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(terminal_audit) | test(fenc) | test(lease)'",
+      "evidence_type": "function_exact",
       "source": {
         "file": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
         "line": 41,
@@ -4086,12 +4086,35 @@
         {
           "file": "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs",
           "test": "production_failed_message_append_recovers_final_without_saved_response",
-          "crate": "jftrade-engine"
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
+            "goLine": 41,
+            "rustFile": "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs",
+            "rustLine": 18
+          }
         },
         {
           "file": "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs",
           "test": "production_reconnect_recovers_go_terminal_run_without_embedded_response",
-          "crate": "jftrade-engine"
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
+            "goLine": 41,
+            "rustFile": "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs",
+            "rustLine": 113
+          }
+        },
+        {
+          "file": "crates/jftrade-engine/src/product_adk_known_context_preview_owner_tests.rs",
+          "test": "production_known_context_preview_publishes_only_session_without_reloading_context",
+          "crate": "jftrade-engine",
+          "anchor": {
+            "goFile": "internal/api/assistant/chat_stream_recovery_contracts_test.go",
+            "goLine": 41,
+            "rustFile": "crates/jftrade-engine/src/product_adk_known_context_preview_owner_tests.rs",
+            "rustLine": 9
+          }
         }
       ],
       "assertionCoverage": {
@@ -4099,14 +4122,18 @@
           "已持久终态run在错误恢复时发布final而非第二条error。",
           "真实HTTP执行已有session仅发一次preview且session先于run。",
           "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。",
-          "实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。"
+          "实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。",
+          "已知context的生产preview仅发布一个session、sequence1且EOF；独立durable context腐坏控制返回500/ADK_STORAGE_CORRUPT，preview不读取或发布context，完整context/session/audit保持且零provider连接。"
         ],
-        "uncovered": [
-          "已知context时preview只发session、不重新获取或发布context的分支尚缺对应owner断言。"
-        ],
+        "uncovered": [],
         "source": "reviewed"
       },
       "verification": {
+        "runnerVersion": "cargo-nextest 0.9.145",
+        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "status": "passed",
+        "exitCode": 0,
+        "verifiedAt": "2026-10-09T00:14:21Z",
         "argv": [
           "env",
           "CARGO_INCREMENTAL=0",
@@ -4122,35 +4149,33 @@
           "libtest-json-plus",
           "--no-fail-fast",
           "-E",
-          "test(terminal_audit_tests::) | test(reconnect_live::) | test(fencing_tests::) | test(persisted_terminal_run_is_published)"
+          "test(adk_chat_stream_replays_retained_terminal_events_through_adk_read_after_restart) | test(adk_reconnect_routes_return_an_incremental_body_instead_of_materializing_history) | test(late_disconnect_and_failure_preserve_terminal_run_history_and_audit) | test(persisted_terminal_run_is_published_as_final_instead_of_a_second_error) | test(production_failed_message_append_recovers_final_without_saved_response) | test(production_live_chat_stream_reuses_existing_session_preview_once) | test(production_live_failure_replays_final_projection_without_provisional_error) | test(production_reconnect_precancelled_request_returns_zero_body_with_listener_still_active) | test(production_reconnect_recovers_go_terminal_run_without_embedded_response) | test(production_reconnect_retry_and_replay_write_failures_preserve_terminal_history) | test(reconnect_cursor_pages_history_without_duplicates_and_returns_canonical_stream_id) | test(reconnect_http_replays_history_then_tails_live_events_on_the_same_connection) | test(reconnect_reader_drop_releases_idle_store_reference_without_background_reads) | test(stream_terminal_projection_trims_tool_outputs_from_final_response) | test(production_known_context_preview_publishes_only_session_without_reloading_context) | test(terminal_audit) | test(fenc) | test(lease)"
         ],
         "testFilter": [
+          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error",
+          "production_live_chat_stream_reuses_existing_session_preview_once",
           "production_live_failure_replays_final_projection_without_provisional_error",
-          "persisted_terminal_run_is_published_as_final_instead_of_a_second_error"
+          "production_failed_message_append_recovers_final_without_saved_response",
+          "production_reconnect_recovers_go_terminal_run_without_embedded_response",
+          "production_known_context_preview_publishes_only_session_without_reloading_context"
         ],
-        "runnerVersion": "cargo-nextest 0.9.143",
-        "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-        "status": "passed",
-        "exitCode": 0,
-        "verifiedCommit": "228c13414042ab4f9e66d16bfbbbe3b1663f0c7f",
-        "verifiedAt": "2026-10-08T20:36:42Z",
-        "receiptDigest": "sha256:e25a0a6e335b904f7a3a0078149e783c1589b05850374ad33d0d0e95b7298893"
+        "verifiedCommit": "207840914013c703359f138ce0fbc450109bbbf7",
+        "receiptDigest": "sha256:2940031d14a6984f10468912e6c91dceb4f19117926f6ca5d718aa76854c8599"
       },
       "risk": "high",
       "owner": "api_transport",
       "priority": "P1",
-      "nextAction": "close_known_context_preview_owner",
+      "nextAction": "retain_reviewed_exact_and_reaudit",
       "blockedBy": [],
       "waiverExpiresAt": null,
       "coveredAssertions": [
         "已持久终态run在错误恢复时发布final而非第二条error。",
         "真实HTTP执行已有session仅发一次preview且session先于run。",
         "真实配置runtime与HTTP provider失败保存FAILED响应，并发布final而非临时error；最终消息事务失败保留error，同sequence成功attachment及stale fence拒绝由生产owner控制覆盖。",
-        "实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。"
+        "实际生产live最终消息追加失败仍保存FAILED而无response；只读恢复发布final，重复POST/GET重放同response/sequence且provider一次、完整row/events/audit保持。无内嵌response的Go式终态run经两路真实HTTP重连恢复final并EOF。",
+        "已知context的生产preview仅发布一个session、sequence1且EOF；独立durable context腐坏控制返回500/ADK_STORAGE_CORRUPT，preview不读取或发布context，完整context/session/audit保持且零provider连接。"
       ],
-      "uncoveredAssertions": [
-        "已知context时preview只发session、不重新获取或发布context的分支尚缺对应owner断言。"
-      ],
+      "uncoveredAssertions": [],
       "boundaryReason": null
     },
     "internal/api/assistant/chat_transport_disconnect_test.go:55:TestChatStreamTransportHandlesDisconnectedClients": {
@@ -366700,6 +366725,14 @@
       "allowed": true,
       "reviewStatus": "single",
       "reviewNote": "2026-10-09: direct production HTTP request cancellation closes disconnect110 idle pre-cancellation with active listener, empty body, retained row/audit/native sessions and released reader. Retry/event BrokenPipe cases remain proved by the real socket owner. Listener-only and unanchored generic replay references removed from this exact claim; all other original classifications unchanged."
+    },
+    "crates/jftrade-engine/src/product_adk_known_context_preview_owner_tests.rs::production_known_context_preview_publishes_only_session_without_reloading_context": {
+      "referenceCount": 1,
+      "referenceKeys": [
+        "internal/api/assistant/chat_stream_recovery_contracts_test.go:41:TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun"
+      ],
+      "allowed": false,
+      "reviewStatus": "single"
     }
   }
 }

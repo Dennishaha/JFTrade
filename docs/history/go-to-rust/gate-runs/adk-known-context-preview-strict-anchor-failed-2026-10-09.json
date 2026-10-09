@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "python3",
+    "scripts/compatibility/audit_test_parity.py",
+    "--strict"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-09T00:12:48.865061+00:00",
+  "verifiedCommit": "207840914013c703359f138ce0fbc450109bbbf7",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-known-context-preview-strict-initial-20261009.log",
+  "rawOutputSha256": "1c3b007919d8bba1425240c821a6e77b56ef3fd8cefe2393b5075d3a557b6af0",
+  "rustSourceFingerprintSha256": "3b9f9f3bff2e7abc252fa23dd88516d86d6d4fbec8af7700c3297491637f51bb",
+  "frozenRustFiles": 1045,
+  "failure": "recovery41 function_exact retains two existing terminal owner references without parity anchors; add physical anchors after running quick finishes, then rerun directed/quick/full Rust",
+  "rustSourceChangedDuringGate": []
+}

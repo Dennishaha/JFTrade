@@ -3356,3 +3356,9 @@ Go 这两条把 workflow bridge 钉在两件事上：manager 的 CRUD/分页/run
 两条实际生产owner测试补齐config27上一批明确的证据缺口：真实HTTP拒绝六种原非法配置且完整provider/audit/native sessions与secret保持、零provider连接；合法low=LOW及high/max共用balanced保存一致，生产resolver保持大小写值并拒绝medium未映射/extreme非法。原生产逻辑无需修改，两条owner控制与最终定向246通过，真实receipt及源码指纹保存。
 
 逐项复核7条Go原函数/blob：model config8/27/65、persistence/provider10/47、reasoning10/23；仅config27完整断言闭合后partial→exact，当前1667 exact/2147 partial/637 boundary。reasoning10/23只刷新移动的Rust anchor和现场receipt，workflow分支保持partial。新两个单引用证据不允许未来未经审核复用，旧reuse关系保持。夹具在seed前shutdown/join启动scanner，并将accepted mock socket显式设回blocking，保留原超时及wire/终态/一次执行断言。nextest已知Apple并发capture pipe缺陷由统一pin0.9.145修复，官方五个archive SHA现场核验；旧LEAK、scanner竞争、HTTP/2 fetch、bootstrap旧pin及mock读取失败均留证。最终定向246 passed；quick全量preflight 4051 Rust/2435 Web/98 Pine/337 Python、现场完整Rust 4051 passed/0 failed/2 skipped通过，static与七类replay通过，无LEAK，1044文件和runner源码冻结；workflow恢复等其余缺口保持，整体未完成。详细现场结果与失败记录见[证据积压清单](parity-evidence-backlog.md)。
+
+### 2026-10-09 known-context preview 生产 owner
+
+直接生产 `emit_preview_session` 对已持有context的执行仅发布session、sequence1并EOF；durable context腐坏后的独立读取返回500/ADK_STORAGE_CORRUPT，而preview成功、完整context/session/audit保持，零provider连接。控制结合owner源码验证本次调用不重载context，不声称记录读取次数。已有Go式无response终态run经两路真实HTTP重连恰好run/final、正确response.run.id、无error且EOF，完整row/native/audit保持。
+
+逐项复核6条冻结原函数/blob：recovery41、helpers167/151、routes136、disconnect110、runner_chat1124。只将recovery41 partial→exact，当前1668 exact/2146 partial/637 boundary；其余分类与缺口保持。两个旧terminal引用补物理anchor和mapping anchor，新owner单引用，旧reuse关系保持。首次编译、strict缺anchor及quick格式失败均留证；源码冻结结束后才修正。最终定向156 passed，quick2452 Rust/98 Pine/desktop11+48与七类replay通过，无LEAK；现场完整Rust4052 passed/0 failed/2 skipped、static与七类replay通过，无LEAK；1045 Rust文件和runner源码冻结。四份receipt、两份通过gate、六条原函数及15处reuse/anchor/diff核验通过。workflow reasoning恢复、delta分类/narrative组合、过期RUNNING清理及GET typed/history继续开放，整体未完成，详细证据见[积压清单](parity-evidence-backlog.md)。

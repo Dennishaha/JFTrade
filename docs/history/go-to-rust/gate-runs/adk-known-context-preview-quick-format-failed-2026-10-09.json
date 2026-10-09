@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "failed",
+  "exitCode": 1,
+  "verifiedAt": "2026-10-09T00:13:54.306511+00:00",
+  "verifiedCommit": "207840914013c703359f138ce0fbc450109bbbf7",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-known-context-preview-quick-verified-20261009.log",
+  "rawOutputSha256": "5e6597421ecab89f9723c652c80a6ca0a816f09f6bbd3ec9e2f99de97b9b798d",
+  "rustSourceFingerprintSha256": "3b9f9f3bff2e7abc252fa23dd88516d86d6d4fbec8af7700c3297491637f51bb",
+  "frozenRustFiles": 1045,
+  "nextestSummary": {
+    "planned": 2452,
+    "passed": 2452,
+    "failed": 0,
+    "skipped": 0
+  },
+  "format": "failed: new known-context owner file formatting",
+  "clippy": "not run",
+  "compatibilityReplays": "not run",
+  "pineWorkerTests": "not run",
+  "desktopNodeChecks": "not run",
+  "leakyTestMarkerCount": 0,
+  "rustSourceChangedDuringGate": []
+}

@@ -1,5 +1,16 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 known-context preview 生产 owner
+
+- 直接调用生产 `emit_preview_session`，执行已持有 context 时仅发布一帧 session、sequence1 并 EOF。把 durable context 改为非法 JSON 后，独立生产读取返回500/ADK_STORAGE_CORRUPT，而 preview 成功；完整 context/session/audit 保持、零 provider 连接。该控制结合 owner 源码验证本次调用不重载 context，不声称记录了读取次数。生产逻辑无需修改。
+- 无内嵌 response 的 Go 式终态 run，由已有生产测试通过两路真实 HTTP 重连交付恰好 run/final、正确 response.run.id、无 error 并 EOF，完整 row/native/audit 保持。本批定向重新执行全部14条既有证据及新 owner，156 passed/0 failed；[receipt](verification-receipts/adk-known-context-preview-directed-2026-10-09.json) SHA `84aa25cc426c64c52d35893aff1b62e75d78b50419591eea6694800af2ea251f`。
+- 逐项复核6条冻结 Go 原函数及 blob：recovery41、helpers167/151、routes136、disconnect110、runner_chat1124。仅 recovery41 完整闭合后 partial→exact，当前1668 exact/2146 partial/637 boundary；delta分类/narrative组合、过期RUNNING清理和fallback helper边界保持。旧 reuse 关系不变，新 owner 仅单引用。
+- [首次 owner receipt](verification-receipts/adk-known-context-preview-owner-2026-10-09.json)保留编译失败exit101、零测试：测试挂载位置无权访问生产方法。修复为挂在生产 owner 所属子模块，仅共享四个同域测试 helper，未扩大生产方法可见性。[修复 owner receipt](verification-receipts/adk-known-context-preview-owner-fixed-2026-10-09.json) 1 passed。失败日志、diff与1045份源码快照均保留于本机 `.git/adk-known-context-preview-*`。
+- 已查看 quick 计划：受影响 engine/desktop、Pine与desktop检查、七类replay；现场完整Rust已通过，详见下面结果。workflow reasoning恢复、完整chat投影、GET typed/history和其他已登记缺口继续开放，整体未完成。
+- [strict anchor失败](gate-runs/adk-known-context-preview-strict-anchor-failed-2026-10-09.json)保留：升级前审计发现两条既有terminal owner引用缺anchor；补对应原断言的物理注释与mapping anchor，没有删除旧引用。[首次quick格式失败](gate-runs/adk-known-context-preview-quick-format-failed-2026-10-09.json) 2452 Rust passed/0 failed，fmt退出1，Clippy、回放、Pine和desktop后续检查未执行。Rust源码冻结至该轮结束后才修正格式和anchor。最终[定向receipt](verification-receipts/adk-known-context-preview-directed-final-2026-10-09.json) 156 passed/0 failed，SHA `2940031d14a6984f10468912e6c91dceb4f19117926f6ca5d718aa76854c8599`，后续门禁绑定此源码。
+- 最终[quick](gate-runs/adk-known-context-preview-quick-final-2026-10-09.json) 2452 Rust/98 Pine/desktop11+48、七类replay通过；[现场完整Rust](gate-runs/adk-known-context-preview-rust-final-2026-10-09.json) 4052 passed/0 failed/2 skipped、static/七类replay通过，无LEAK。1045 Rust文件与三份runner源码冻结；strict/context/anchor通过，unrecorded/stale0、既有unknown48。
+- 最终verifier首次退出1：定向运行中只更新了mapping anchor，因此receipt记录时的文档diff与测试前diff摘要不同；Rust未修改。保留原receipt及两份diff，用隔离Git index重建记录时diff，SHA逐字节匹配 `5adbb0eb8c31c91462990daf019f0d42c353fdb0e0aa6a8128a072f5f8c4f789`，两份Rust diff部分相同，冻结源码快照一致。四份receipt、两份通过gate、失败gate、6条原函数及15处reuse/anchor/diff核验通过。全部原日志、快照和核验脚本备份于 `/Users/jiangfan/.cache/jftrade/parity-known-context-preview-20261009`。整体未完成，提交后继续生产workflow reasoning恢复与完整chat投影。
+
 ## 2026-10-09 provider reasoning 完整原断言矩阵
 
 - 上一批明确的config27证据缺口由两个直接生产owner测试补齐：真实HTTP逐项拒绝model.reasoning、reasoning[0]、reasoning..level、重复low、空白value及default effort六种原配置；全部400/BAD_REQUEST、错误非空、无data，完整provider/audit/native sessions保持、secret未创建且零provider连接。

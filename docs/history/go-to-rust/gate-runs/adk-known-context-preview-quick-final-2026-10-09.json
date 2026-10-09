@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T00:18:18.345054+00:00",
+  "verifiedCommit": "207840914013c703359f138ce0fbc450109bbbf7",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-known-context-preview-quick-final-20261009.log",
+  "rawOutputSha256": "4d4ffd7ef3361d49567144b97e056c8e4c5ccf9e7df4b534301c79e035baee6b",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "CARGO_INCREMENTAL": "0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "node": "v24.19.0",
+    "pnpm": "12.3.4",
+    "protoc": "libprotoc 34.1",
+    "nextest": "0.9.145",
+    "gitHttpVersion": "HTTP/1.1"
+  },
+  "nextestSummary": {
+    "planned": 2452,
+    "passed": 2452,
+    "failed": 0,
+    "skipped": 0,
+    "testSeconds": 112.345
+  },
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "affectedSourceSha256": {
+    "crates/jftrade-engine/src/product_adk_model_runtime_stream_events.rs": "33ccdf93579c919bccdc70cd23c75ed41d4c37d79fa18ad4bdc8bd79fdb50d57",
+    "crates/jftrade-engine/src/product_adk_model_runtime_terminal_audit_tests.rs": "98a0e0a059cfc75173536b27a5f79c5dea0d77fd597155a51300bc80dd1d2bd7",
+    "crates/jftrade-engine/src/product_adk_terminal_projection_recovery_owner_tests.rs": "2a7c84bb0e16148778ebd72e302a368b9864857c3957b2b3e34cefbfd1abd045",
+    "crates/jftrade-engine/src/product_adk_known_context_preview_owner_tests.rs": "1b8f4146585d5b583cf779fa72722e8fab107649ebc62cf749157dc098a5b716"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "c621ecf7326a262668a64b9572f5259e8bee2bdbdc3045df6139d178e306c1b2",
+  "frozenRustFiles": 1045,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "remainingRisk": "Six frozen Go functions reviewed. Direct production known-context preview and real HTTP terminal recovery close recovery41 only. Delta classification/narrative matrix, expired RUNNING cleanup and fallback helper boundary retain original gaps. Compile failure and strict missing-anchor failure preserved. 1668 exact/2146 partial/637 boundary; whole parity unfinished.",
+  "pineWorkerTests": {
+    "passed": 98
+  },
+  "desktopNodeChecks": {
+    "contracts": 11,
+    "sidecar": 48
+  },
+  "planner": "affected engine/desktop, seven replays, Pine and desktop checks"
+}

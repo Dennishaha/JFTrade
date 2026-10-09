@@ -30,7 +30,7 @@ mod disconnect;
 #[path = "product_adk_failure_projection_fence_tests.rs"]
 mod failure_projection;
 
-fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
+pub(super) fn initialized_stores() -> (tempfile::TempDir, Arc<AdkStore>, Arc<AdkSessionStore>) {
     let directory = tempdir().expect("temporary directory");
     let adk_path = directory.path().join("adk.db");
     let session_path = directory.path().join("adk-session.db");
@@ -85,7 +85,7 @@ fn denied_approval_summary_renders_the_go_denial_reply_text() {
     );
 }
 
-fn runtime_for(
+pub(super) fn runtime_for(
     directory: &tempfile::TempDir,
     store: &Arc<AdkStore>,
     session_store: &Arc<AdkSessionStore>,
@@ -101,7 +101,7 @@ fn runtime_for(
     )
 }
 
-fn create_running_run(store: &AdkStore, run_id: &str, tool_calls: Value) {
+pub(super) fn create_running_run(store: &AdkStore, run_id: &str, tool_calls: Value) {
     store
         .create_run(CreateAdkRunParams {
             id: run_id,
@@ -126,7 +126,7 @@ fn create_running_run(store: &AdkStore, run_id: &str, tool_calls: Value) {
         .expect("create run");
 }
 
-fn chat_for(run_id: &str) -> ChatExecution {
+pub(super) fn chat_for(run_id: &str) -> ChatExecution {
     ChatExecution::for_test(
         run_id.to_owned(),
         format!("session-{run_id}"),

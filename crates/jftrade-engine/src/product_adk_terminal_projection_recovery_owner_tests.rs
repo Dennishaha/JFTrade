@@ -13,6 +13,7 @@ fn frames(text: &str) -> Vec<Value> {
 // Frozen Go RecoverTerminalChatResponse reads the stored run and native
 // transcript even when AttachFinalAssistantMessage failed; no embedded
 // response or new message append is required to publish the final frame.
+// Parity: go:452dea11:internal/api/assistant/chat_stream_recovery_contracts_test.go:41 TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun
 #[tokio::test]
 async fn production_failed_message_append_recovers_final_without_saved_response() {
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -107,6 +108,7 @@ async fn production_failed_message_append_recovers_final_without_saved_response(
     assert_eq!(port.store.list_audit_events().unwrap(), audit);
 }
 
+// Parity: go:452dea11:internal/api/assistant/chat_stream_recovery_contracts_test.go:41 TestChatStreamExecutionReusesKnownContextAndRecoversTerminalRun
 #[tokio::test]
 async fn production_reconnect_recovers_go_terminal_run_without_embedded_response() {
     let _ = rustls::crypto::ring::default_provider().install_default();
