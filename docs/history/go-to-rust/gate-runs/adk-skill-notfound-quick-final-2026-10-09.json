@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "jftrade.local-quality-gate.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "env",
+    "GIT_CONFIG_COUNT=1",
+    "GIT_CONFIG_KEY_0=http.version",
+    "GIT_CONFIG_VALUE_0=HTTP/1.1",
+    "pnpm",
+    "run",
+    "check:quick"
+  ],
+  "status": "passed",
+  "exitCode": 0,
+  "verifiedAt": "2026-10-09T04:25:34.761877+00:00",
+  "verifiedCommit": "2df2f8127f1a0fca57bbe1cf858dac31a36de83f",
+  "rawOutputPath": "/Users/jiangfan/.cache/jftrade/parity-sync-typed-recovery-20261009/workspace/.git/adk-skill-notfound-quick-final-20261009.log",
+  "rawOutputSha256": "d1235d3947389a3ac56d940673645d9ae2ad21cdbb48ad7d22aa8e5180a11429",
+  "nextestSummaries": [
+    {
+      "planned": 2479,
+      "passed": 2479,
+      "failed": 0,
+      "skipped": 0,
+      "testSeconds": 120.927
+    }
+  ],
+  "compatibilityReplays": {
+    "storage": "passed",
+    "backtest": "passed",
+    "provider-runtime": "passed",
+    "trading-strategy": "passed",
+    "assistant-runtime": "passed",
+    "api-transport": "passed",
+    "desktop-runtime": "passed"
+  },
+  "runnerSourceSha256": {
+    "scripts/check-rust-toolchain-bootstrap.test.mjs": "e2001e98b27e12ef56bfa10a5944f3c98dd57d7f4a1c493c7368eaf843d9d117",
+    "scripts/quality/cargo-nextest.mjs": "d6b22ea30e7de6533356d7948081903d03ef615e7529a356c98fd7d7400f4ef5",
+    "scripts/quality/cargo-nextest.test.mjs": "27c1ab1ad5251648eb047e677af7bf5ac6ee0a5b4a800559f41589789828a0cb"
+  },
+  "rustSourceFingerprintSha256": "9ecd9b4f13b851e90d9fb8fa9a9bfbe845d3a786bc79182b56ec1ed6405e05f9",
+  "frozenRustFiles": 1061,
+  "rustSourceChangedDuringGate": [],
+  "leakyTestMarkerCount": 0,
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/Users/jiangfan/.cache/jftrade/targets/parity-assistant-20261008",
+    "nextest": "0.9.145"
+  },
+  "remainingRisk": "Seven frozen Go original functions reviewed; skill_reg286 complete archive/download/size-window/uninstall/Get assertions now close typed missing std::io::ErrorKind::NotFound through the actual registry owner Error::source. Original mutation port retains 500/code/message and writer cleanup transaction. Full rows/audit/document bytes stay on missing/builtin refusal. Classification 1675 exact/2139 partial/637 boundary; reuse unchanged. Blocking DNS shutdown/cancel, nil registry/directory-copy, HTTPS/YAML/SDK, builtins and cross-filesystem cleanup recovery remain. Whole parity unfinished.",
+  "static": "not_run",
+  "planner": "affected engine/desktop Rust, seven replays, Pine and desktop checks"
+}

@@ -6,6 +6,8 @@
 
 ## 当前批次：ADK 确定性接管与 durable 工具完成
 
+Skill缺失卸载typed NotFound由原registry owner保留，原port保持500投影。七条原函数复核，286升exact；fs89错误归因替换真实file-root控制，仍partial，当前1675/2139/637。定向272、最终quick2480 Rust/98 Pine/desktop11+48、现场完整Rust4084 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。五份receipt、三份gate、1061指纹与reuse/anchor核验；DNS、nil/目录、内置资源及跨系统恢复继续开放。整体未完成，继续内置skill ID安装保护。详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。
+
 Skill生产下载30秒→20秒，真实TCP握手/暂停时钟验证headers/body/跨redirect截止与19秒成功，失败零写入。六条原函数分类/reuse保持1674/2140/637。定向271、quick2479 Rust/98 Pine/desktop11+48、现场完整Rust4083 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。五份receipt、两份gate、1061指纹及anchor复核，失败均留证；blocking DNS shutdown仍可能延迟同步mutation退出，typed missing卸载等缺口继续开放。整体未完成，继续缺失卸载类型化源错误。详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。
 
 真实Skill URL下载沿原owner安全逐跳重定向，修复302停止与409/502安装错误，保持最初source及400错误规则；private目标在解析/连接前拒绝。六条原函数复核，235/224升exact，当前1674/2140/637。定向267、quick2475 Rust/98 Pine/desktop11+48、现场完整Rust4079 passed/0 failed/2 skipped及static/七类replay通过，无LEAK。五份receipt、两份gate、1060指纹及reuse/anchor核验，失败留证。Go20秒/Rust30秒、typed missing、DNS取消与跨系统恢复继续开放；整体未完成，继续生产下载默认超时。详见[积压清单](history/go-to-rust/parity-evidence-backlog.md)。

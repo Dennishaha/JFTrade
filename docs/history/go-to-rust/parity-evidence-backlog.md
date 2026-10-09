@@ -1,5 +1,13 @@
 # Go → Rust 证据积压清单
 
+## 2026-10-09 Skill 缺失卸载的类型化源错误
+
+- 冻结Go的Uninstall缺失分支返回os.ErrNotExist；原Rust文本正确但Error::source缺失。[真实registry owner红](verification-receipts/adk-skill-notfound-owner-red-2026-10-09.json)0 passed/1 failed，SHA `baa4f6a062d01b4b919ecc317a972dc1680bf905f42ebbfb38a1dc6c8f1b532b`。原生产卸载owner保留std::io::ErrorKind::NotFound源错误、registry及cleanup错误类型；原mutation wrapper仍映射500/ADK_SKILL_UNINSTALL_FAILED/file does not exist，不新增writer、schema或wire字段。
+- [owner green](verification-receipts/adk-skill-notfound-owner-green-2026-10-09.json)1 passed，[首次定向](verification-receipts/adk-skill-notfound-directed-final-2026-10-09.json)271 passed；缺失与builtin拒绝保持完整rows/audit和已安装文档bytes，外部卸载成功后Get消失。实际HTTP ZIP/source/资源、Stored ZIP大小窗口及超大markdown均由同一原组合控制执行，skill_reg286完整闭合升exact，当前1675 exact/2139 partial/637 boundary。
+- 七条冻结原函数/blob复核：skill_reg_fs48/89、skill_reg162/235/286、store_ops184/224。fs89旧archive安全证据未覆盖原文件型根目录错误；[新增真实URL owner](verification-receipts/adk-skill-notfound-owner-file-root-2026-10-09.json)1 passed，下载合法文档后安装根为文件时失败，原文件bytes、完整rows/audit与单次请求/解析轨迹保持，替换错误归因后仍partial。nil registry、目录复制/失败清理、bundle匹配和缺源继续开放。新证据single/allowed=false，旧archive-safety引用数减一且复用权限保持。
+- [最终定向](verification-receipts/adk-skill-notfound-directed-file-root-2026-10-09.json)272 passed/0 failed，SHA `03a970f3090de186350f40ac574676350df91ab2dc29b34bcfb14404164db100`。查看两次计划后[初次quick](gate-runs/adk-skill-notfound-quick-final-2026-10-09.json)2479 Rust通过；新增控制后的[最终quick](gate-runs/adk-skill-notfound-quick-file-root-2026-10-09.json)2480 Rust/98 Pine/desktop11+48及七类replay通过。[现场完整Rust](gate-runs/adk-skill-notfound-rust-final-2026-10-09.json)4084 passed/0 failed/2 skipped，static/七类replay通过，无LEAK。1061 Rust文件及三份runner源码冻结；五份receipt、三份gate、七条原函数/reuse/anchor/raw SHA/diff核验，strict/context/anchor通过，unrecorded/stale0、既有unknown48。
+- 本机原文、红测试、源码快照及核验脚本归档至 `/Users/jiangfan/.cache/jftrade/parity-skill-notfound-20261009`。类型化NotFound闭合registry语义，port按原Go handler投影文本；blocking DNS shutdown/cancel、nil registry/目录复制、HTTPS/YAML/SDK、内置资源及跨系统清理恢复仍开放。整体未完成，下一批直接验证内置skill ID的安装保护和目录保持。
+
 ## 2026-10-09 Skill 生产下载 20 秒截止时间
 
 - 冻结Go的InstallURL实际构建20秒HTTP client，Rust旧值30秒。同步mutation通过scope/join驱动同一异步下载/安装owner；真实TCP握手后才推进暂停的Tokio时钟。新增测试覆盖卡住的headers、body、12秒后才发出的redirect及19秒成功文档，不使用缩短TTL或真实等待作为行为前提。Tokio仅在engine dev-dependencies开启现有test-util feature，锁文件无变更。

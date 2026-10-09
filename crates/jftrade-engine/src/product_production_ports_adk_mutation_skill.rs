@@ -56,15 +56,16 @@ fn download_and_install_skill(
         .map_err(|_| skill_install_failed("valid http/https skill URL is required"))?;
     validate_skill_url_shape(&parsed).map_err(|message| skill_install_failed(&message))?;
     std::thread::scope(|scope| {
-        scope.spawn(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .map_err(|error| skill_install_failed(&error.to_string()))?;
-            runtime.block_on(install_downloaded_skill(port, raw_url, parsed, resolve))
-        })
-        .join()
-        .map_err(|_| skill_install_failed("skill download worker panicked"))?
+        scope
+            .spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|error| skill_install_failed(&error.to_string()))?;
+                runtime.block_on(install_downloaded_skill(port, raw_url, parsed, resolve))
+            })
+            .join()
+            .map_err(|_| skill_install_failed("skill download worker panicked"))?
     })
 }
 
@@ -314,6 +315,28 @@ pub(super) fn uninstall_skill(
     port: &ProductionAdkPort,
     id: &str,
 ) -> Result<Value, AdkMutationPortError> {
+    uninstall_registered_skill(port, id).map_err(|error| match error {
+        SkillUninstallError::Mutation(error) => error,
+        error => skill_uninstall_failed(&error.to_string()),
+    })
+}
+
+#[derive(Debug, thiserror::Error)]
+enum SkillUninstallError {
+    #[error("{0}")]
+    Missing(#[source] std::io::Error),
+    #[error("{0}")]
+    Mutation(#[from] AdkMutationPortError),
+    #[error("{0}")]
+    Registry(#[from] super::super::skills::SkillRegistryError),
+    #[error("{0}")]
+    Cleanup(#[from] jftrade_store_sqlite::AdkSkillDeleteError),
+}
+
+fn uninstall_registered_skill(
+    port: &ProductionAdkPort,
+    id: &str,
+) -> Result<Value, SkillUninstallError> {
     // Go syncs the builtin bundles into the skills directory during runtime
     // construction, so `Get` finds them with `source: builtin`. Rust projects
     // builtins from the catalogue instead of duplicating them into the store,
@@ -326,13 +349,14 @@ pub(super) fn uninstall_skill(
         Some(stored) => decode_mutation_payload(&stored.payload_json, "skill")?,
         None => match builtin {
             Some(_) => {
-                return Err(skill_uninstall_failed(
-                    "builtin skills cannot be uninstalled",
-                ));
+                return Err(skill_uninstall_failed("builtin skills cannot be uninstalled").into());
             }
-            None => super::super::skills::filesystem_skill(port, id)
-                .map_err(|error| skill_uninstall_failed(&error.to_string()))?
-                .ok_or_else(|| skill_uninstall_failed("file does not exist"))?,
+            None => super::super::skills::filesystem_skill(port, id)?.ok_or_else(|| {
+                SkillUninstallError::Missing(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "file does not exist",
+                ))
+            })?,
         },
     };
     let source = payload
@@ -341,20 +365,16 @@ pub(super) fn uninstall_skill(
         .unwrap_or_default()
         .trim();
     if source.eq_ignore_ascii_case("builtin") || builtin.is_some() {
-        return Err(skill_uninstall_failed(
-            "builtin skills cannot be uninstalled",
-        ));
+        return Err(skill_uninstall_failed("builtin skills cannot be uninstalled").into());
     }
-    port.store
-        .delete_skill_with_cleanup(id, || {
-            if let Some(path) = payload.get("installPath").and_then(Value::as_str)
-                && let Some(parent) = std::path::Path::new(path).parent()
-            {
-                fs::remove_dir_all(parent)?;
-            }
-            Ok(())
-        })
-        .map_err(|error| skill_uninstall_failed(&error.to_string()))?;
+    port.store.delete_skill_with_cleanup(id, || {
+        if let Some(path) = payload.get("installPath").and_then(Value::as_str)
+            && let Some(parent) = std::path::Path::new(path).parent()
+        {
+            fs::remove_dir_all(parent)?;
+        }
+        Ok(())
+    })?;
     Ok(json!({"id": id, "deleted": true}))
 }
 

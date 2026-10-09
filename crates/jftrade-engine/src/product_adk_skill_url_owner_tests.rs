@@ -1,7 +1,7 @@
 use super::super::super::super::skills::filesystem_skill;
 use super::super::{
     AdkMutationInput, AdkMutationOperation, AdkMutationPortError, install_skill_with_resolver,
-    uninstall_skill,
+    uninstall_registered_skill, uninstall_skill,
 };
 use super::*;
 use crate::product::product_adk_chat_stream_port::AdkChatStreamPort;
@@ -401,10 +401,21 @@ fn production_skill_url_install_preserves_archive_size_windows_resources_and_uni
         oversized.to_string().contains("skill file exceeds"),
         "{oversized}"
     );
+    let rows = port.store.list_skills().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+    let document_path = root.path().join("skills/archive-skill/SKILL.md");
+    let document_bytes = std::fs::read(&document_path).unwrap();
+    let registry_missing = uninstall_registered_skill(&port, "missing-skill").unwrap_err();
+    let missing_source = std::error::Error::source(&registry_missing)
+        .and_then(|source| source.downcast_ref::<std::io::Error>());
+    assert!(
+        missing_source.is_some_and(|source| source.kind() == std::io::ErrorKind::NotFound),
+        "missing registry uninstall must preserve its typed NotFound source: {registry_missing}"
+    );
     let missing = uninstall_skill(&port, "missing-skill").unwrap_err();
     assert!(matches!(
-        missing,
-        AdkMutationPortError::Failed { status: 500, .. }
+        &missing,
+        AdkMutationPortError::Failed { status: 500, code, .. } if code == "ADK_SKILL_UNINSTALL_FAILED"
     ));
     assert!(missing.to_string().contains("file does not exist"));
     let builtin = uninstall_skill(&port, "jftrade-market").unwrap_err();
@@ -413,7 +424,33 @@ fn production_skill_url_install_preserves_archive_size_windows_resources_and_uni
             .to_string()
             .contains("builtin skills cannot be uninstalled")
     );
+    assert_eq!(port.store.list_skills().unwrap(), rows);
+    assert_eq!(port.store.list_audit_events().unwrap(), audit);
+    assert_eq!(std::fs::read(&document_path).unwrap(), document_bytes);
     uninstall_skill(&port, "archive-skill").unwrap();
     port.shutdown_with_error().unwrap();
     assert!(filesystem_skill(&port, "archive-skill").unwrap().is_none());
+}
+
+// Parity: go:452dea11:internal/assistant/engine/skill_reg_fs_test.go:89 TestSkillRegistryFilesystemFailureBoundaries
+#[test]
+fn production_skill_url_install_rejects_a_file_at_the_registry_root() {
+    let root = tempdir().unwrap();
+    let port = test_port(root.path());
+    let registry_root = root.path().join("skills");
+    std::fs::write(&registry_root, b"not a directory").unwrap();
+    let server = DownloadServer::start(BTreeMap::from([(
+        "/blocked.md".to_owned(),
+        (200, None, b"---\nname: blocked\ndescription: Valid download\n---\nUse the downloaded skill.".to_vec()),
+    )]));
+    let rows = port.store.list_skills().unwrap();
+    let audit = port.store.list_audit_events().unwrap();
+    let error = server.install(&port, "/blocked.md").unwrap_err();
+    port.shutdown_with_error().unwrap();
+    assert!(matches!(&error, AdkMutationPortError::Failed { status: 400, code, .. } if code == "ADK_SKILL_INSTALL_FAILED"), "{error}");
+    assert_eq!(std::fs::read(&registry_root).unwrap(), b"not a directory");
+    assert_eq!(port.store.list_skills().unwrap(), rows);
+    assert_eq!(port.store.list_audit_events().unwrap(), audit);
+    assert_eq!(*server.requests.lock().unwrap(), ["/blocked.md"]);
+    assert_eq!(*server.resolutions.lock().unwrap(), ["skills.example"]);
 }

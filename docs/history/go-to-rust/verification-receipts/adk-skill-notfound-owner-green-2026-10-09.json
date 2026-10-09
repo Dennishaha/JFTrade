@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "jftrade.go-rust-parity-receipt.v1",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "NEXTEST_EXPERIMENTAL_LIBTEST_JSON=1",
+    "node",
+    "scripts/quality/cargo-nextest.mjs",
+    "run",
+    "-p",
+    "jftrade-engine",
+    "--all-targets",
+    "--locked",
+    "--message-format",
+    "libtest-json-plus",
+    "--no-fail-fast",
+    "-E",
+    "test(production_skill_url_install_preserves_archive_size_windows_resources_and_uninstall_protections)"
+  ],
+  "runnerVersion": "cargo-nextest 0.9.145",
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "exitCode": 0,
+  "status": "passed",
+  "verifiedAt": "2026-10-09T04:18:39Z",
+  "sourceState": {
+    "verifiedCommit": "2df2f8127f1a0fca57bbe1cf858dac31a36de83f",
+    "trackedDiffSha256": "071a71b04d7c67c86832bb77d63faa833172d34a79550b6d387bd9fc50ee9247",
+    "untrackedFiles": [
+      {
+        "path": "docs/history/go-to-rust/verification-receipts/adk-skill-notfound-owner-red-2026-10-09.json",
+        "sha256": "baa4f6a062d01b4b919ecc317a972dc1680bf905f42ebbfb38a1dc6c8f1b532b"
+      }
+    ]
+  },
+  "rawOutputSha256": "66180739effb8528eec5d3946d8ca43cad94613927c4f738b9021e5b4403d76f",
+  "passedTests": [
+    "jftrade-engine::jftrade_engine$product::product_production_ports::product_production_ports_adk::mutation::runtime::skill_tests::download::production_skill_url_install_preserves_archive_size_windows_resources_and_uninstall_protections"
+  ],
+  "failedTests": [],
+  "ignoredTests": [],
+  "suites": [
+    {
+      "type": "suite",
+      "event": "started",
+      "test_count": 1,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    },
+    {
+      "type": "suite",
+      "event": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 2023,
+      "exec_time": 0.097897709,
+      "nextest": {
+        "crate": "jftrade-engine",
+        "test_binary": "jftrade_engine",
+        "kind": "lib"
+      }
+    }
+  ]
+}
